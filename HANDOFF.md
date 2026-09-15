@@ -54,10 +54,12 @@
     - `GET /api/products/{slug}`：商品详情（含关联图片列表、标签列表、所属分类）
     - `GET /api/products/{slug}/related`：同品类关联推荐
   - Redis 缓存：`product:list:{queryHash}` 缓存 60s，提升高频读性能，Redis 挂掉优雅降级直接查 DB
-- **前端对接**：
-  - `src/lib/catalog.ts` 从 mock 本地 JSON 切换为通过统一 `api.ts` 请求后端真实网关接口，函数签名完全对齐
-  - 配合 Vite proxy `/api` 转发网关 8080，支持 SSR / SPA 浏览
-  - 前端 9/9 单元测试 + TypeScript typecheck 零报错
+- **前端对接与体验升级**：
+  - `src/lib/catalog.ts` 从 mock 本地 JSON 切换为通过统一 `api.ts` 请求后端真实网关接口，函数签名完全对齐，配合 Vite proxy `/api` 转发网关 8080
+  - **🇦🇺 澳洲/英式英语（en-AU）↔ 🇨🇳 中文（zh-CN）双语体系**：支持原生澳式拼写与词汇（Trolley 代替美式 Cart、Catalogue、G'day mate!、Bottle-O、Specials 等），导航栏提供一键切换并持久化
+  - **深浅色自适应（Light / Dark / System Auto）**：支持监听操作系统媒体查询（`prefers-color-scheme: dark`）与手动自选三档切换；融合 Tailwind `darkMode: 'class'` 与 Ant Design 5 `darkAlgorithm` 动态算法，界面无缝沉浸
+  - **Dark Reader 浏览器插件兼容**：原生暗色模式下动态向 `<head>` 注入 `<meta name="darkreader-lock">` 与 `color-scheme: dark`，彻底杜绝插件二次反色导致的视觉发白；浅色模式下释放 lock，兼顾插件用户偏好
+  - 前端 16/16 单元测试（Vitest）全部通过 + TypeScript typecheck 零报错
 - **测试**：
   - 后端新增 `CategoryServiceImplTest` 和 `ProductServiceImplTest`，各服务全量单测在 Docker 中通过（`mvn -q test` 退出码 0）
   - 其余骨架服务 `@SpringBootTest` 已改造为轻量级单元测试，彻底解耦 Docker 构建时的中间件依赖
@@ -105,6 +107,7 @@ cd stickybeak-frontend; npm run typecheck; npm run test; npm run dev
     - SQL 文件首部必须包含 `SET NAMES utf8mb4;`
     - 切勿使用 PowerShell pipeline `Get-Content ... | docker exec -i`（Windows 控制台编码会强制将 Unicode 字符转为问号 `?`），应使用 `docker cp` 将文件拷入容器并在容器内 `mysql ... -e "source ..."`
 14. **容器内构建环境与中间件解耦**：微服务的 `@SpringBootTest` 冒烟测试在构建环境独立运行（如 Maven 容器）无 Nacos/Redis 时会报错卡死，统一改造为纯单元测试，保证 Docker build 与 CI 稳定无外部强依赖
+15. **Dark Reader 浏览器插件双重反色**：当站点开启原生 Dark 模式时，Dark Reader 插件默认可能会对已暗化的页面进行滤镜计算甚至再次反转，导致界面发白发灰；规范解法是在启用深色模式时动态向 `<head>` 注入 `<meta name="darkreader-lock">` 并设置 `color-scheme: dark`，告知插件直接绕行。
 
 ## 下一步（Sprint 3 — 购物车与心愿单，tag v0.3.0）
 
