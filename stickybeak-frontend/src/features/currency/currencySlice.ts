@@ -11,7 +11,8 @@ interface CurrencyState {
 
 const initialState: CurrencyState = {
   currency: (localStorage.getItem('sb_currency') as Currency) || 'AUD',
-  audToCny: 1,
+  // 开发期固定演示汇率；Sprint 4 Issue 4.7 改为后端 t_exchange_rate 每日刷新值
+  audToCny: 4.75,
 };
 
 const currencySlice = createSlice({

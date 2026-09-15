@@ -9,7 +9,19 @@
 
 body {
   margin: 0;
+  /* 西文在前（英文用 Segoe UI 等），CJK 系统字体在后（中文回退到雅黑/苹方，避免落到点阵宋体） */
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
-    Arial, sans-serif;
+    Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #faf8f4;
+}
+
+/* 商品卡片图片容器统一裁切 */
+.product-card-img {
+  transition: transform 0.3s ease;
+}
+.product-card:hover .product-card-img {
+  transform: scale(1.04);
 }

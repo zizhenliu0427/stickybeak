@@ -1,0 +1,381 @@
+{
+  "categories": [
+    {
+      "slug": "bus-sign",
+      "name": "大学公交路牌",
+      "sortOrder": 1
+    },
+    {
+      "slug": "supermarket",
+      "name": "超市系列",
+      "sortOrder": 2
+    },
+    {
+      "slug": "train",
+      "name": "火车电车",
+      "sortOrder": 3
+    },
+    {
+      "slug": "bird",
+      "name": "小鸟路牌",
+      "sortOrder": 4
+    },
+    {
+      "slug": "booze",
+      "name": "酒鬼系列",
+      "sortOrder": 5
+    },
+    {
+      "slug": "phonecase",
+      "name": "手机壳周边",
+      "sortOrder": 6
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "slug": "aussie-uni-bus-stop-set",
+      "name": "土澳大学公交站牌冰箱贴套装",
+      "description": "公共交通是大家在土澳学习生活中必备的交通工具‼️\n \n回国后想把这段学习的经历记录下来，所以我们把🚌🚃的站点做成了冰箱贴[哇R]\n \n🚌- UNSW USYD UQ UTS ANU 麦考瑞 莫那什\n🚃-墨大\n🚇-麦考瑞",
+      "category": "bus-sign",
+      "priceCents": 2990,
+      "stock": 42,
+      "sales": 181,
+      "tags": [
+        "UNSW",
+        "USYD",
+        "UQ",
+        "ANU",
+        "莫那什大学"
+      ],
+      "images": [
+        "/mock-products/aussie-uni-bus-stop-set/01.jpg",
+        "/mock-products/aussie-uni-bus-stop-set/02.jpg",
+        "/mock-products/aussie-uni-bus-stop-set/03.jpg",
+        "/mock-products/aussie-uni-bus-stop-set/04.jpg"
+      ],
+      "sourceNoteId": "6a2d06a4000000001503ef98",
+      "featured": true
+    },
+    {
+      "id": 2,
+      "slug": "group-of-eight-bus-signs",
+      "name": "八大名校公交路牌全套",
+      "description": "🚌\nUNSW- 370_390X_348_392\nUQ- M2_66_139_169_412_428\n莫那什-862_733_900_601\nUSYD-370_428_430_461X\n \n🚃\n墨尔本大学- 6路_1路_72路_16路\n \n🚇\n麦考瑞大学- M1",
+      "category": "bus-sign",
+      "priceCents": 3990,
+      "stock": 15,
+      "sales": 80,
+      "tags": [
+        "UNSW",
+        "墨尔本大学",
+        "莫那什大学",
+        "ANU"
+      ],
+      "images": [
+        "/mock-products/group-of-eight-bus-signs/01.jpg",
+        "/mock-products/group-of-eight-bus-signs/02.jpg",
+        "/mock-products/group-of-eight-bus-signs/03.jpg",
+        "/mock-products/group-of-eight-bus-signs/04.jpg"
+      ],
+      "sourceNoteId": "6a0594fb000000003603135d",
+      "featured": true
+    },
+    {
+      "id": 3,
+      "slug": "uni-bus-sign-collection",
+      "name": "澳洲大学公交冰箱贴合集",
+      "description": "我们把大家上下学经常乘坐的巴士做成冰箱贴啦[哇R]\n \n🚌- UNSW（370 390X 348 392）\n- USYD（ 370 461X 423 426 430 428）\n-UTS（412 440 430）\n- UQ（ M2 66  139 169 179 29  412 411 428 414）\n-ANU（R3 R7 R2 R4 R10 R6）\n-莫那什（862 733 900 601）\n-麦考瑞 （550 288 518 506）\n🚃-Unimelb（6 1 72 16）\n🚇-莫那什",
+      "category": "bus-sign",
+      "priceCents": 1290,
+      "stock": 60,
+      "sales": 23,
+      "tags": [
+        "UNSW",
+        "USYD"
+      ],
+      "images": [
+        "/mock-products/uni-bus-sign-collection/01.jpg",
+        "/mock-products/uni-bus-sign-collection/02.jpg",
+        "/mock-products/uni-bus-sign-collection/03.jpg",
+        "/mock-products/uni-bus-sign-collection/04.jpg"
+      ],
+      "sourceNoteId": "6a5c7a35000000000301db9c",
+      "featured": false
+    },
+    {
+      "id": 4,
+      "slug": "campus-transit-signs",
+      "name": "校园路牌冰箱贴合集",
+      "description": "我们做了7所澳洲学校的交通路牌冰箱贴[派对R]\nNSW\n- UNSW🚌\n- USYD🚌\n- UTS🚌\n-麦考瑞🚌🚇\n \nVIC\n-墨大🚃\n-麦考瑞🚌\n \n堪培拉\n- ANU🚌\n \n感兴趣的小伙伴可以到店铺里看看哦[喝奶茶R]",
+      "category": "bus-sign",
+      "priceCents": 1490,
+      "stock": 33,
+      "sales": 105,
+      "tags": [
+        "UNSW",
+        "USYD",
+        "ANU"
+      ],
+      "images": [
+        "/mock-products/campus-transit-signs/01.jpg",
+        "/mock-products/campus-transit-signs/02.jpg",
+        "/mock-products/campus-transit-signs/03.jpg",
+        "/mock-products/campus-transit-signs/04.jpg"
+      ],
+      "sourceNoteId": "69bfe60e000000001a032499",
+      "featured": false
+    },
+    {
+      "id": 5,
+      "slug": "unsw-bus-stop-sign",
+      "name": "UNSW 校车站牌冰箱贴",
+      "description": "幽灵车👻\n严重迟到⏰\n好不容易车到了结果满载🈵\n \n土澳的公交车🚌和电车🚃总可以不重样的出现让人无语的问题\n \n你学校的公交🚌或电车🚃准时吗？",
+      "category": "bus-sign",
+      "priceCents": 990,
+      "stock": 80,
+      "sales": 70,
+      "tags": [
+        "UNSW"
+      ],
+      "images": [
+        "/mock-products/unsw-bus-stop-sign/01.jpg",
+        "/mock-products/unsw-bus-stop-sign/02.jpg",
+        "/mock-products/unsw-bus-stop-sign/03.jpg",
+        "/mock-products/unsw-bus-stop-sign/04.jpg"
+      ],
+      "sourceNoteId": "6a350eec000000001603ca8c",
+      "featured": false
+    },
+    {
+      "id": 6,
+      "slug": "realistic-bus-sign",
+      "name": "仿真公交路牌冰箱贴",
+      "description": "我们把土澳校园热门公交线路做成了冰箱贴[派对R]\n \n🚌\nUNSW USYD UTS UQ ANU 麦考瑞大学\n \n🚃\n墨尔本大学\n \n🚇\n麦考瑞大学",
+      "category": "bus-sign",
+      "priceCents": 1090,
+      "stock": 55,
+      "sales": 45,
+      "tags": [
+        "路牌"
+      ],
+      "images": [
+        "/mock-products/realistic-bus-sign/01.jpg",
+        "/mock-products/realistic-bus-sign/02.jpg",
+        "/mock-products/realistic-bus-sign/03.jpg",
+        "/mock-products/realistic-bus-sign/04.jpg"
+      ],
+      "sourceNoteId": "6a8015be000000002402f595",
+      "featured": false
+    },
+    {
+      "id": 7,
+      "slug": "sydney-t9-train-sign",
+      "name": "悉尼火车 T9 线路牌冰箱贴",
+      "description": "🚂小伙伴们都有许多故事发生在车站或者火车上\n \n🔴T9 🟠T1 🔵T2 🟢T8\n🚂Burwood, Redfern,Strathfield, Mascot, Central\n都被我们做成可以保存这份记忆的冰箱贴啦",
+      "category": "train",
+      "priceCents": 1090,
+      "stock": 66,
+      "sales": 173,
+      "tags": [
+        "T9",
+        "悉尼火车"
+      ],
+      "images": [
+        "/mock-products/sydney-t9-train-sign/01.jpg",
+        "/mock-products/sydney-t9-train-sign/02.jpg",
+        "/mock-products/sydney-t9-train-sign/03.jpg",
+        "/mock-products/sydney-t9-train-sign/04.jpg"
+      ],
+      "sourceNoteId": "6a9d59cd000000002802c923",
+      "featured": true
+    },
+    {
+      "id": 8,
+      "slug": "sydney-train-never-late",
+      "name": "悉尼火车冰箱贴 · 永不晚点版",
+      "description": "我们的悉尼火车路牌冰箱贴来咯[哇R] 目前做了悉尼火车线路中的五条大线，每条线路都有双方向的路牌冰箱贴[派对R]\n \n🟥T9（Hornsby & Gordon）\n🟦T4（Bondi & waterfall）\n🟧T2 （Penrith & Hornsby）\n🟦T2（city circle &  parramatta）\n🟩T8 （city circle & Macarthur）",
+      "category": "train",
+      "priceCents": 990,
+      "stock": 71,
+      "sales": 134,
+      "tags": [
+        "悉尼火车"
+      ],
+      "images": [
+        "/mock-products/sydney-train-never-late/01.jpg",
+        "/mock-products/sydney-train-never-late/02.jpg",
+        "/mock-products/sydney-train-never-late/03.jpg",
+        "/mock-products/sydney-train-never-late/04.jpg"
+      ],
+      "sourceNoteId": "6a4f939a000000001c0258c2",
+      "featured": false
+    },
+    {
+      "id": 9,
+      "slug": "sydney-train-two-way-sign",
+      "name": "悉尼火车双向路牌冰箱贴",
+      "description": "🟥T9\nHornsby｜Gordon\n \n🟦T4\nWaterfall｜Bondi Junction\n \n🟦T2\nCitCircle｜Parramatta\n \n🟩T8\nCityCircle｜Macarthur\n \n🟧T1\nPenith｜Hornsby",
+      "category": "train",
+      "priceCents": 1190,
+      "stock": 48,
+      "sales": 186,
+      "tags": [
+        "悉尼火车",
+        "路牌"
+      ],
+      "images": [
+        "/mock-products/sydney-train-two-way-sign/01.jpg",
+        "/mock-products/sydney-train-two-way-sign/02.jpg",
+        "/mock-products/sydney-train-two-way-sign/03.jpg",
+        "/mock-products/sydney-train-two-way-sign/04.jpg"
+      ],
+      "sourceNoteId": "6a1023a90000000036030aa3",
+      "featured": false
+    },
+    {
+      "id": 10,
+      "slug": "aussie-supermarket-collection",
+      "name": "澳洲超市冰箱贴合集",
+      "description": "🛒我们的超市系列又有新产品啦[哇R]\n \n🟥扣死超市\n-DOWN DOWN（经典橄榄油🫒）\n- REDUCED TO CLEAR （不拉肚子牛奶🥛）\n \n🟩wws超市\n- QUICK SALE（美味烤鸡🐔）\n- CLEARANCE（经典购物袋🛍️）\n \n🛒四个款式都是澳洲独家发售，感兴趣的小伙伴可以到悉尼合作店铺看看哦[喝奶茶R] 同时还有其他红绿超市的款式[哇R]",
+      "category": "supermarket",
+      "priceCents": 1390,
+      "stock": 52,
+      "sales": 40,
+      "tags": [
+        "Coles",
+        "WWS"
+      ],
+      "images": [
+        "/mock-products/aussie-supermarket-collection/01.jpg",
+        "/mock-products/aussie-supermarket-collection/02.jpg",
+        "/mock-products/aussie-supermarket-collection/03.jpg",
+        "/mock-products/aussie-supermarket-collection/04.jpg"
+      ],
+      "sourceNoteId": "6a86f307000000002702a373",
+      "featured": true
+    },
+    {
+      "id": 11,
+      "slug": "wws-supermarket-magnets",
+      "name": "窝窝屎超市周边冰箱贴",
+      "description": "窝窝屎超市系列冰箱贴又加入新设计啦[哇R]\n \n🐔超市经典烤全鸡，半夜会有-QUICK SALE\n \n🛍️超市小贵购物袋，2刀清仓- CLEARANCE\n \n🍫绝版价格的timtam巧克力[哭惹R]- 1/2 PRICE\n \n🍻聚会必喝的姜汁啤酒[喝奶茶R]- SPECIAL",
+      "category": "supermarket",
+      "priceCents": 890,
+      "stock": 90,
+      "sales": 109,
+      "tags": [
+        "WWS"
+      ],
+      "images": [
+        "/mock-products/wws-supermarket-magnets/01.jpg",
+        "/mock-products/wws-supermarket-magnets/02.jpg",
+        "/mock-products/wws-supermarket-magnets/03.jpg"
+      ],
+      "sourceNoteId": "6a8fe4ca000000001803c830",
+      "featured": false
+    },
+    {
+      "id": 12,
+      "slug": "greedy-birds",
+      "name": "贪吃小鸟冰箱贴",
+      "description": "我们把四种贪吃的小鸟做成冰箱贴啦\n🟥NO STOPING-蒜苗鸡\n \n🟨DO NOT FEED-薯条刺客\n \n🟦🅿️ALICAN PARKING-鹈鹕\n \n⬜️NO BIN CHICKEN-垃圾鸟",
+      "category": "bird",
+      "priceCents": 990,
+      "stock": 77,
+      "sales": 112,
+      "tags": [
+        "鹦鹉",
+        "海鸥"
+      ],
+      "images": [
+        "/mock-products/greedy-birds/01.jpg",
+        "/mock-products/greedy-birds/02.jpg",
+        "/mock-products/greedy-birds/03.jpg",
+        "/mock-products/greedy-birds/04.jpg"
+      ],
+      "sourceNoteId": "6a16b71d000000003601f93b",
+      "featured": false
+    },
+    {
+      "id": 13,
+      "slug": "bird-snatchers",
+      "name": "抢食小鸟冰箱贴",
+      "description": "🟥大葵鸡-🥐可颂终结者\n🟦大鹈鹕-🐟小丑鱼守护者\n🟨海鸥-🍟薯条刺客\n⬜️垃圾鸟-🚮厨余垃圾终结者\n \n四大天王在澳洲街头随处可见[哇R] 大家见到他们不要投喂人类食物⚠️ 因为他们会想办法抢走[哭惹R]",
+      "category": "bird",
+      "priceCents": 990,
+      "stock": 63,
+      "sales": 102,
+      "tags": [
+        "鹦鹉"
+      ],
+      "images": [
+        "/mock-products/bird-snatchers/01.jpg",
+        "/mock-products/bird-snatchers/02.jpg",
+        "/mock-products/bird-snatchers/03.jpg",
+        "/mock-products/bird-snatchers/04.jpg"
+      ],
+      "sourceNoteId": "6a40ea13000000001702f7ae",
+      "featured": false
+    },
+    {
+      "id": 14,
+      "slug": "chip-thief-seagull",
+      "name": "薯条刺客海鸥冰箱贴",
+      "description": "🍟悉尼博物馆官方正名的薯条大盗-澳洲银鸥\n \n🍟薯条大盗通常成群结队出没于海边街头，盯着人们手中刚出炉的薯条，抓住机会就会蜂拥而上夺走薯条\n \n🍟大家在街头不要对他们进行投喂🈲，给抢走不算",
+      "category": "bird",
+      "priceCents": 890,
+      "stock": 84,
+      "sales": 72,
+      "tags": [
+        "海鸥"
+      ],
+      "images": [
+        "/mock-products/chip-thief-seagull/01.jpg",
+        "/mock-products/chip-thief-seagull/02.jpg",
+        "/mock-products/chip-thief-seagull/03.jpg",
+        "/mock-products/chip-thief-seagull/04.jpg"
+      ],
+      "sourceNoteId": "6a8ffee900000000210312d8",
+      "featured": false
+    },
+    {
+      "id": 15,
+      "slug": "booze-lovers",
+      "name": "酒鬼系列冰箱贴",
+      "description": "酒水畅饮（不是）\n-这是我们做的🈲🍷冰箱贴[哇R]\n爱喝酒的小伙伴可以贴在冰箱贴上提示自己不可贪杯[暗中观察R]\n-不爱喝酒的小伙伴也可以喝点🥤[喝奶茶R]\n \n感兴趣的小伙伴可以到店铺里看看哦",
+      "category": "booze",
+      "priceCents": 1090,
+      "stock": 39,
+      "sales": 73,
+      "tags": [
+        "酒鬼"
+      ],
+      "images": [
+        "/mock-products/booze-lovers/01.jpg",
+        "/mock-products/booze-lovers/02.jpg",
+        "/mock-products/booze-lovers/03.jpg"
+      ],
+      "sourceNoteId": "69be3c5c000000001a0313b0",
+      "featured": false
+    },
+    {
+      "id": 16,
+      "slug": "aussie-phonecase",
+      "name": "土澳特色手机壳",
+      "description": "",
+      "category": "phonecase",
+      "priceCents": 1690,
+      "stock": 25,
+      "sales": 124,
+      "tags": [
+        "手机壳"
+      ],
+      "images": [
+        "/mock-products/aussie-phonecase/01.webp"
+      ],
+      "sourceNoteId": "694d03aa0000000021029df7",
+      "featured": false
+    }
+  ]
+}
