@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  backend:
+    name: Backend build & test (JDK 17)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Maven verify
+        run: mvn -B verify
+
+  frontend:
+    name: Frontend typecheck, test & build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: stickybeak-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: stickybeak-frontend/package-lock.json
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+
+  docker:
+    name: Docker compose config validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate compose files
+        run: |
+          docker compose -f docker/docker-compose-infra.yml config -q
+          docker compose -f docker/docker-compose.yml config -q

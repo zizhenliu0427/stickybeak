@@ -1,0 +1,15 @@
+# Generic backend service image. Build context = repo root.
+# Usage: docker build -f docker/Dockerfile.backend --build-arg MODULE=stickybeak-auth .
+
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /workspace
+ARG MODULE
+COPY . .
+RUN mvn -q -pl ${MODULE} -am package -DskipTests
+
+FROM eclipse-temurin:17-jre
+ARG MODULE
+ENV JAVA_OPTS=""
+COPY --from=build /workspace/${MODULE}/target/${MODULE}-*.jar /app.jar
+EXPOSE 8080
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app.jar"]

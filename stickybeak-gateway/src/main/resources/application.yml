@@ -1,0 +1,61 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: stickybeak-gateway
+  config:
+    import:
+      - optional:nacos:stickybeak-gateway.yml
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+      config:
+        server-addr: ${NACOS_ADDR:localhost:8848}
+        file-extension: yml
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: ["http://localhost:5173", "http://localhost"]
+            allowed-methods: "*"
+            allowed-headers: "*"
+            allow-credentials: true
+      routes:
+        - id: auth
+          uri: lb://stickybeak-auth
+          predicates:
+            - Path=/api/auth/**,/api/users/**
+          filters:
+            - StripPrefix=1
+        - id: product
+          uri: lb://stickybeak-product
+          predicates:
+            - Path=/api/products/**,/api/categories/**,/api/tags/**
+          filters:
+            - StripPrefix=1
+        - id: cart
+          uri: lb://stickybeak-cart
+          predicates:
+            - Path=/api/cart/**,/api/wishlist/**
+          filters:
+            - StripPrefix=1
+        - id: order
+          uri: lb://stickybeak-order
+          predicates:
+            - Path=/api/orders/**,/api/checkout/**
+          filters:
+            - StripPrefix=1
+        - id: payment
+          uri: lb://stickybeak-payment
+          predicates:
+            - Path=/api/payments/**,/api/webhooks/**
+          filters:
+            - StripPrefix=1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway

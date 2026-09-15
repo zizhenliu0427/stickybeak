@@ -1,0 +1,29 @@
+# --- Java / Maven ---
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# --- Node / Frontend ---
+node_modules/
+dist/
+*.local
+
+# --- Env & secrets ---
+.env
+.env.*
+!.env.example
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+logs/
+*.log
