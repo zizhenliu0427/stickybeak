@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import au.com.stickybeak.common.result.Result;
 
 @RestController
-@RequestMapping("/health")
+@RequestMapping("/products/health")
 public class HealthController {
 
     @GetMapping
