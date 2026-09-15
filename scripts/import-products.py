@@ -210,6 +210,7 @@ def main():
     lines.append("-- ============================================================")
     lines.append("")
     lines.append("USE stickybeak_product;")
+    lines.append("SET NAMES utf8mb4;")
     lines.append("")
 
     # 1. 标签
