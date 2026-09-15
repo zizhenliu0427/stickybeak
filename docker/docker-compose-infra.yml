@@ -1,5 +1,3 @@
-version: "3.8"
-
 # Infrastructure only: databases, middleware, consoles.
 # Start: docker compose -f docker/docker-compose-infra.yml up -d
 
@@ -25,7 +23,9 @@ services:
     image: redis:7-alpine
     container_name: sb-redis
     ports:
-      - "6379:6379"
+      # 主机 6379/6380 常被 Windows Hyper-V 动态保留段（6346-6445）占用，宿主映射到 16379；
+      # 容器间互通仍走 6379，宿主/IDE 访问用 localhost:16379
+      - "16379:6379"
     volumes:
       - redis-data:/data
 
@@ -75,7 +75,8 @@ services:
       - mysql
 
   minio:
-    image: minio/minio:latest
+    # MinIO 社区版已停止向 Docker Hub 发布镜像，改用 quay.io 最后发布的历史版本
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: sb-minio
     command: server /data --console-address ":9001"
     environment:
