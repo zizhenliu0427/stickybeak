@@ -38,7 +38,12 @@ export default {
         },
       },
       fontFamily: {
-        display: ['Georgia', 'Times New Roman', 'serif'],
+        sans: [
+          '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial',
+          'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'sans-serif',
+        ],
+        // 标题衬线：西文 Georgia，中文回退宋体系（保持编辑感）
+        display: ['Georgia', 'Times New Roman', 'Noto Serif SC', 'SimSun', 'serif'],
       },
     },
   },
