@@ -7,22 +7,12 @@ import { listCategories, listProducts } from '../lib/catalog';
 import type { Category, ProductListResult } from '../lib/catalog';
 import { useAppSelector } from '../app/hooks';
 import { formatPrice } from '../lib/format';
-
-const SORT_OPTIONS = [
-  { value: 'new', label: '最新' },
-  { value: 'sales', label: '销量优先' },
-  { value: 'price-asc', label: '价格从低到高' },
-  { value: 'price-desc', label: '价格从高到低' },
-];
+import { useI18n, type TranslationKey } from '../lib/i18n';
 
 const PAGE_SIZE = 12;
 /** 价格筛选上限（AUD cents） */
 const PRICE_CAP = 4000;
 
-/**
- * 商品列表：筛选条件全部同步 URL query（可分享）。
- * mock 阶段由本地目录服务过滤；Sprint 2 切换为 GET /api/products 同参。
- */
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [categories, setCategories] = useState<Category[]>([]);
@@ -30,6 +20,14 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const currency = useAppSelector((s) => s.currency.currency);
   const rate = useAppSelector((s) => s.currency.audToCny);
+  const { t } = useI18n();
+
+  const sortOptions = [
+    { value: 'new', label: t('products.sortNew') },
+    { value: 'sales', label: t('products.sortSales') },
+    { value: 'price-asc', label: t('products.sortPriceAsc') },
+    { value: 'price-desc', label: t('products.sortPriceDesc') },
+  ];
 
   // 从 URL 读取当前筛选
   const query = useMemo(
@@ -82,7 +80,7 @@ export default function ProductsPage() {
       {/* 工具栏 */}
       <div className="flex flex-wrap items-center gap-3">
         <Input.Search
-          placeholder="搜商品 / 标签，如 T9、海鸥"
+          placeholder={t('products.searchPlaceholder')}
           allowClear
           defaultValue={query.q}
           onSearch={(v) => patchParams({ q: v || undefined })}
@@ -90,12 +88,12 @@ export default function ProductsPage() {
         />
         <Select
           value={query.sort}
-          options={SORT_OPTIONS}
+          options={sortOptions}
           onChange={(v) => patchParams({ sort: v === 'new' ? undefined : v })}
-          className="w-36"
+          className="w-40"
         />
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <span>价格</span>
+        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-stone-400">
+          <span>{t('products.filterPrice')}</span>
           <Slider
             range
             min={0}
@@ -125,31 +123,35 @@ export default function ProductsPage() {
           className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
             !query.category
               ? 'bg-brand-600 text-white'
-              : 'border border-sand-200 bg-white text-gray-600 hover:border-brand-300'
+              : 'border border-sand-200 bg-white text-gray-600 hover:border-brand-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300 dark:hover:border-brand-700'
           }`}
         >
-          全部
+          {t('common.all')}
         </button>
-        {categories.map((c) => (
-          <button
-            key={c.slug}
-            onClick={() => patchParams({ category: c.slug })}
-            className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
-              query.category === c.slug
-                ? 'bg-brand-600 text-white'
-                : 'border border-sand-200 bg-white text-gray-600 hover:border-brand-300'
-            }`}
-          >
-            {c.name}
-          </button>
-        ))}
+        {categories.map((c) => {
+          const catKey = `cat.${c.slug}` as TranslationKey;
+          const displayName = t(catKey) || c.name;
+          return (
+            <button
+              key={c.slug}
+              onClick={() => patchParams({ category: c.slug })}
+              className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
+                query.category === c.slug
+                  ? 'bg-brand-600 text-white'
+                  : 'border border-sand-200 bg-white text-gray-600 hover:border-brand-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300 dark:hover:border-brand-700'
+              }`}
+            >
+              {displayName}
+            </button>
+          );
+        })}
       </div>
 
       {/* 结果 */}
       {loading ? (
         <ProductGridSkeleton count={8} />
       ) : !result || result.items.length === 0 ? (
-        <Empty description="没有符合条件的商品" className="py-16" />
+        <Empty description={t('products.noResults')} className="py-16" />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
