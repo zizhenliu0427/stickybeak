@@ -1,4 +1,5 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Spin } from 'antd';
 import { useAppSelector } from '../app/hooks';
 
 /** Route guard: redirects unauthenticated users to /login. */
@@ -7,7 +8,12 @@ export default function RequireAuth() {
   const location = useLocation();
 
   if (!initialized) {
-    return null; // TODO(Sprint 1): probe /users/me, show a splash while resolving
+    // 等待 /users/me 探测结果（刷新页面登录态不丢）
+    return (
+      <div className="flex justify-center py-20">
+        <Spin size="large" />
+      </div>
+    );
   }
   if (!user) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
