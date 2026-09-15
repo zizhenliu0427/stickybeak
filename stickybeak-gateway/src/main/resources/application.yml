@@ -53,6 +53,17 @@ spring:
             - Path=/api/payments/**,/api/webhooks/**
           filters:
             - StripPrefix=1
+  data:
+    redis:
+      # 黑名单查询；本机 Docker 映射在 16379，容器网络内用 sb-redis:6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 3s
+
+app:
+  jwt:
+    # 与 auth 服务共享同一 HS256 密钥；生产走 JWT_SECRET 环境变量
+    secret: ${JWT_SECRET:c3RpY2t5YmVhay1kZXYtc2VjcmV0LWp3dC1oczI1Ni0yMDI2LWRvLW5vdC11c2UtaW4tcHJvZA==}
 
 management:
   endpoints:
