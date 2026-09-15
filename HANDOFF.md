@@ -12,6 +12,10 @@
 
 - **v0.0.1**（main）：Sprint 0 骨架，已用 Docker Maven 验证编译 + 7 服务注册进 Nacos + 网关路由全通
 - **v0.1.0**（main）：Sprint 1 认证与 RBAC 完成
+- **feature/storefront-ui**（未合并）：storefront 全套 UI 前置完成——首页/商品列表（URL 同步筛选）/详情（图集）/购物车页 + 迷你抽屉 + 游客车 localStorage 持久化 + AUD/CNY 切换（演示汇率 4.75 写死在 currencySlice，4.7 换真实汇率）
+  - **mock 目录层**：`src/lib/catalog.ts` 接口形状 = Sprint 2 REST 契约，后端就绪后只换函数体
+  - mock 数据由 `scripts/generate-mock-catalog.cjs` 从真实数据源生成（16 个商品 / 6 品类 / 57 张图，在 `public/mock-products/`）
+  - 重新生成：`node scripts/generate-mock-catalog.cjs`
 - 开发分支：`develop`；功能分支：`feature/sprint-N-xxx`（Git Flow）
 
 ## Sprint 1 交付明细（均已 E2E 验证）
