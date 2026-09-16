@@ -277,7 +277,7 @@ export default function OrdersPage() {
                       </span>
                     </div>
 
-                    <Space size="middle">
+                    <Space size="middle" wrap>
                       {isPending && (
                         <>
                           <Popconfirm
@@ -288,7 +288,7 @@ export default function OrdersPage() {
                           >
                             <Button
                               danger
-                              size="small"
+                              className="flex min-h-[38px] items-center px-4 text-xs font-medium sm:text-sm"
                               loading={cancellingOrderNo === order.orderNo}
                             >
                               {t('orders.cancelBtn')}
@@ -297,7 +297,7 @@ export default function OrdersPage() {
 
                           <Button
                             type="primary"
-                            size="small"
+                            className="flex min-h-[38px] items-center px-5 text-xs font-medium sm:text-sm"
                             onClick={() => navigate('/checkout')}
                           >
                             {t('orders.payNow')}
