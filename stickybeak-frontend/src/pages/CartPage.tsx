@@ -38,13 +38,12 @@ export default function CartPage() {
   const toFreeShipping = FREE_SHIPPING_THRESHOLD - totalCents;
 
   const onCheckout = () => {
-    // Sprint 4 接入 Stripe Checkout；现在先引导登录态
     if (!user) {
       message.info(locale === 'en-AU' ? 'Please sign in before checkout' : '结账前请先登录');
-      navigate('/login', { state: { from: '/cart' } });
+      navigate('/login', { state: { from: '/checkout' } });
       return;
     }
-    message.info(locale === 'en-AU' ? 'Stripe Checkout is coming in Sprint 4!' : '结账功能在 Sprint 4 上线，敬请期待');
+    navigate('/checkout');
   };
 
   return (

@@ -12,7 +12,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { fetchMe, logout } from '../features/auth/authSlice';
 import { clearCart, mergeCartOnLogin, selectCartCount, selectCartTotalCents } from '../features/cart/cartSlice';
-import { setCurrency } from '../features/currency/currencySlice';
+import { fetchLiveExchangeRate, setCurrency } from '../features/currency/currencySlice';
 import type { Currency } from '../features/currency/currencySlice';
 import { setLocale } from '../features/locale/localeSlice';
 import type { Locale } from '../lib/i18n';
@@ -35,11 +35,12 @@ export default function AppLayout() {
   const [cartOpen, setCartOpen] = useState(false);
   const { t } = useI18n();
 
-  // 应用启动探测登录态（HttpOnly cookie，刷新页面不丢登录）
+  // 应用启动探测登录态并拉取实时汇率
   useEffect(() => {
     if (!initialized) {
       dispatch(fetchMe());
     }
+    dispatch(fetchLiveExchangeRate());
   }, [dispatch, initialized]);
 
   // 监听操作系统深浅色设置变化（System 模式下即时自适应）

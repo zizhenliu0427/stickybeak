@@ -32,6 +32,7 @@
         <spring-cloud-alibaba.version>2023.0.1.2</spring-cloud-alibaba.version>
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <stripe-java.version>26.1.0</stripe-java.version>
     </properties>
 
     <dependencyManagement>
@@ -83,6 +84,11 @@
                 <groupId>au.com.stickybeak</groupId>
                 <artifactId>stickybeak-common</artifactId>
                 <version>0.0.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>com.stripe</groupId>
+                <artifactId>stripe-java</artifactId>
+                <version>${stripe-java.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -14,6 +14,39 @@ spring:
       config:
         server-addr: ${NACOS_ADDR:localhost:8848}
         file-extension: yml
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/stickybeak_payment?useSSL=false&serverTimezone=Australia/Sydney&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 3s
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+    db-config:
+      logic-delete-field: isDeleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      id-type: auto
+
+stripe:
+  enabled: ${STRIPE_ENABLED:true}
+  api-key: ${STRIPE_API_KEY:sk_test_mock_key}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_mock_secret}
+  success-url: ${STRIPE_SUCCESS_URL:http://localhost:5173/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_no={ORDER_NO}}
+  cancel-url: ${STRIPE_CANCEL_URL:http://localhost:5173/checkout/cancel?order_no={ORDER_NO}}
 
 management:
   endpoints:

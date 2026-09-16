@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Order Confirmation - StickyBeak</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+        .header {
+            background-color: #0f172a;
+            color: #f8fafc;
+            padding: 24px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: -0.5px;
+        }
+        .content {
+            padding: 24px;
+        }
+        .badge {
+            display: inline-block;
+            background-color: #dcfce7;
+            color: #15803d;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        .details-box {
+            background-color: #f1f5f9;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        .row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 14px;
+        }
+        .label {
+            color: #64748b;
+        }
+        .value {
+            font-weight: 600;
+        }
+        .total-row {
+            border-top: 1px solid #cbd5e1;
+            margin-top: 8px;
+            padding-top: 8px;
+            font-size: 16px;
+            color: #0f172a;
+        }
+        .footer {
+            background-color: #f8fafc;
+            text-align: center;
+            padding: 16px 24px;
+            font-size: 12px;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🦘 StickyBeak</h1>
+            <p style="margin: 4px 0 0 0; font-size: 14px; color: #94a3b8;">Aussie Souvenirs &amp; Fridge Magnets</p>
+        </div>
+        <div class="content">
+            <span class="badge">Payment Received ✓</span>
+            <h2 style="margin-top: 0;">Thank you for your order!</h2>
+            <p>Your payment has been processed successfully. We are preparing your order for shipment.</p>
+
+            <div class="details-box">
+                <div class="row">
+                    <span class="label">Order Number:</span>
+                    <span class="value" th:text="${orderNo}">SO202609160001</span>
+                </div>
+                <div class="row">
+                    <span class="label">Payment Method:</span>
+                    <span class="value" th:text="${paymentMethod}">Credit Card</span>
+                </div>
+                <div class="row" th:if="${transactionId != null}">
+                    <span class="label">Transaction ID:</span>
+                    <span class="value" th:text="${transactionId}">pi_12345678</span>
+                </div>
+                <div class="row" th:if="${payTime != null}">
+                    <span class="label">Payment Date:</span>
+                    <span class="value" th:text="${payTime}">2026-09-16 12:00</span>
+                </div>
+                <div class="row total-row">
+                    <span class="label">Total Amount Paid:</span>
+                    <span class="value"><span th:text="${currency}">AUD</span> $<span th:text="${amount}">49.90</span></span>
+                </div>
+            </div>
+
+            <p style="font-size: 14px; color: #64748b;">
+                Need help with your order? Reply directly to this email or visit our support center.
+            </p>
+        </div>
+        <div class="footer">
+            &copy; 2026 StickyBeak Pty Ltd. Crafted with care in Sydney, Australia.
+        </div>
+    </div>
+</body>
+</html>
