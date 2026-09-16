@@ -94,18 +94,17 @@ public class CartServiceImpl implements CartService {
 
         Cart cart = getOrCreateCart(userId, sessionId);
 
-        LambdaQueryWrapper<CartItem> itemQuery = new LambdaQueryWrapper<>();
-        itemQuery.eq(CartItem::getCartId, cart.getId())
-                .eq(CartItem::getProductId, req.getProductId());
-        CartItem existingItem = cartItemMapper.selectOne(itemQuery);
+        CartItem existingItem = cartItemMapper.selectByCartAndProductRaw(cart.getId(), req.getProductId());
 
         if (existingItem != null) {
-            if (existingItem.getQty() >= availableStock) {
+            int currentQty = (existingItem.getIsDeleted() != null && existingItem.getIsDeleted() == 1) ? 0 : existingItem.getQty();
+            if (currentQty >= availableStock) {
                 throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH,
                         "Maximum available stock reached (" + availableStock + ")");
             }
-            int newQty = Math.min(availableStock, existingItem.getQty() + req.getQty());
+            int newQty = Math.min(availableStock, currentQty + req.getQty());
             existingItem.setQty(newQty);
+            existingItem.setIsDeleted(0);
             cartItemMapper.updateById(existingItem);
         } else {
             int newQty = Math.min(availableStock, req.getQty());
@@ -138,10 +137,13 @@ public class CartServiceImpl implements CartService {
         }
 
         ProductDTO product = productClient.getById(item.getProductId());
-        int availableStock = (product != null && product.getStock() != null) ? product.getStock() : 0;
+        if (product == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "Product not found");
+        }
+        int availableStock = product.getStock() != null ? product.getStock() : 0;
         if (req.getQty() > availableStock) {
             throw new BusinessException(ResultCode.STOCK_NOT_ENOUGH,
-                    "Requested quantity (" + req.getQty() + ") exceeds available stock (" + availableStock + ")");
+                    "Requested quantity exceeds available stock (" + availableStock + ")");
         }
 
         item.setQty(req.getQty());
@@ -161,7 +163,7 @@ public class CartServiceImpl implements CartService {
 
         CartItem item = cartItemMapper.selectById(itemId);
         if (item != null && cart.getId().equals(item.getCartId())) {
-            cartItemMapper.deleteById(itemId);
+            cartItemMapper.deleteByIdPhysical(itemId);
         }
 
         evictCache(userId, sessionId);
@@ -173,9 +175,7 @@ public class CartServiceImpl implements CartService {
     public void clearCart(Long userId, String sessionId) {
         Cart cart = findCart(userId, sessionId);
         if (cart != null) {
-            LambdaQueryWrapper<CartItem> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(CartItem::getCartId, cart.getId());
-            cartItemMapper.delete(wrapper);
+            cartItemMapper.deleteByCartIdPhysical(cart.getId());
             evictCache(userId, sessionId);
         }
     }
