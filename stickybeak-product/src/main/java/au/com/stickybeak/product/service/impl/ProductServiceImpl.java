@@ -222,6 +222,27 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    public ProductVO getById(Long id) {
+        Product product = productMapper.selectById(id);
+        if (product == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "Product not found");
+        }
+        return enrichProduct(product);
+    }
+
+    @Override
+    public List<ProductVO> listByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<Product> products = productMapper.selectBatchIds(ids);
+        if (products == null) {
+            return new ArrayList<>();
+        }
+        return products.stream().map(this::enrichProduct).collect(Collectors.toList());
+    }
+
+    @Override
     public List<ProductVO> listFeatured() {
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Product::getFeatured, 1);

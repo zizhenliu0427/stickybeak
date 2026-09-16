@@ -58,6 +58,12 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             "/api/tags"
     );
 
+    /** 可选认证前缀（购物车、心愿单等，支持游客与登录用户） */
+    private static final List<String> OPTIONAL_AUTH_PREFIXES = List.of(
+            "/api/cart",
+            "/api/wishlist"
+    );
+
     private final JwtValidator jwtValidator;
     private final ReactiveStringRedisTemplate redis;
     private final ObjectMapper objectMapper;
@@ -87,6 +93,9 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
 
         String token = resolveToken(request);
         if (token == null) {
+            if (isOptionalAuth(path)) {
+                return chain.filter(exchange.mutate().request(sanitized).build());
+            }
             return writeUnauthorized(exchange, "missing token");
         }
 
@@ -128,6 +137,15 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
                 if (path.startsWith(prefix)) {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    private boolean isOptionalAuth(String path) {
+        for (String prefix : OPTIONAL_AUTH_PREFIXES) {
+            if (path.startsWith(prefix)) {
+                return true;
             }
         }
         return false;

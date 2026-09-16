@@ -77,6 +77,14 @@ export const translations = {
     'cart.clear': 'Clear Trolley',
     'cart.itemCount': '{count} items',
 
+    // Wishlist
+    'wishlist.title': 'Wishlist',
+    'wishlist.addSuccess': 'Saved to wishlist!',
+    'wishlist.removeSuccess': 'Removed from wishlist',
+    'wishlist.moveToTrolley': 'Move to trolley',
+    'wishlist.empty': 'No items on your wishlist yet',
+    'wishlist.requireLogin': 'Please sign in to save items to wishlist',
+
     // Footer
     'footer.brand': 'StickyBeak — Aussie-themed fridge magnets',
     'footer.desc': 'Uni bus stops · Sydney trains · Supermarket specials · Cheeky birds · Source: RED GDCUP (Authorized)',
@@ -162,6 +170,14 @@ export const translations = {
     'cart.total': '合计',
     'cart.clear': '清空购物车',
     'cart.itemCount': '共 {count} 件商品',
+
+    // Wishlist
+    'wishlist.title': '我的心愿单',
+    'wishlist.addSuccess': '已加入心愿单！',
+    'wishlist.removeSuccess': '已从心愿单移除',
+    'wishlist.moveToTrolley': '移入购物车',
+    'wishlist.empty': '心愿单还是空的',
+    'wishlist.requireLogin': '请先登录后再收藏商品',
 
     // Footer
     'footer.brand': 'StickyBeak — 澳洲主题冰箱贴电商平台',
