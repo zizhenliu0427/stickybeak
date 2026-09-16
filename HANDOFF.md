@@ -1,7 +1,7 @@
 # HANDOFF — StickyBeak 交接文档
 
 > 给下一个 AI 会话/协作者：读完本文 + `docs/` 三份文档即可无缝接手。
-> 最近更新：2026-09-16 · Sprint 2 完成（tag v0.2.0）
+> 最近更新：2026-09-16 · Sprint 3 完成（tag v0.3.0）
 
 ## 项目是什么
 
@@ -12,65 +12,77 @@
 
 - **v0.0.1**（main）：Sprint 0 骨架，已用 Docker Maven 验证编译 + 7 服务注册进 Nacos + 网关路由全通
 - **v0.1.0**（main）：Sprint 1 认证与 RBAC 完成
-- **v0.2.0**（feature/sprint-2-product-catalog）：Sprint 2 商品目录 + 真实数据导入完成，全栈 E2E 联通
-  - **真实的 265 件商品数据**：从小红书爬取，已入库 `stickybeak_product`，603 张图片复制至 `stickybeak-frontend/public/products/`
-  - **后端 REST API 全通**：分类/标签/商品分页/筛选/排序/详情/推荐/精选，Redis 60s 缓存
-  - **前端无缝对接真实接口**：`src/lib/catalog.ts` 替换 mock 实现，直接调网关 `/api`，TypeScript 0 错误
+- **v0.2.0**（main）：Sprint 2 商品目录 + 真实数据导入完成，全栈 E2E 联通
+- **v0.3.0**（feature/sprint-3-cart-wishlist）：Sprint 3 购物车与心愿单全栈完成，E2E 验证全通
+  - **cart 库表 3 张**：`t_cart` / `t_cart_item` / `t_wishlist` 已落地 MySQL
+  - **网关可选认证模式**：`OPTIONAL_AUTH_PREFIXES` 支持游客（无 token 放行）与登录用户（验签注入 X-User-Id）
+  - **购物车双模式 + 游客 Session Cookie**：首次访问自动签发 `sb_guest` Cookie（30天），后端支持游客与用户双轨
+  - **微服务协同**：Cart 服务通过 `@LoadBalanced RestTemplate` 调用 Product 服务实时获取商品信息与库存，解耦库边界
+  - **⭐ 登录合并购物车**：合并四场景（仅游客/仅用户/双方无交集/双方交集累加且封顶库存）算法完备，单测与 E2E 双验证
+  - **心愿单（Wishlist）**：Toggle 收藏/取消、列表查询、一键移入购物车
+  - **前端全栈联动**：Redux `cartSlice` 双模式改造（游客 localStorage / 登录全走后端 REST API），商品详情页与购物车页全部联通
 - 开发分支：`develop`；功能分支：`feature/sprint-N-xxx`（Git Flow）
 
 ## Sprint 1 交付明细（均已 E2E 验证）
 
-- **auth 库**：`docker/mysql/init/02-auth-schema.sql`（t_user/t_role/t_user_role/t_refresh_token/t_address + 角色种子）。注意：MySQL 数据卷非空时 init 脚本不会重跑，需 `docker cp` + `docker exec sb-mysql mysql ... < file` 手动应用
+- **auth 库**：`docker/mysql/init/02-auth-schema.sql`（t_user/t_role/t_user_role/t_refresh_token/t_address + 角色种子）。
 - **auth 服务**：注册/登录/刷新/登出；bcrypt；JWT HS256 access 15min（claims: sub/email/roles/jti）；refresh 7 天不透明随机串、DB 只存 SHA-256 哈希、轮换 + 复用检测（复用→吊销全部会话）；登出 access jti 进 Redis 黑名单（`auth:blacklist:{jti}`，TTL=剩余有效期）
 - **token 载体**：HttpOnly Cookie `sb_access` / `sb_refresh`（网关也接受 `Authorization: Bearer`）
-- **网关**：`AuthGlobalFilter` 剥离外部伪造的 X-User-Id/X-User-Roles → 白名单放行 → 验 JWT + Redis 黑名单 → 注入身份头。白名单：auth 四个端点、GET 商品/分类/标签、webhooks、`*/health`、actuator
-- **服务内兜底**：auth 的 `HeaderAuthFilter` 从头建 SecurityContext + `@PreAuthorize`（示例：`GET /api/users` 仅 ADMIN/SYSADMIN）
+- **网关**：`AuthGlobalFilter` 剥离外部伪造的 X-User-Id/X-User-Roles → 白名单放行 → 验 JWT + Redis 黑名单 → 注入身份头。
+- **服务内兜底**：auth 的 `HeaderAuthFilter` 从头建 SecurityContext + `@PreAuthorize`
 - **种子**：`DataSeeder` 幂等种角色 + 开发管理员 `admin@stickybeak.au` / `Admin123!`（生产 `SEED_DEV_ADMIN=false`）
-- **前端**：登录/注册/个人中心（资料编辑 + 地址 CRUD，AntD 表单）；启动 `fetchMe` 探测 → 刷新不丢登录；守卫未初始化显示 Spin；401→自动刷新→失败清本地态（`setSessionExpiredHandler`），匿名浏览不再被强跳登录
-- **测试**：后端 13 单测（register/login/refresh/logout + 复用检测）；前端 5 测（含 RequireAuth 三态）
+- **前端**：登录/注册/个人中心（资料编辑 + 地址 CRUD，AntD 表单）；启动 `fetchMe` 探测 → 刷新不丢登录；401 自动刷新
+- **测试**：后端 13 单测；前端 5 测（含 RequireAuth 三态）
 
 ## Sprint 2 交付明细（均已 E2E 验证）
 
-- **product 库表**：`docker/mysql/init/03-product-schema.sql`
-  - `t_category`：6 个种子分类（大学公交路牌/超市系列/火车电车/小鸟路牌/酒鬼系列/手机壳周边）
-  - `t_product`：雪花 ID、slug(UK)、分类 ID、价格、库存、销量、笔记溯源 ID、featured、status、逻辑删除
-  - `t_product_image`：多图与封面标记
-  - `t_tag` + `t_product_tag_rel`：标签多对多关联
-  - `t_stock_hold`：库存预占表预留（Sprint 5 用）
-  - 显式声明 `SET NAMES utf8mb4;` 保证字符集原生支持中文与 Emoji
-- **数据导入**：`scripts/import-products.py`
-  - 遍历 265 篇小红书商品数据（`classified/商品/*/info.json`）
-  - 自动关键词归类 + 标签提取 + 自动生成 URL-safe slug + 随机生成价格与库存
-  - 提取 603 张图片并复制至 `stickybeak-frontend/public/products/{note_id}/`
-  - 产生 `scripts/generated-product-data.sql` 一键灌入数据库
+- **product 库表**：`docker/mysql/init/03-product-schema.sql`（t_category/t_product/t_product_image/t_tag/t_product_tag_rel/t_stock_hold）
+- **数据导入**：`scripts/import-products.py`（导入 265 件真实小红书商品 + 603 张图片到前端 public）
 - **后端服务**：`stickybeak-product`
-  - 四层架构：`ProductController/CategoryController/TagController → Service → Mapper → Entity`
-  - API 端点：
-    - `GET /api/categories`：全部分类（排序权重）
-    - `GET /api/categories/{slug}`：单分类详情
-    - `GET /api/tags`：全部标签列表（154 个）
-    - `GET /api/products`：分页（page/size）、分类筛选、标签筛选（逗号分割）、价格区间（minPrice/maxPrice）、关键词搜索（name+description LIKE）、排序（sales/price-asc/price-desc/new）
-    - `GET /api/products/featured`：首页推荐商品
-    - `GET /api/products/{slug}`：商品详情（含关联图片列表、标签列表、所属分类）
-    - `GET /api/products/{slug}/related`：同品类关联推荐
-  - Redis 缓存：`product:list:{queryHash}` 缓存 60s，提升高频读性能，Redis 挂掉优雅降级直接查 DB
-- **前端对接与体验升级**：
-  - `src/lib/catalog.ts` 从 mock 本地 JSON 切换为通过统一 `api.ts` 请求后端真实网关接口，函数签名完全对齐，配合 Vite proxy `/api` 转发网关 8080
-  - **🇦🇺 澳洲/英式英语（en-AU）↔ 🇨🇳 中文（zh-CN）双语体系**：支持原生澳式拼写与词汇（Trolley 代替美式 Cart、Catalogue、G'day mate!、Bottle-O、Specials 等），导航栏提供一键切换并持久化
-  - **深浅色自适应（Light / Dark / System Auto）**：支持监听操作系统媒体查询（`prefers-color-scheme: dark`）与手动自选三档切换；融合 Tailwind `darkMode: 'class'` 与 Ant Design 5 `darkAlgorithm` 动态算法，界面无缝沉浸
-  - **Dark Reader 浏览器插件兼容**：原生暗色模式下动态向 `<head>` 注入 `<meta name="darkreader-lock">` 与 `color-scheme: dark`，彻底杜绝插件二次反色导致的视觉发白；浅色模式下释放 lock，兼顾插件用户偏好
-  - 前端 16/16 单元测试（Vitest）全部通过 + TypeScript typecheck 零报错
+  - REST API：分类、标签、商品分页/多维筛选/排序、详情、推荐、精选，Redis 60s 缓存
+  - Sprint 3 增强：扩展 `GET /products/id/{id}` 与 `POST /products/batch` 供下游服务高效查询
+- **前端体验**：`catalog.ts` 对接真实接口；🇦🇺 澳式英语/🇨🇳 中文双语切换；深浅色模式（含系统自动跟随）；Dark Reader 浏览器插件兼容（`<meta name="darkreader-lock">`）
+
+## Sprint 3 交付明细（均已 E2E 验证）
+
+- **cart 库表**：`docker/mysql/init/04-cart-schema.sql`
+  - `t_cart`：雪花 ID、user_id（NULL 兼容游客）、session_id（NULL 兼容登录用户）、UK 防重
+  - `t_cart_item`：自增 ID、cart_id、product_id、qty、price_at_add 快照、逻辑删除
+  - `t_wishlist`：自增 ID、user_id、product_id、UK 防重
+- **网关优化**：`AuthGlobalFilter` 增加 `OPTIONAL_AUTH_PREFIXES`（`/api/cart`、`/api/wishlist`）
+  - 携带合法 JWT 时注入 `X-User-Id` 与 `X-User-Roles`
+  - 未携带 token 时剥离伪造身份后直接放行，由下游 Cart 服务按游客模式处理
+- **后端服务**：`stickybeak-cart`
+  - `CartController`：
+    - `GET /cart`：获取当前购物车（未带身份自动签发 30 天 HttpOnly Cookie `sb_guest`）
+    - `POST /cart/items`：加购（数量校验库存，超限抛 1001 业务异常）
+    - `PUT /cart/items/{itemId}`：修改数量（库存校验）
+    - `DELETE /cart/items/{itemId}`：删除单项
+    - `DELETE /cart`：清空购物车
+    - `POST /cart/merge`：登录合并（将浏览器 localStorage 游客项与服务端已有购物车合并）
+  - `WishlistController`：
+    - `GET /wishlist`：获取用户心愿单（未登录 401）
+    - `POST /wishlist/toggle/{productId}`：收藏/取消心愿单
+    - `POST /wishlist/move-to-cart/{productId}`：移入购物车并从心愿单删除
+  - `ProductClient`：基于 `@LoadBalanced RestTemplate` 跨服务批量拉取 Product 详情与最新库存
+  - Redis 缓存：`cart:user:{userId}` 与 `cart:session:{sessionId}` 读加速，写操作即时删缓存
+- **前端集成**：
+  - `src/lib/cart.ts`：封装完整 Cart & Wishlist API 请求客户端
+  - `src/features/cart/cartSlice.ts`：双模式升级（游客保留 localStorage，登录用户使用 async thunks 调用后端），App 启动/登录时自动触发 `mergeCartOnLogin`，登出时清空购物车态
+  - `CartPage.tsx`：全面改用 async thunk，增加清空购物车二次确认弹窗
+  - `ProductDetailPage.tsx`：加购走 async thunk，新增心愿单心形收藏按钮（实时检测并高亮已收藏态）
+  - `i18n.ts`：补充心愿单与清空购物车英澳双语字典
 - **测试**：
-  - 后端新增 `CategoryServiceImplTest` 和 `ProductServiceImplTest`，各服务全量单测在 Docker 中通过（`mvn -q test` 退出码 0）
-  - 其余骨架服务 `@SpringBootTest` 已改造为轻量级单元测试，彻底解耦 Docker 构建时的中间件依赖
+  - 后端：`CartServiceImplTest` 覆盖全部 CRUD + ⭐ 登录合并 4 场景（仅游客/仅用户/无交集双方/交集双方数量累加封顶库存）；`WishlistServiceImplTest` 覆盖心愿单
+  - 前端：Vitest 17/17 单元测试通过，TypeScript 0 错误
 
 ## 环境差异（本机实测，新机器必读）
 
-- **Redis 宿主端口 16379**（6379/6380 被 Windows Hyper-V 保留段 6346-6445 占用）；容器网络内仍是 6379。IDE 本地跑服务设 `REDIS_PORT=16379`
+- **Redis 宿主端口 16379**（6379/6380 被 Windows Hyper-V 保留段 6346-6445 占用）；容器网络内仍是 6379
+- **Nacos 宿主 gRPC 端口 19848**；**Elasticsearch 宿主端口 19200**（9200 和 9848 落在 Windows 动态排除段）
 - **MinIO** 官方已停发社区版镜像 → 用 `quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z`
 - 本机无 Maven/JDK：构建测试全部走 Docker 镜像 `maven:3.9-eclipse-temurin-17`（m2 缓存在 named volume `stickybeak-m2`）
-- 宿主机 80/8000/8081/9092 被其他项目容器占用——全栈 compose 的 frontend:80 会冲突，届时改端口或停掉对方
-- PowerShell 调 curl.exe 传 JSON 会被剥引号：**请求体写临时文件用 `-d @file`**
+- PowerShell 调 curl.exe 传 JSON 会被剥引号：**请求体写临时文件用 `-d '@file'`（注意加单引号避免 PS splatting 冲突）**
 - 无 admin 权限，不要尝试 `net stop winnat` 等系统级操作
 
 ## 常用命令（本机）
@@ -86,7 +98,7 @@ powershell -File scripts/rebuild-services.ps1
 docker run --rm -v "${PWD}:/workspace" -v stickybeak-m2:/root/.m2 -w /workspace maven:3.9-eclipse-temurin-17 mvn -q test
 
 # 前端类型检查与测试
-cd stickybeak-frontend; npm run typecheck; npm run test; npm run dev
+cd stickybeak-frontend; npx tsc --noEmit; npm run test; npm run dev
 ```
 
 ## 踩过的坑（别再踩）
@@ -100,23 +112,27 @@ cd stickybeak-frontend; npm run typecheck; npm run test; npm run dev
 7. 不用 spring-boot-starter-parent 时 `-parameters` 编译参数默认关闭 → 父 POM 已补（pluginManagement）
 8. `spring-boot-maven-plugin` 不在 starter-parent 下不会自动 repackage → 父 POM 已绑定
 9. 前端测试用经典 `MemoryRouter`：`createMemoryRouter` 数据路由导航撞 jsdom/undici AbortSignal 不兼容
-10. `GlobalExceptionHandler` 已对齐真实 HTTP 状态码（401/403/404…），1000+ 业务码仍 HTTP 200——前端 401 自动刷新依赖这一点，别改回统一 200
-11. **网关 `StripPrefix=1` 会截去前缀 `/api`**：下游微服务的 Controller `@RequestMapping` 不能重复写 `/api`（例如写 `@RequestMapping("/products")` 而非 `@RequestMapping("/api/products")`），否则路由映射 404
-12. **服务重启脚本 `rebuild-services.ps1` 需注入环境变量**：任何接入 MySQL 或 Redis 的微服务必须在 `$envMap` 显式配置 `MYSQL_HOST=sb-mysql` 和 `REDIS_HOST=sb-redis`，否则在容器内部网络会 fallback 至 `localhost` 触发 Connection Refused
-13. **MySQL 导入数据中文与 Emoji 乱码**：
-    - SQL 文件首部必须包含 `SET NAMES utf8mb4;`
-    - 切勿使用 PowerShell pipeline `Get-Content ... | docker exec -i`（Windows 控制台编码会强制将 Unicode 字符转为问号 `?`），应使用 `docker cp` 将文件拷入容器并在容器内 `mysql ... -e "source ..."`
-14. **容器内构建环境与中间件解耦**：微服务的 `@SpringBootTest` 冒烟测试在构建环境独立运行（如 Maven 容器）无 Nacos/Redis 时会报错卡死，统一改造为纯单元测试，保证 Docker build 与 CI 稳定无外部强依赖
-15. **Dark Reader 浏览器插件双重反色**：当站点开启原生 Dark 模式时，Dark Reader 插件默认可能会对已暗化的页面进行滤镜计算甚至再次反转，导致界面发白发灰；规范解法是在启用深色模式时动态向 `<head>` 注入 `<meta name="darkreader-lock">` 并设置 `color-scheme: dark`，告知插件直接绕行。
+10. `GlobalExceptionHandler` 已对齐真实 HTTP 状态码（401/403/404…），1000+ 业务码仍 HTTP 200
+11. **网关 `StripPrefix=1` 会截去前缀 `/api`**：下游微服务的 Controller `@RequestMapping` 不能重复写 `/api`
+12. **服务重启脚本 `rebuild-services.ps1` 需注入环境变量**：任何接入 MySQL 或 Redis 的微服务必须在 `$envMap` 显式配置 `MYSQL_HOST=sb-mysql` 和 `REDIS_HOST=sb-redis`
+13. **MySQL 导入数据中文与 Emoji 乱码**：SQL 文件首部必须包含 `SET NAMES utf8mb4;`；切勿使用 PowerShell pipeline，使用 `docker cp` + `docker exec`
+14. **容器内构建环境与中间件解耦**：微服务的 `@SpringBootTest` 冒烟测试在构建环境独立运行无中间件会报错，统一改造为纯单元测试
+15. **Dark Reader 浏览器插件双重反色**：启用深色模式时动态向 `<head>` 注入 `<meta name="darkreader-lock">` 并设置 `color-scheme: dark`
+16. **Mockito 验证 BaseMapper 歧义**：BaseMapper 拥有 `insert(T)` 和 `insert(Collection<T>)` 重载，测试中 `verify(mapper).insert(any())` 会因歧义编译报错，必须显式声明 `any(CartItem.class)`
+17. **网关可选认证（Optional Auth）路由**：类似购物车这类游客与登录用户皆可访问的接口，不能简单挂入纯白名单或强制拦截，需通过 `OPTIONAL_AUTH_PREFIXES`：有 token 则验签注入身份，无 token 剥离伪造头后放行
+18. **PowerShell 中 curl 传参 `@file`**：在 PowerShell 下 `@` 是 splatting 操作符，不加引号的 `@file.json` 会导致语法解析错误，必须使用单引号 `'@file.json'`
 
-## 下一步（Sprint 3 — 购物车与心愿单，tag v0.3.0）
+## 下一步（Sprint 4 — 结账与 Stripe，tag v0.4.0 ← 简历可用下限！）
 
-按 `docs/SPRINT_ISSUES.md` Issue 3.1→3.5：
-1. **3.1** cart 库表（`t_cart` / `t_cart_item` / `t_wishlist`）+ 游客签名 session cookie
-2. **3.2** 购物车 CRUD（加购/修改数量/删除/清空；库存校验；Redis 快照 + MySQL 真相源）
-3. **3.3** ⭐ **登录合并购物车**（游客车与登录用户车合并算法，同商品数量相加限额库存，幂等保护）
-4. **3.4** 前端购物车抽屉 + `/cart` 结算前预览页对接真实后端 API
-5. **3.5** 心愿单增删查
+按 `docs/SPRINT_ISSUES.md` Issue 4.1→4.8：
+1. **4.1** 支付提供商抽象（策略模式：`PaymentProvider` 接口，Stripe 实现）
+2. **4.2** Checkout Session 创建（冻结购物车价格快照，先生成 pending 订单）
+3. **4.3** ⭐ **Webhook 幂等性**（验签、`t_payment_webhook.event_id` 唯一去重、成功投递 MQ）
+4. **4.4** 本地联调文档 + Stripe CLI / ngrok 脚本
+5. **4.5** 前端结账流（地址确认 → Stripe 跳转 → 成功页轮询 webhook 落地）
+6. **4.6** 异步订单确认邮件（RabbitMQ + Thymeleaf 模板 + MailHog）
+7. **4.7** ⭐ **多币种 AUD / CNY 真实结账**（汇率定时刷新与快照落单）
+8. **4.8** 多支付方式支持（Card 澳洲银行卡 / Alipay / WeChat Pay）
 
 ## 硬性规范（不要违反）
 
