@@ -12,8 +12,12 @@ const CATEGORY_EMOJI: Record<string, string> = {
   'bus-sign': '🚌',
   supermarket: '🛒',
   train: '🚂',
+  tram: '🚃',
   bird: '🦜',
-  booze: '🍻',
+  'road-sign': '🚏',
+  collections: '🎁',
+  achievement: '🏆',
+  slogan: '💬',
   phonecase: '📱',
 };
 

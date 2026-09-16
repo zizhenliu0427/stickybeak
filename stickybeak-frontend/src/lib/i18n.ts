@@ -40,9 +40,13 @@ export const translations = {
     // Categories
     'cat.bus-sign': 'Uni Bus Stops & Signs',
     'cat.supermarket': 'Supermarket Specials',
-    'cat.train': 'Trains & Trams',
+    'cat.train': 'Train Line Signs',
+    'cat.tram': 'Melbourne Trams',
     'cat.bird': 'Feathered Mates & Birds',
-    'cat.booze': 'Bottle-O & Booze',
+    'cat.road-sign': 'Aussie Road Signs',
+    'cat.collections': 'Bundle Collections',
+    'cat.achievement': 'Student Milestones',
+    'cat.slogan': 'Aussie Slogans',
     'cat.phonecase': 'Phone Cases & Goodies',
 
     // Products Page
@@ -218,12 +222,16 @@ export const translations = {
     'home.viewAll': '查看全部磁贴',
 
     // Categories
-    'cat.bus-sign': '大学公交路牌',
-    'cat.supermarket': '超市系列',
-    'cat.train': '火车电车',
-    'cat.bird': '小鸟路牌',
-    'cat.booze': '酒鬼系列',
-    'cat.phonecase': '手机壳周边',
+    'cat.bus-sign': '校园公交路牌',
+    'cat.supermarket': '超市冰箱贴',
+    'cat.train': '火车地铁路牌',
+    'cat.tram': '电车路牌',
+    'cat.bird': '小鸟冰箱贴',
+    'cat.road-sign': '交通指示牌',
+    'cat.collections': '商品合集',
+    'cat.achievement': '留子成就',
+    'cat.slogan': '生活标语',
+    'cat.phonecase': '手机壳',
 
     // Products Page
     'products.title': '全部冰箱贴商品',

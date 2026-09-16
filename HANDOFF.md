@@ -221,9 +221,19 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 
 ## 剩余项（全部非阻塞，按需）
 
-1. **3 篇商品增量导入**（分类重跑后 265 → 268；且用户已按 10 个子品类重新分类，店铺 6 个旧种子类目与新体系未对齐——`分类索引.json` 含 note id 可机械重映射）
+1. **数据尾巴**：
+   - 2 篇商品笔记未导入店铺（693d2a83→商品合集、69522416→校园公交路牌），需走导入流程补
+   - 商品 1000007（note 6aa2781a「垃圾桶不能翻」）在用户分类里属「个人分享/观鸟日常」非商品——目前仍挂在小鸟冰箱贴下，是否下架由业务决定
 2. **真实云部署**：AWS 配置已就绪（`docker/aws/`），尚未实际上线
 3. **可选**：补爬缺口笔记 `6a806381`（非商品，观鸟内容）
+
+### 品类体系（2026-09-17 已对齐用户分类）
+
+店铺类目 = 分类索引.json 的 10 个商品子品类：校园公交路牌(bus-sign) / 超市冰箱贴(supermarket) /
+火车地铁路牌(train) / 电车路牌(tram) / 小鸟冰箱贴(bird) / 交通指示牌(road-sign，含原酒鬼系列) /
+商品合集(collections) / 留子成就(achievement) / 生活标语(slogan) / 手机壳(phonecase)。
+- 对齐工具：`node scripts/align-categories.cjs`（dry-run）/ `--apply` 应用。**重跑导入后需再执行一次**
+- 对齐后 ES 需重建索引：admin 登录后 `POST /api/products/admin/reindex`
 
 ## 硬性规范（不要违反）
 
