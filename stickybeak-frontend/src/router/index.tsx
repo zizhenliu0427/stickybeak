@@ -1,6 +1,8 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 import AppLayout from '../layouts/AppLayout';
+import AdminLayout from '../layouts/AdminLayout';
 import RequireAuth from '../components/RequireAuth';
+import RequireAdmin from '../components/RequireAdmin';
 import HomePage from '../pages/HomePage';
 import ProductsPage from '../pages/ProductsPage';
 import ProductDetailPage from '../pages/ProductDetailPage';
@@ -12,6 +14,9 @@ import CheckoutPage from '../pages/CheckoutPage';
 import CheckoutSuccessPage from '../pages/CheckoutSuccessPage';
 import CheckoutCancelPage from '../pages/CheckoutCancelPage';
 import OrdersPage from '../pages/OrdersPage';
+import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
+import AdminOrdersPage from '../pages/admin/AdminOrdersPage';
+import AdminProductsPage from '../pages/admin/AdminProductsPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
 export const router = createBrowserRouter([
@@ -36,6 +41,21 @@ export const router = createBrowserRouter([
         ],
       },
       { path: '*', element: <NotFoundPage /> },
+    ],
+  },
+  {
+    path: '/admin',
+    element: <RequireAdmin />,
+    children: [
+      {
+        element: <AdminLayout />,
+        children: [
+          { index: true, element: <Navigate to="/admin/dashboard" replace /> },
+          { path: 'dashboard', element: <AdminDashboardPage /> },
+          { path: 'orders', element: <AdminOrdersPage /> },
+          { path: 'products', element: <AdminProductsPage /> },
+        ],
+      },
     ],
   },
 ]);

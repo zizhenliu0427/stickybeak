@@ -82,7 +82,7 @@ class CartServiceImplTest {
         cart.setId(1L);
         cart.setUserId(200L);
         when(cartMapper.selectOne(any())).thenReturn(cart);
-        when(cartItemMapper.selectOne(any())).thenReturn(null);
+        when(cartItemMapper.selectByCartAndProductRaw(1L, 101L)).thenReturn(null);
 
         // When building CartVO after insert
         CartItem item = new CartItem();
@@ -131,7 +131,7 @@ class CartServiceImplTest {
         existing.setProductId(101L);
         existing.setQty(3);
         existing.setPriceAtAdd(new BigDecimal("15.00"));
-        when(cartItemMapper.selectOne(any())).thenReturn(existing);
+        when(cartItemMapper.selectByCartAndProductRaw(1L, 101L)).thenReturn(existing);
 
         when(cartItemMapper.selectList(any())).thenReturn(List.of(existing));
         when(productClient.getByIds(any())).thenReturn(Map.of(101L, p));
@@ -184,7 +184,7 @@ class CartServiceImplTest {
 
         CartVO result = cartService.removeItem(200L, null, 10L);
         assertNotNull(result);
-        verify(cartItemMapper).deleteById(10L);
+        verify(cartItemMapper).deleteByIdPhysical(10L);
     }
 
     // ==============================================================

@@ -11,8 +11,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -43,6 +45,18 @@ public class OrderStateMachine {
         }
         Set<OrderStatus> allowed = VALID_TRANSITIONS.get(from);
         return allowed != null && allowed.contains(to);
+    }
+
+    public List<String> getAllowedTransitions(String currentStatusCode) {
+        OrderStatus current = OrderStatus.fromCode(currentStatusCode);
+        if (current == null) {
+            return Collections.emptyList();
+        }
+        Set<OrderStatus> allowed = VALID_TRANSITIONS.get(current);
+        if (allowed == null || allowed.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return allowed.stream().map(OrderStatus::getCode).toList();
     }
 
     public void transition(Order order, OrderStatus targetStatus, Long operatorId, String operatorRole) {
