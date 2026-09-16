@@ -19,6 +19,7 @@ if ($LASTEXITCODE -ne 0) { throw "maven build failed" }
 $envMap = @{
     "auth"    = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis")
     "product" = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis")
+    "cart"    = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis")
     "gateway" = @("REDIS_HOST=sb-redis")
 }
 

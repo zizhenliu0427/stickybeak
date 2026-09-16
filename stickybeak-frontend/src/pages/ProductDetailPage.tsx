@@ -1,24 +1,27 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Breadcrumb, message } from 'antd';
-import { ShoppingCartOutlined } from '@ant-design/icons';
+import { ShoppingCartOutlined, HeartOutlined, HeartFilled } from '@ant-design/icons';
 import Price from '../components/Price';
 import ProductCard from '../components/ProductCard';
 import QtyStepper from '../components/QtyStepper';
 import { getProductBySlug, listRelated } from '../lib/catalog';
 import type { Product } from '../lib/catalog';
-import { useAppDispatch } from '../app/hooks';
-import { addItem } from '../features/cart/cartSlice';
+import { useAppDispatch, useAppSelector } from '../app/hooks';
+import { addCartItemAsync } from '../features/cart/cartSlice';
+import { listWishlistApi, toggleWishlistApi } from '../lib/cart';
 import { useI18n } from '../lib/i18n';
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const dispatch = useAppDispatch();
+  const user = useAppSelector((s) => s.auth.user);
   const [product, setProduct] = useState<Product | null>(null);
   const [related, setRelated] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeImg, setActiveImg] = useState(0);
   const [qty, setQty] = useState(1);
+  const [inWishlist, setInWishlist] = useState(false);
   const { t, locale } = useI18n();
 
   useEffect(() => {
@@ -35,6 +38,16 @@ export default function ProductDetailPage() {
       })
       .finally(() => setLoading(false));
   }, [slug]);
+
+  useEffect(() => {
+    if (user && product) {
+      listWishlistApi()
+        .then((list) => setInWishlist(list.some((w) => w.productId === product.id)))
+        .catch(() => {});
+    } else {
+      setInWishlist(false);
+    }
+  }, [user, product]);
 
   if (loading) {
     return (
@@ -64,19 +77,27 @@ export default function ProductDetailPage() {
 
   const soldOut = product.stock === 0;
 
-  const onAddToCart = () => {
-    dispatch(
-      addItem({
-        productId: product.id,
-        slug: product.slug,
-        name: product.name,
-        imageUrl: product.images[0],
-        priceCents: product.priceCents,
-        qty,
-        stock: product.stock,
-      }),
-    );
-    message.success(t('detail.addedSuccess'));
+  const onAddToCart = async () => {
+    try {
+      await dispatch(addCartItemAsync({ product, qty })).unwrap();
+      message.success(t('detail.addedSuccess'));
+    } catch (e) {
+      message.error(e instanceof Error ? e.message : 'Failed to add to trolley');
+    }
+  };
+
+  const onToggleWishlist = async () => {
+    if (!user) {
+      message.info(t('wishlist.requireLogin'));
+      return;
+    }
+    try {
+      const res = await toggleWishlistApi(product.id);
+      setInWishlist(res.inWishlist);
+      message.success(t(res.inWishlist ? 'wishlist.addSuccess' : 'wishlist.removeSuccess'));
+    } catch {
+      message.error('Failed to update wishlist');
+    }
   };
 
   return (
@@ -156,6 +177,19 @@ export default function ProductDetailPage() {
               className="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-600 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-stone-700"
             >
               <ShoppingCartOutlined /> {t('detail.addToTrolley')}
+            </button>
+            <button
+              type="button"
+              onClick={onToggleWishlist}
+              className={`flex h-10 w-10 items-center justify-center rounded-lg border text-lg transition-colors ${
+                inWishlist
+                  ? 'border-red-300 bg-red-50 text-red-500 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400'
+                  : 'border-sand-200 text-gray-400 hover:text-red-500 dark:border-stone-700 dark:text-stone-400 dark:hover:text-red-400'
+              }`}
+              title={t('wishlist.title')}
+              aria-label={t('wishlist.title')}
+            >
+              {inWishlist ? <HeartFilled /> : <HeartOutlined />}
             </button>
           </div>
 

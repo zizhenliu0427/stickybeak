@@ -43,4 +43,11 @@ describe('cartSlice', () => {
     state = cartReducer(state, removeItem(1));
     expect(selectCartTotalCents({ cart: state })).toBe(890);
   });
+
+  it('clearCart 清空购物车', () => {
+    let state = cartReducer(undefined, addItem(sample));
+    expect(state.items).toHaveLength(1);
+    state = cartReducer(state, { type: 'cart/clearCart' });
+    expect(state.items).toHaveLength(0);
+  });
 });
