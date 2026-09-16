@@ -8,6 +8,9 @@ import CartPage from '../pages/CartPage';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import ProfilePage from '../pages/ProfilePage';
+import CheckoutPage from '../pages/CheckoutPage';
+import CheckoutSuccessPage from '../pages/CheckoutSuccessPage';
+import CheckoutCancelPage from '../pages/CheckoutCancelPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
 export const router = createBrowserRouter([
@@ -23,7 +26,12 @@ export const router = createBrowserRouter([
       { path: 'register', element: <RegisterPage /> },
       {
         element: <RequireAuth />,
-        children: [{ path: 'profile', element: <ProfilePage /> }],
+        children: [
+          { path: 'profile', element: <ProfilePage /> },
+          { path: 'checkout', element: <CheckoutPage /> },
+          { path: 'checkout/success', element: <CheckoutSuccessPage /> },
+          { path: 'checkout/cancel', element: <CheckoutCancelPage /> },
+        ],
       },
       { path: '*', element: <NotFoundPage /> },
     ],

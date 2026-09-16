@@ -1,5 +1,6 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
+import { getExchangeRate } from '../../lib/order';
 
 export type Currency = 'AUD' | 'CNY';
 
@@ -11,9 +12,20 @@ interface CurrencyState {
 
 const initialState: CurrencyState = {
   currency: (localStorage.getItem('sb_currency') as Currency) || 'AUD',
-  // 开发期固定演示汇率；Sprint 4 Issue 4.7 改为后端 t_exchange_rate 每日刷新值
   audToCny: 4.75,
 };
+
+export const fetchLiveExchangeRate = createAsyncThunk(
+  'currency/fetchLiveExchangeRate',
+  async () => {
+    try {
+      const data = await getExchangeRate('AUD', 'CNY');
+      return Number(data.rate) || 4.75;
+    } catch {
+      return 4.75;
+    }
+  },
+);
 
 const currencySlice = createSlice({
   name: 'currency',
@@ -26,6 +38,11 @@ const currencySlice = createSlice({
     setRate(state, action: PayloadAction<number>) {
       state.audToCny = action.payload;
     },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(fetchLiveExchangeRate.fulfilled, (state, action) => {
+      state.audToCny = action.payload;
+    });
   },
 });
 
