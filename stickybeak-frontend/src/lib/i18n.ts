@@ -8,7 +8,8 @@ export const translations = {
     'nav.bird': 'Feathered Mates',
     'nav.busSign': 'Uni Bus Stops',
     'nav.trolley': 'Trolley',
-    'nav.profile': 'My Account',
+    'nav.profile': 'Profile',
+    'nav.myOrders': 'My Orders',
     'nav.signOut': 'Sign out',
     'nav.signIn': 'Sign in',
 
@@ -123,6 +124,27 @@ export const translations = {
     'checkout.returnToCart': 'Back to Trolley',
     'checkout.retry': 'Retry Checkout',
 
+    // Orders page
+    'orders.title': 'My Orders',
+    'orders.tabAll': 'All',
+    'orders.tabPending': 'Pending Payment',
+    'orders.tabPaid': 'Paid',
+    'orders.tabProcessing': 'Processing',
+    'orders.tabShipped': 'Shipped',
+    'orders.tabCompleted': 'Completed',
+    'orders.tabCancelled': 'Cancelled',
+    'orders.orderNo': 'Order No',
+    'orders.createdAt': 'Placed At',
+    'orders.total': 'Total',
+    'orders.countdown': 'Pay within {time}',
+    'orders.expired': 'Payment expired',
+    'orders.cancelBtn': 'Cancel Order',
+    'orders.cancelConfirm': 'Are you sure you want to cancel this order? Held stock will be released.',
+    'orders.cancelSuccess': 'Order cancelled successfully',
+    'orders.payNow': 'Pay Now',
+    'orders.empty': 'No orders found in this status',
+    'orders.backToShop': 'Browse Magnets',
+
     // Theme & Lang
     'theme.light': 'Light',
     'theme.dark': 'Dark',
@@ -136,6 +158,7 @@ export const translations = {
     'nav.busSign': '大学路牌',
     'nav.trolley': '购物车',
     'nav.profile': '个人中心',
+    'nav.myOrders': '我的订单',
     'nav.signOut': '退出登录',
     'nav.signIn': '登录',
 
@@ -249,6 +272,27 @@ export const translations = {
     'checkout.cancelDesc': '您已取消本次结算，账户未产生扣款。',
     'checkout.returnToCart': '返回购物车',
     'checkout.retry': '重新结账',
+
+    // Orders page
+    'orders.title': '我的订单',
+    'orders.tabAll': '全部',
+    'orders.tabPending': '待支付',
+    'orders.tabPaid': '已支付',
+    'orders.tabProcessing': '备货中',
+    'orders.tabShipped': '已发货',
+    'orders.tabCompleted': '已完成',
+    'orders.tabCancelled': '已取消',
+    'orders.orderNo': '订单编号',
+    'orders.createdAt': '下单时间',
+    'orders.total': '订单总计',
+    'orders.countdown': '支付倒计时 {time}',
+    'orders.expired': '已超时关闭',
+    'orders.cancelBtn': '取消订单',
+    'orders.cancelConfirm': '确定要取消此订单吗？预占库存将自动释放。',
+    'orders.cancelSuccess': '订单已成功取消',
+    'orders.payNow': '立即支付',
+    'orders.empty': '暂无相关状态的订单',
+    'orders.backToShop': '去挑选冰箱贴',
 
     // Theme & Lang
     'theme.light': '浅色',

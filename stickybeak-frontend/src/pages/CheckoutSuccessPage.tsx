@@ -4,7 +4,7 @@ import { Button, Card, Spin, Tag, Typography } from 'antd';
 import {
   CheckCircleFilled,
   ShoppingOutlined,
-  UserOutlined,
+  OrderedListOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import { useAppDispatch } from '../app/hooks';
@@ -143,11 +143,11 @@ export default function CheckoutSuccessPage() {
             {t('checkout.continueShopping')}
           </Button>
           <Button
-            icon={<UserOutlined />}
+            icon={<OrderedListOutlined />}
             size="large"
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate('/orders')}
           >
-            {t('checkout.viewOrders')}
+            {t('orders.title')}
           </Button>
         </div>
       </Card>

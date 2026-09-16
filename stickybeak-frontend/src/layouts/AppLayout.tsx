@@ -5,6 +5,7 @@ import {
   LogoutOutlined,
   ShoppingCartOutlined,
   UserOutlined,
+  OrderedListOutlined,
   SunOutlined,
   MoonOutlined,
   DesktopOutlined,
@@ -141,11 +142,14 @@ export default function AppLayout() {
                   menu={{
                     items: [
                       { key: 'profile', icon: <UserOutlined />, label: t('nav.profile') },
+                      { key: 'orders', icon: <OrderedListOutlined />, label: t('nav.myOrders') },
                       { key: 'logout', icon: <LogoutOutlined />, label: t('nav.signOut') },
                     ],
                     onClick: ({ key }) => {
                       if (key === 'profile') {
                         navigate('/profile');
+                      } else if (key === 'orders') {
+                        navigate('/orders');
                       } else if (key === 'logout') {
                         onLogout();
                       }
