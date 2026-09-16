@@ -1,7 +1,7 @@
 # HANDOFF — StickyBeak 交接文档
 
 > 给下一个 AI 会话/协作者：读完本文 + `docs/` 三份文档即可无缝接手。
-> 最近更新：2026-09-16 · Sprint 5 完成（tag v0.5.0 · 订单状态机与防超卖三层防线）
+> 最近更新：2026-09-17 · 全部 Sprint 完成，main = v1.1.0（含 Sprint 9 部分故事线）
 
 ## 项目是什么
 
@@ -15,8 +15,13 @@
 - **v0.2.0**（main）：Sprint 2 商品目录 + 真实数据导入完成，全栈 E2E 联通
 - **v0.3.0**（main）：Sprint 3 购物车与心愿单全栈完成，E2E 验证全通
 - **v0.4.0**（main）：Sprint 4 结账与 Stripe、Webhook 幂等、多币种、多支付方式、邮件通知（达成简历可用下限！）
-- **v0.5.0**（main / 当前发布）：Sprint 5 订单状态机、防超卖三层防线（Redis Lua 预扣 → Redisson 排序互斥锁 → MySQL 条件更新）、RabbitMQ 原生 DLX 30m 延迟关单与库存原子回滚、前端订单管理中心
+- **v0.5.0**（main）：Sprint 5 订单状态机、防超卖三层防线（Redis Lua 预扣 → Redisson 排序互斥锁 → MySQL 条件更新）、RabbitMQ 原生 DLX 30m 延迟关单与库存原子回滚、前端订单管理中心
+- **v0.6.0**（main）：Sprint 6 管理后台（RBAC 隔离 + 销售分析 + 订单/商品管理）
+- **v0.7.0**（main）：Sprint 7 PWA（manifest + Service Worker + 移动端底部导航）
+- **v1.0.0**（main）：Sprint 8 生产发布（Playwright E2E + 覆盖率补测 + Knife4j + 部署文档）
+- **v1.1.0**（main / 当前发布）：Sprint 9 部分——Sentinel 网关限流、RabbitMQ 手动 ACK、AWS 就绪套件（CloudFormation/ECS/ECR）
 - 开发分支：`develop`；功能分支：`feature/sprint-N-xxx`（Git Flow）
+- **计划偏差备忘**：ES 全文搜索（Issue 2.4 / 故事线 9.2）未实现，商品搜索走 MySQL；infra 里的 ES 容器是空转的
 
 ## Sprint 1 交付明细（均已 E2E 验证）
 
@@ -106,6 +111,47 @@
 - **真实环境 E2E 验证（`scripts/test-sprint5-e2e.js`）**：
   - 覆盖下单预占、主动取消回滚、非法流转拦截、Webhook 确认、20 并发争抢 5 件库存压测（严格 0 超卖）、DLX 超时关单回滚全部 6 大用例通过
 
+## Sprint 6 交付明细（v0.6.0 · 管理后台）
+
+- **权限隔离**：`RequireAdmin` 前端路由守卫 + 网关 `AuthGlobalFilter` 管理路径拦截 + 服务内 `@PreAuthorize` 三层
+- **后台布局**：`AdminLayout`（AntD Pro 风格侧边栏）+ `lib/admin.ts` API 客户端
+- **三个页面**：`AdminDashboardPage`（销售分析图表）、`AdminOrdersPage`（订单分页/多维检索/状态推进）、`AdminProductsPage`（商品上下架/库存/预警）
+- **后端**：`AdminOrderController` + `AdminOrderServiceImpl`（管理端订单聚合查询与状态流转）
+- **测试**：`scripts/test-sprint6-e2e.js`
+
+## Sprint 7 交付明细（v0.7.0 · PWA）
+
+- `manifest.webmanifest` + 多尺寸图标（`scripts/generate-pwa-icons.py` 用 GDCUP 素材生成 192/512/maskable/apple-touch）
+- `sw.js`：静态资源 cache-first、商品页 network-first、离线兜底
+- 移动端：`MobileBottomNav` 底部导航、`OfflineBanner` + `useOnlineStatus` 离线检测、触控目标 ≥44px
+- **测试**：`scripts/test-sprint7-pwa.js`
+
+## Sprint 8 交付明细（v1.0.0 · 生产发布）
+
+- **E2E**：Playwright `stickybeak-frontend/e2e/shopping-flow.spec.ts`（注册→浏览→加购→支付→订单历史）+ `scripts/test-sprint8-e2e.js`
+- **覆盖率补测**：`AuthCoverageTest` / `OrderStateMachineCoverageTest` / `WebhookCoverageTest`
+- **API 文档**：`OpenApiConfig`（Knife4j，common 模块统一接入）
+- **部署**：`docker/docker-compose.prod.yml` + `nginx.prod.conf` + `.env.prod.example`；`docs/DEPLOYMENT_GUIDE.md` + `docs/DEMO_SCRIPT.md`；中英双 README
+- 注意：云资源为「配置就绪」，未实际部署上线（无 HTTPS + 域名证据）
+
+## Sprint 9 交付明细（v1.1.0 · 简历故事线，部分）
+
+- **9.1 Sentinel 限流**：`SentinelGatewayConfig`（网关层规则 + 单测）
+- **9.3 RabbitMQ 手动 ACK**：`OrderPaidListener` / `OrderTimeoutCloseListener` 改手动确认
+- **AWS 就绪（计划外）**：`docker/aws/cloudformation-vpc-ecs.yml`、ECS task 定义 ×2、`scripts/aws-ecr-push.sh`、`scripts/verify-aws-readiness.js`、CI 增强
+- **未做**：9.2 ES 替代慢 SQL（ES 根本没接入）、9.4 Nacos 多环境演示、9.5 慢 SQL 案例、9.6 webhook 线程池调优
+
+## 数据源（真实商品数据，差异化亮点 · 2026-09-17 双 AI 对账核实）
+
+小红书 GDCUP 爬取项目在 **`C:\Users\lzz28\gdcup-fridge-magnets\`**：
+- **规范数据源**：`data/note_details.json`（294 篇唯一笔记全量：正文/标签/图集URL）+ `media/notes/`（294 夹 / 1122 张图）
+- `classified/` 为分类拷贝（最新一次重跑后）：商品 **268** 篇全部有正文+图集，其他内容 26 篇（25 完整）
+- 唯一缺口：`6a806381000000000801111c`（其他内容类，非商品）正文/图集空、封面在；需要时用爬取项目 `scripts/save_one_note.py` 单补
+- 主页 296 条 = 294 唯一 + 2 篇置顶重复；封面 296 张 + 头像 1 张
+- 爬取项目审计脚本：`gdcup-fridge-magnets\scripts\audit-crawl.cjs`（`node` 直接跑）
+- **差值提醒**：店铺库导入的是旧口径 265 件；最新分类 268 篇 → 有 3 篇可增量导入
+- Sprint 2 导入用的是 `scripts/import-products.py` → `generated-product-data.sql`
+
 ## 环境差异（本机实测，新机器必读）
 
 - **Redis 宿主端口 16379**（6379/6380 被 Windows Hyper-V 保留段 6346-6445 占用）；容器网络内仍是 6379
@@ -155,14 +201,13 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 20. **MySQL 逻辑删除与唯一键冲突**：当数据表有 `UNIQUE KEY (a, b)` 同时开启 MyBatis-Plus `@TableLogic` 软删除时，删除行仍占用物理唯一键索引，再次添加相同键会报 `Duplicate entry`。购物车等临时表应采用物理删除 `DELETE FROM ...`。
 21. **RabbitMQ 原生 DLX 延迟队列配置**：队列设置 `x-message-ttl` + `x-dead-letter-exchange` + `x-dead-letter-routing-key` 即可实现原生延迟，无需安装第三方延迟插件；消费者只监听 DLX 死信目标队列，确保消息到期后精确触发。
 
-## 下一步（Sprint 6 — 管理后台 Dashboard、销售分析与库存管理，tag v0.6.0）
+## 剩余项（全部非阻塞，按需）
 
-按 `docs/SPRINT_ISSUES.md` Issue 6.1→6.6：
-1. **6.1** 管理后台权限隔离（RBAC: `ROLE_ADMIN` / `ROLE_SYSADMIN` 专用路由拦截）
-2. **6.2** 仪表盘与销售报表（日/周/月 GMV、客单价、热销商品 Top 10）
-3. **6.3** 订单全状态管理后台（订单列表分页/多维检索、发货流转推进 `SHIPPED`）
-4. **6.4** 商品与库存后台管理（商品上下架、分类/标签维护、动态增补库存与库存预警）
-5. **6.5** 前端管理界面（Ant Design 5 Pro 风格后台布局、数据表格、可视化图表）
+1. **ES 全文搜索**（Issue 2.4 / 9.2）：所有 pom 无 ES 依赖，当前搜索走 MySQL LIKE。要做的话：product 服务加 spring-data-elasticsearch、products 索引（IK）、商品变更 MQ 同步、Sentinel 降级开关——面试故事「MySQL 500ms → ES 50ms」
+2. **Sprint 9.4/9.5/9.6**：Nacos 多环境演示 / 慢 SQL 优化案例 / webhook 线程池调优
+3. **3 篇商品增量导入**（分类重跑后 265 → 268）
+4. **真实云部署**：AWS 配置已就绪（`docker/aws/`），尚未实际上线
+5. **可选**：补爬缺口笔记 `6a806381`（非商品，观鸟内容）
 
 ## 硬性规范（不要违反）
 
