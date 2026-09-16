@@ -116,6 +116,16 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             List<?> roles = claims.get("roles", List.class);
             String rolesHeader = roles == null ? "" :
                     String.join(",", roles.stream().map(String::valueOf).toList());
+            if (path.contains("/admin")) {
+                boolean hasAdminRole = roles != null && roles.stream().anyMatch(r -> {
+                    String s = String.valueOf(r).toLowerCase();
+                    return s.contains("admin") || s.contains("sysadmin");
+                });
+                if (!hasAdminRole) {
+                    return writeForbidden(exchange, "admin permission required");
+                }
+            }
+
             ServerHttpRequest authenticated = sanitized.mutate()
                     .header(HEADER_USER_ID, claims.getSubject())
                     .header(HEADER_USER_ROLES, rolesHeader)
@@ -127,6 +137,9 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
     private boolean isPublic(String path, HttpMethod method) {
         if (path.endsWith("/health")) {
             return true;
+        }
+        if (path.contains("/admin")) {
+            return false;
         }
         for (String prefix : PUBLIC_PREFIXES) {
             if (path.startsWith(prefix)) {
@@ -171,6 +184,20 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
         try {
             byte[] bytes = objectMapper.writeValueAsString(
                     Result.fail(ResultCode.UNAUTHORIZED.getCode(), message)).getBytes(StandardCharsets.UTF_8);
+            DataBuffer buffer = response.bufferFactory().wrap(bytes);
+            return response.writeWith(Mono.just(buffer));
+        } catch (Exception e) {
+            return response.setComplete();
+        }
+    }
+
+    private Mono<Void> writeForbidden(ServerWebExchange exchange, String message) {
+        var response = exchange.getResponse();
+        response.setStatusCode(HttpStatus.FORBIDDEN);
+        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        try {
+            byte[] bytes = objectMapper.writeValueAsString(
+                    Result.fail(ResultCode.FORBIDDEN.getCode(), message)).getBytes(StandardCharsets.UTF_8);
             DataBuffer buffer = response.bufferFactory().wrap(bytes);
             return response.writeWith(Mono.just(buffer));
         } catch (Exception e) {

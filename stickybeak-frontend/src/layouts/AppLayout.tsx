@@ -6,6 +6,7 @@ import {
   ShoppingCartOutlined,
   UserOutlined,
   OrderedListOutlined,
+  DashboardOutlined,
   SunOutlined,
   MoonOutlined,
   DesktopOutlined,
@@ -141,12 +142,17 @@ export default function AppLayout() {
                 <Dropdown
                   menu={{
                     items: [
+                      ...(user.roles && user.roles.some((r) => r === 'admin' || r === 'sysadmin')
+                        ? [{ key: 'admin', icon: <DashboardOutlined />, label: t('admin.portal') }]
+                        : []),
                       { key: 'profile', icon: <UserOutlined />, label: t('nav.profile') },
                       { key: 'orders', icon: <OrderedListOutlined />, label: t('nav.myOrders') },
                       { key: 'logout', icon: <LogoutOutlined />, label: t('nav.signOut') },
                     ],
                     onClick: ({ key }) => {
-                      if (key === 'profile') {
+                      if (key === 'admin') {
+                        navigate('/admin');
+                      } else if (key === 'profile') {
                         navigate('/profile');
                       } else if (key === 'orders') {
                         navigate('/orders');

@@ -145,6 +145,21 @@ export const translations = {
     'orders.empty': 'No orders found in this status',
     'orders.backToShop': 'Browse Magnets',
 
+    // Admin Portal
+    'admin.portal': 'Admin Portal',
+    'admin.dashboard': 'Dashboard',
+    'admin.orders': 'Order Operations',
+    'admin.products': 'Products & Stock',
+    'admin.backToStore': 'Back to Storefront',
+    'admin.totalGmv': 'Total GMV',
+    'admin.todayGmv': "Today's GMV",
+    'admin.totalOrders': 'Total Orders',
+    'admin.pendingShipment': 'Pending Shipment',
+    'admin.stockAlerts': 'Stock Alerts',
+    'admin.exportCsv': 'Export CSV',
+    'admin.salesTrend': 'Sales & Order Trend',
+    'admin.topProducts': 'Top 10 Best Sellers',
+
     // Theme & Lang
     'theme.light': 'Light',
     'theme.dark': 'Dark',
@@ -293,6 +308,21 @@ export const translations = {
     'orders.payNow': '立即支付',
     'orders.empty': '暂无相关状态的订单',
     'orders.backToShop': '去挑选冰箱贴',
+
+    // Admin Portal
+    'admin.portal': '管理后台',
+    'admin.dashboard': '仪表盘看板',
+    'admin.orders': '订单运营管理',
+    'admin.products': '商品与库存管理',
+    'admin.backToStore': '返回商城前台',
+    'admin.totalGmv': '累计总销售额',
+    'admin.todayGmv': '今日销售额',
+    'admin.totalOrders': '累计成交订单数',
+    'admin.pendingShipment': '待发货订单数',
+    'admin.stockAlerts': '低库存预警',
+    'admin.exportCsv': '导出分析报表',
+    'admin.salesTrend': '销售额与订单走势',
+    'admin.topProducts': '热销商品 Top 10',
 
     // Theme & Lang
     'theme.light': '浅色',
