@@ -1,30 +1,30 @@
 package au.com.stickybeak.payment.service.impl;
 
-import au.com.stickybeak.common.event.OrderPaidEvent;
 import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.common.result.ResultCode;
-import au.com.stickybeak.payment.entity.PaymentRecord;
 import au.com.stickybeak.payment.entity.PaymentWebhook;
-import au.com.stickybeak.payment.mapper.PaymentRecordMapper;
 import au.com.stickybeak.payment.mapper.PaymentWebhookMapper;
 import au.com.stickybeak.payment.provider.MockPaymentProvider;
 import au.com.stickybeak.payment.provider.StripePaymentProvider;
+import au.com.stickybeak.payment.service.WebhookEventProcessor;
 import au.com.stickybeak.payment.service.WebhookService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDateTime;
+import static au.com.stickybeak.payment.config.WebhookExecutorConfig.EXECUTOR;
 
+/**
+ * Webhook 接收端（故事线 9.6）：
+ * 同步段只做验签 + 幂等落档（快），重处理投递到 webhookTaskExecutor 线程池异步执行。
+ * 快速返回 200 ACCEPTED，Stripe 不再因处理耗时而超时重试。
+ */
 @Service
 public class WebhookServiceImpl implements WebhookService {
 
@@ -33,41 +33,36 @@ public class WebhookServiceImpl implements WebhookService {
     private final StripePaymentProvider stripePaymentProvider;
     private final MockPaymentProvider mockPaymentProvider;
     private final PaymentWebhookMapper paymentWebhookMapper;
-    private final PaymentRecordMapper paymentRecordMapper;
-    private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
+    private final WebhookEventProcessor webhookEventProcessor;
+    private final ThreadPoolTaskExecutor webhookTaskExecutor;
 
     public WebhookServiceImpl(StripePaymentProvider stripePaymentProvider,
                               MockPaymentProvider mockPaymentProvider,
                               PaymentWebhookMapper paymentWebhookMapper,
-                              PaymentRecordMapper paymentRecordMapper,
-                              RabbitTemplate rabbitTemplate,
-                              ObjectMapper objectMapper) {
+                              ObjectMapper objectMapper,
+                              WebhookEventProcessor webhookEventProcessor,
+                              @Qualifier(EXECUTOR) ThreadPoolTaskExecutor webhookTaskExecutor) {
         this.stripePaymentProvider = stripePaymentProvider;
         this.mockPaymentProvider = mockPaymentProvider;
         this.paymentWebhookMapper = paymentWebhookMapper;
-        this.paymentRecordMapper = paymentRecordMapper;
-        this.rabbitTemplate = rabbitTemplate;
         this.objectMapper = objectMapper;
+        this.webhookEventProcessor = webhookEventProcessor;
+        this.webhookTaskExecutor = webhookTaskExecutor;
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public String handleStripeWebhook(String payload, String sigHeader) {
         log.info("Received Stripe webhook request");
-
-        // 1. Verify signature
+        // 1. 验签（同步，快）
         String eventId = stripePaymentProvider.verifyWebhook(payload, sigHeader);
-
-        // 2. Process event with idempotency
-        return processEvent(eventId, payload, false);
+        // 2. 幂等落档 + 投递线程池
+        return enqueue(eventId, payload, false);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public String handleMockWebhook(String payload) {
         log.info("Received Mock webhook request");
-
         String eventId;
         try {
             JsonNode root = objectMapper.readTree(payload);
@@ -81,129 +76,41 @@ public class WebhookServiceImpl implements WebhookService {
         } catch (Exception e) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "Malformed JSON payload");
         }
-
-        return processEvent(eventId, payload, true);
+        return enqueue(eventId, payload, true);
     }
 
-    private String processEvent(String eventId, String payload, boolean isMock) {
-        // Idempotency check: query by event_id
+    /**
+     * 幂等落档后投递线程池。重复投递直接 no-op（UK 兜底并发）；
+     * 已存在但未处理完的记录允许重投（崩溃恢复）。
+     */
+    private String enqueue(String eventId, String payload, boolean isMock) {
         PaymentWebhook existing = paymentWebhookMapper.selectOne(
-                new LambdaQueryWrapper<PaymentWebhook>().eq(PaymentWebhook::getEventId, eventId)
-        );
+                new LambdaQueryWrapper<PaymentWebhook>().eq(PaymentWebhook::getEventId, eventId));
 
         if (existing != null && existing.getProcessed() == 1) {
-            log.info("Webhook event {} already successfully processed. Idempotent return.", eventId);
+            log.info("Webhook event {} already processed. Idempotent no-op.", eventId);
             return "ALREADY_PROCESSED";
         }
-
-        PaymentWebhook webhookRecord = existing;
-        if (webhookRecord == null) {
-            webhookRecord = new PaymentWebhook();
-            webhookRecord.setEventId(eventId);
-            webhookRecord.setEventType("unknown");
-            webhookRecord.setPayload(payload);
-            webhookRecord.setProcessed(0);
+        if (existing == null) {
+            PaymentWebhook record = new PaymentWebhook();
+            record.setEventId(eventId);
+            record.setEventType("unknown");
+            record.setPayload(payload);
+            record.setProcessed(0);
             try {
-                paymentWebhookMapper.insert(webhookRecord);
+                paymentWebhookMapper.insert(record);
             } catch (DuplicateKeyException dke) {
                 log.info("Concurrent webhook event {} caught by UK constraint.", eventId);
                 return "ALREADY_PROCESSED";
             }
         }
 
-        try {
-            JsonNode root = objectMapper.readTree(payload);
-            String eventType = root.has("type") ? root.get("type").asText() : (isMock ? "mock.payment.paid" : "unknown");
-            webhookRecord.setEventType(eventType);
-
-            // Extract order details
-            String orderNo = null;
-            String transactionId = null;
-            BigDecimal amount = null;
-            String currency = null;
-            String customerEmail = null;
-
-            if (isMock && root.has("orderNo")) {
-                orderNo = root.get("orderNo").asText();
-                transactionId = root.has("transactionId") ? root.get("transactionId").asText() : "mock_tx_" + System.currentTimeMillis();
-                amount = root.has("amount") ? new BigDecimal(root.get("amount").asText()) : null;
-                currency = root.has("currency") ? root.get("currency").asText() : "AUD";
-                customerEmail = root.has("email") ? root.get("email").asText() : null;
-            } else if (root.has("data") && root.get("data").has("object")) {
-                JsonNode obj = root.get("data").get("object");
-
-                // Check client_reference_id or metadata.orderNo
-                if (obj.hasNonNull("client_reference_id")) {
-                    orderNo = obj.get("client_reference_id").asText();
-                } else if (obj.has("metadata") && obj.get("metadata").hasNonNull("orderNo")) {
-                    orderNo = obj.get("metadata").get("orderNo").asText();
-                }
-
-                if (obj.hasNonNull("payment_intent")) {
-                    transactionId = obj.get("payment_intent").asText();
-                } else if (obj.hasNonNull("id")) {
-                    transactionId = obj.get("id").asText();
-                }
-
-                if (obj.hasNonNull("amount_total")) {
-                    long cents = obj.get("amount_total").asLong();
-                    amount = BigDecimal.valueOf(cents).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-                }
-
-                if (obj.hasNonNull("currency")) {
-                    currency = obj.get("currency").asText().toUpperCase();
-                }
-
-                if (obj.has("customer_details") && obj.get("customer_details").hasNonNull("email")) {
-                    customerEmail = obj.get("customer_details").get("email").asText();
-                }
-            }
-
-            log.info("Extracted webhook info: eventId={}, eventType={}, orderNo={}, transactionId={}",
-                    eventId, eventType, orderNo, transactionId);
-
-            if (StringUtils.hasText(orderNo)) {
-                // Update payment record
-                PaymentRecord record = paymentRecordMapper.selectOne(
-                        new LambdaQueryWrapper<PaymentRecord>().eq(PaymentRecord::getOrderNo, orderNo)
-                );
-
-                LocalDateTime now = LocalDateTime.now();
-                if (record != null) {
-                    record.setStatus("succeeded");
-                    if (transactionId != null) {
-                        record.setTransactionId(transactionId);
-                    }
-                    record.setPayTime(now);
-                    paymentRecordMapper.updateById(record);
-                }
-
-                // Publish OrderPaidEvent to RabbitMQ
-                OrderPaidEvent event = new OrderPaidEvent();
-                event.setOrderNo(orderNo);
-                event.setAmount(amount != null ? amount : (record != null ? record.getAmount() : BigDecimal.ZERO));
-                event.setCurrency(currency != null ? currency : (record != null ? record.getCurrency() : "AUD"));
-                event.setPaymentMethod(record != null ? record.getPaymentMethod() : "card");
-                event.setTransactionId(transactionId != null ? transactionId : (record != null ? record.getTransactionId() : ""));
-                event.setPayTime(now);
-                event.setEmail(customerEmail);
-
-                log.info("Publishing OrderPaidEvent to RabbitMQ: exchange={}, routingKey={}, orderNo={}",
-                        OrderPaidEvent.EXCHANGE, OrderPaidEvent.ROUTING_KEY, orderNo);
-                rabbitTemplate.convertAndSend(OrderPaidEvent.EXCHANGE, OrderPaidEvent.ROUTING_KEY, event);
-            }
-
-            webhookRecord.setProcessed(1);
-            webhookRecord.setErrorMsg(null);
-            paymentWebhookMapper.updateById(webhookRecord);
-            return "SUCCESS";
-
-        } catch (Exception e) {
-            log.error("Failed to process webhook event {}: {}", eventId, e.getMessage(), e);
-            webhookRecord.setProcessed(2);
-            webhookRecord.setErrorMsg(e.getMessage());
-            paymentWebhookMapper.updateById(webhookRecord);
-            throw new BusinessException(ResultCode.SYSTEM_ERROR, "Webhook processing error: " + e.getMessage());
-        }
+        // CallerRunsPolicy 兜底：队列满时本方法阻塞在执行里（背压），事件不丢
+        webhookTaskExecutor.execute(() -> webhookEventProcessor.process(eventId, payload, isMock));
+        log.debug("webhook {} enqueued (active={}, queue={})",
+                eventId,
+                webhookTaskExecutor.getThreadPoolExecutor().getActiveCount(),
+                webhookTaskExecutor.getThreadPoolExecutor().getQueue().size());
+        return "ACCEPTED";
     }
 }

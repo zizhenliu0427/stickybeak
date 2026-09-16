@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -42,6 +43,8 @@ class AdminProductServiceTest {
     private StringRedisTemplate stringRedisTemplate;
     @Mock
     private ValueOperations<String, String> valueOperations;
+    @Mock
+    private RabbitTemplate rabbitTemplate;
 
     private AdminProductServiceImpl adminProductService;
 
@@ -49,7 +52,7 @@ class AdminProductServiceTest {
     void setUp() {
         lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
         adminProductService = new AdminProductServiceImpl(
-                productMapper, categoryMapper, productImageMapper, stringRedisTemplate);
+                productMapper, categoryMapper, productImageMapper, stringRedisTemplate, rabbitTemplate);
     }
 
     @Test

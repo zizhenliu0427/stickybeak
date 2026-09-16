@@ -8,6 +8,7 @@ import au.com.stickybeak.product.dto.ProductPriceUpdateRequest;
 import au.com.stickybeak.product.dto.ProductStatusUpdateRequest;
 import au.com.stickybeak.product.dto.ProductStockUpdateRequest;
 import au.com.stickybeak.product.service.AdminProductService;
+import au.com.stickybeak.product.service.ProductIndexService;
 import au.com.stickybeak.product.vo.AdminProductVO;
 import au.com.stickybeak.product.vo.StockAlertSummaryVO;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -15,14 +16,19 @@ import jakarta.validation.Valid;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/products/admin")
 public class AdminProductController {
 
     private final AdminProductService adminProductService;
+    private final ProductIndexService productIndexService;
 
-    public AdminProductController(AdminProductService adminProductService) {
+    public AdminProductController(AdminProductService adminProductService,
+                                  ProductIndexService productIndexService) {
         this.adminProductService = adminProductService;
+        this.productIndexService = productIndexService;
     }
 
     @GetMapping("/page")
@@ -69,6 +75,15 @@ public class AdminProductController {
             @RequestParam(defaultValue = "10") int threshold) {
         checkAdminRole(roles);
         return Result.ok(adminProductService.getStockAlerts(threshold));
+    }
+
+    /** 全量重建 ES 索引（首次导入/索引漂移兜底） */
+    @PostMapping("/reindex")
+    public Result<Map<String, Object>> reindex(
+            @RequestHeader(value = "X-User-Roles", required = false) String roles) {
+        checkAdminRole(roles);
+        int count = productIndexService.reindexAll();
+        return Result.ok(Map.of("indexed", count));
     }
 
     private void checkAdminRole(String rolesHeader) {

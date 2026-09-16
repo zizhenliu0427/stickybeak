@@ -20,8 +20,8 @@
 - **v0.7.0**（main）：Sprint 7 PWA（manifest + Service Worker + 移动端底部导航）
 - **v1.0.0**（main）：Sprint 8 生产发布（Playwright E2E + 覆盖率补测 + Knife4j + 部署文档）
 - **v1.1.0**（main / 当前发布）：Sprint 9 部分——Sentinel 网关限流、RabbitMQ 手动 ACK、AWS 就绪套件（CloudFormation/ECS/ECR）
-- 开发分支：`develop`；功能分支：`feature/sprint-N-xxx`（Git Flow）
-- **计划偏差备忘**：ES 全文搜索（Issue 2.4 / 故事线 9.2）未实现，商品搜索走 MySQL；infra 里的 ES 容器是空转的
+- 开发分支：`develop`（当前唯一工作分支，不再开 feature 分支）
+- ~~计划偏差备忘~~ ES 全文搜索已补齐（2026-09-17，Issue 2.4 + 故事线 9.2/9.4/9.5/9.6 全部落地）
 
 ## Sprint 1 交付明细（均已 E2E 验证）
 
@@ -134,12 +134,24 @@
 - **部署**：`docker/docker-compose.prod.yml` + `nginx.prod.conf` + `.env.prod.example`；`docs/DEPLOYMENT_GUIDE.md` + `docs/DEMO_SCRIPT.md`；中英双 README
 - 注意：云资源为「配置就绪」，未实际部署上线（无 HTTPS + 域名证据）
 
-## Sprint 9 交付明细（v1.1.0 · 简历故事线，部分）
+## Sprint 9 交付明细（v1.1.0 + 2026-09-17 补齐 · 简历故事线）
 
 - **9.1 Sentinel 限流**：`SentinelGatewayConfig`（网关层规则 + 单测）
 - **9.3 RabbitMQ 手动 ACK**：`OrderPaidListener` / `OrderTimeoutCloseListener` 改手动确认
 - **AWS 就绪（计划外）**：`docker/aws/cloudformation-vpc-ecs.yml`、ECS task 定义 ×2、`scripts/aws-ecr-push.sh`、`scripts/verify-aws-readiness.js`、CI 增强
-- **未做**：9.2 ES 替代慢 SQL（ES 根本没接入）、9.4 Nacos 多环境演示、9.5 慢 SQL 案例、9.6 webhook 线程池调优
+- **9.2 ES 全文搜索 + 基准**（2026-09-17 补）：
+  - product 服务接入 `spring-boot-starter-data-elasticsearch`，`ProductDocument`（IK 分词：name^3/description，价格存 cents）
+  - 检索链路：`GET /api/products?q=` → ES multi_match → 命中 id 回 MySQL 取实体；`engine=es|mysql` 调试参数（显式指定跳过缓存）
+  - 降级：`@SentinelResource` + 异常比例熔断（>50%/60s → 断 30s）自动回退 MySQL LIKE——已实测停 ES 容器后搜索正常
+  - 一致性：管理端变更 → MQ `product.changed` → `ProductIndexListener` 刷索引（无双写）；全量兜底 `POST /api/products/admin/reindex`
+  - ES 容器装 IK 插件，持久化靠 `docker/elasticsearch/Dockerfile`（compose 已改 build 方式）
+  - 基准：`scripts/benchmark-search.cjs`（真实数据）+ `benchmark-search-scale.cjs`（10 万行合成）→ `docs/SEARCH_BENCHMARK.md`（诚实结论：小数据量持平，10 万行 MySQL 全扫 118ms vs ES 52ms）
+- **9.4 Nacos 多环境**（2026-09-17 补）：`ConfigDemoController` + `scripts/demo-nacos-multi-env.cjs` → `docs/NACOS_MULTI_ENV.md`（热刷新实测免重启；prod 命名空间隔离实测——prod 实例对 public 网关直接不可见）
+- **9.5 慢 SQL 案例**（2026-09-17 补）：`scripts/demo-sql-optimization.cjs` → `docs/SQL_OPTIMIZATION.md`。
+  - 主案例：趋势查询覆盖索引 152ms→72ms（50 万行），生产迁移 `07-order-analytics-index.sql` 已应用
+  - 番外反例：Top-N 聚合加索引反而 607→732ms（优化器翻转 join 顺序），正解是预聚合汇总表
+- **9.6 webhook 线程池**（2026-09-17 补）：`WebhookExecutorConfig`（core4/max8/queue200/CallerRuns 背压）+ 接收端「验签+幂等落档 → 异步处理」+ `GET /api/webhooks/pool-stats` 监控 → `docs/THREADPOOL_WEBHOOK.md`；60 并发实测 0 丢失 0 拒绝
+  - ⚠️ 行为变更：webhook 受理返回 `ACCEPTED`（原为处理完返回 `SUCCESS`），e2e 断言已同步更新
 
 ## 数据源（真实商品数据，差异化亮点 · 2026-09-17 双 AI 对账核实）
 
@@ -200,14 +212,18 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 19. **Windows 火绒杀毒拦截本地 `.ps1` 并发/自动化脚本**：严禁创建复杂的新 `.ps1` 脚本进行自动化测试或压测；应统一使用 Node.js 脚本驱动（如 `scripts/test-sprint5-e2e.js`）或 Docker 容器内执行。
 20. **MySQL 逻辑删除与唯一键冲突**：当数据表有 `UNIQUE KEY (a, b)` 同时开启 MyBatis-Plus `@TableLogic` 软删除时，删除行仍占用物理唯一键索引，再次添加相同键会报 `Duplicate entry`。购物车等临时表应采用物理删除 `DELETE FROM ...`。
 21. **RabbitMQ 原生 DLX 延迟队列配置**：队列设置 `x-message-ttl` + `x-dead-letter-exchange` + `x-dead-letter-routing-key` 即可实现原生延迟，无需安装第三方延迟插件；消费者只监听 DLX 死信目标队列，确保消息到期后精确触发。
+22. **Sentinel 网关适配器自动注册**：`SentinelSCGAutoConfiguration` 已提供 `sentinelGatewayFilter`/`SentinelGatewayBlockExceptionHandler`，自定义 `@Configuration` 不得重复声明同名 @Bean（否则 BeanDefinitionOverrideException 启动失败），只做规则加载与 BlockHandler 定制
+23. **SCA 2023 config import 不会自动加载 `-{profile}` 变体**：需显式 `optional:nacos:xxx-${spring.profiles.active:dev}.yml`；且 dataId 必须在启动时已存在（哪怕为空）才会被订阅热更新
+24. **Windows curl `--data-urlencode xx@file` 按控制台代码页读文件**：中文必乱码；Node `encodeURIComponent` 后 `--data-raw` 纯 ASCII 发送
+25. **`query.hashCode()` 当缓存 key 是身份哈希**：ModelAttribute 绑定的 POJO 每次请求都是新对象 → 缓存永不命中。已修为字段拼接 key（listCacheKey）
+26. **`mvn test` 不会重新打 jar**：容器重启前必须 `package`，否则跑的是旧代码
+27. **MySQL 加索引不等于优化**：优化器可能因新索引翻转 join 顺序反而更慢（Top-N 案例实测 607→732ms），必须 EXPLAIN ANALYZE 复查；聚合类查询的终极解是预聚合汇总表
 
 ## 剩余项（全部非阻塞，按需）
 
-1. **ES 全文搜索**（Issue 2.4 / 9.2）：所有 pom 无 ES 依赖，当前搜索走 MySQL LIKE。要做的话：product 服务加 spring-data-elasticsearch、products 索引（IK）、商品变更 MQ 同步、Sentinel 降级开关——面试故事「MySQL 500ms → ES 50ms」
-2. **Sprint 9.4/9.5/9.6**：Nacos 多环境演示 / 慢 SQL 优化案例 / webhook 线程池调优
-3. **3 篇商品增量导入**（分类重跑后 265 → 268）
-4. **真实云部署**：AWS 配置已就绪（`docker/aws/`），尚未实际上线
-5. **可选**：补爬缺口笔记 `6a806381`（非商品，观鸟内容）
+1. **3 篇商品增量导入**（分类重跑后 265 → 268；且用户已按 10 个子品类重新分类，店铺 6 个旧种子类目与新体系未对齐——`分类索引.json` 含 note id 可机械重映射）
+2. **真实云部署**：AWS 配置已就绪（`docker/aws/`），尚未实际上线
+3. **可选**：补爬缺口笔记 `6a806381`（非商品，观鸟内容）
 
 ## 硬性规范（不要违反）
 

@@ -234,7 +234,8 @@ async function runE2ESuite() {
             transactionId: `tx_s8_${timestamp}`,
           }
         );
-        assert(webhookRes.statusCode === 200 && webhookRes.body.includes('SUCCESS'), '支付成功 Webhook 投递成功');
+        // Sprint 9.6 起 webhook 为「验签+幂等落档 → 线程池异步处理」，受理即返回 ACCEPTED
+        assert(webhookRes.statusCode === 200 && webhookRes.body.includes('ACCEPTED'), '支付成功 Webhook 受理成功');
 
         // 等待异步状态机流转
         await new Promise((r) => setTimeout(r, 1200));

@@ -1,5 +1,6 @@
 package au.com.stickybeak.product.service.impl;
 
+import au.com.stickybeak.common.event.ProductChangedEvent;
 import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.common.result.ResultCode;
 import au.com.stickybeak.product.dto.AdminProductPageQuery;
@@ -19,9 +20,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -37,15 +41,18 @@ public class AdminProductServiceImpl implements AdminProductService {
     private final CategoryMapper categoryMapper;
     private final ProductImageMapper productImageMapper;
     private final StringRedisTemplate stringRedisTemplate;
+    private final RabbitTemplate rabbitTemplate;
 
     public AdminProductServiceImpl(ProductMapper productMapper,
                                    CategoryMapper categoryMapper,
                                    ProductImageMapper productImageMapper,
-                                   StringRedisTemplate stringRedisTemplate) {
+                                   StringRedisTemplate stringRedisTemplate,
+                                   RabbitTemplate rabbitTemplate) {
         this.productMapper = productMapper;
         this.categoryMapper = categoryMapper;
         this.productImageMapper = productImageMapper;
         this.stringRedisTemplate = stringRedisTemplate;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     @Override
@@ -154,6 +161,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setStatus(req.getStatus());
         productMapper.updateById(product);
         clearProductCaches(product);
+        publishProductChanged(id);
         log.info("Admin updated product {} status to {}", id, req.getStatus());
     }
 
@@ -185,6 +193,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         }
 
         clearProductCaches(product);
+        publishProductChanged(id);
         log.info("Admin updated product {} stock to {}", id, targetStock);
     }
 
@@ -198,6 +207,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setPrice(req.getPrice());
         productMapper.updateById(product);
         clearProductCaches(product);
+        publishProductChanged(id);
         log.info("Admin updated product {} price to {}", id, req.getPrice());
     }
 
@@ -243,6 +253,30 @@ public class AdminProductServiceImpl implements AdminProductService {
         summary.setLowStockCount(low);
         summary.setAlertProducts(voList);
         return summary;
+    }
+
+    /**
+     * 商品变更事件：事务提交后再投递，消费者（ES 索引监听器）读到的必然是已落库数据。
+     * MQ 不可用时只告警——Redis 缓存已清，ES 偏差由全量 reindex 兜底。
+     */
+    private void publishProductChanged(Long productId) {
+        try {
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        rabbitTemplate.convertAndSend(ProductChangedEvent.EXCHANGE,
+                                ProductChangedEvent.ROUTING_KEY,
+                                new ProductChangedEvent(productId, ProductChangedEvent.ChangeType.UPSERT));
+                    }
+                });
+            } else {
+                rabbitTemplate.convertAndSend(ProductChangedEvent.EXCHANGE, ProductChangedEvent.ROUTING_KEY,
+                        new ProductChangedEvent(productId, ProductChangedEvent.ChangeType.UPSERT));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to publish ProductChangedEvent for {}: {}", productId, e.getMessage());
+        }
     }
 
     private String computeStockStatus(Integer stock) {

@@ -4,16 +4,24 @@ server:
 spring:
   application:
     name: stickybeak-product
+  # 多环境：dev 默认；profile 激活后 Nacos 自动叠加加载 stickybeak-product-{profile}.yml
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   config:
     import:
       - optional:nacos:stickybeak-product.yml
+      # 显式按 profile 叠加（SCA 2023 的 config import 不会自动补 -{profile} 变体）
+      - optional:nacos:stickybeak-product-${spring.profiles.active:dev}.yml
   cloud:
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
       config:
         server-addr: ${NACOS_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
         file-extension: yml
+        # 动态刷新默认开启（spring.cloud.nacos.config.refresh-enabled=true）
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/stickybeak_product?useSSL=false&serverTimezone=Australia/Sydney&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
     username: ${MYSQL_USER:root}
@@ -25,6 +33,14 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       timeout: 3s
+  elasticsearch:
+    # 宿主 19200（9200 被 Windows 保留段占用）；容器网络内 http://sb-elasticsearch:9200
+    uris: ${ES_URIS:http://localhost:19200}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
 
 mybatis-plus:
   configuration:

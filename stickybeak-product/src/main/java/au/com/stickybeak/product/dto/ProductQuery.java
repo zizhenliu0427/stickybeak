@@ -9,6 +9,8 @@ public class ProductQuery {
     private BigDecimal maxPrice;
     private String sort;
     private String q;
+    /** 检索引擎：auto（默认，ES+降级）/ es / mysql。显式指定时跳过结果缓存（压测/调试用途） */
+    private String engine;
     private Integer page = 1;
     private Integer size = 12;
 
@@ -58,6 +60,14 @@ public class ProductQuery {
 
     public void setQ(String q) {
         this.q = q;
+    }
+
+    public String getEngine() {
+        return engine;
+    }
+
+    public void setEngine(String engine) {
+        this.engine = engine;
     }
 
     public Integer getPage() {
