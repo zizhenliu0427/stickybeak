@@ -51,11 +51,12 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             "/actuator"
     );
 
-    /** GET 公开前缀（商品浏览） */
+    /** GET 公开前缀（商品浏览、公开汇率） */
     private static final List<String> PUBLIC_GET_PREFIXES = List.of(
             "/api/products",
             "/api/categories",
-            "/api/tags"
+            "/api/tags",
+            "/api/payments/exchange-rate"
     );
 
     /** 可选认证前缀（购物车、心愿单等，支持游客与登录用户） */
