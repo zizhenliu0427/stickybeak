@@ -48,7 +48,11 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             "/api/auth/refresh",
             "/api/auth/logout",
             "/api/webhooks",
-            "/actuator"
+            "/actuator",
+            "/doc.html",
+            "/v3/api-docs",
+            "/webjars",
+            "/swagger-resources"
     );
 
     /** GET 公开前缀（商品浏览、公开汇率） */
