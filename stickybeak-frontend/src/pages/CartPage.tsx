@@ -98,7 +98,12 @@ export default function CartPage() {
                         dispatch(removeItemAsync({ itemId: item.id, productId: item.productId }))
                       }
                     >
-                      <Button type="text" danger size="small" icon={<DeleteOutlined />} />
+                      <Button
+                        type="text"
+                        danger
+                        className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center p-0"
+                        icon={<DeleteOutlined className="text-base" />}
+                      />
                     </Popconfirm>
                   </div>
                 </div>
