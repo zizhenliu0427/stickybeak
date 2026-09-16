@@ -72,8 +72,13 @@ export async function getOrderDetail(orderNo: string): Promise<OrderVO> {
   return get<OrderVO>(`/orders/${orderNo}`);
 }
 
-export async function getMyOrders(): Promise<OrderVO[]> {
-  return get<OrderVO[]>('/orders/my');
+export async function getMyOrders(status?: string): Promise<OrderVO[]> {
+  const query = status && status !== 'all' ? { status } : undefined;
+  return get<OrderVO[]>('/orders/my', query);
+}
+
+export async function cancelOrder(orderNo: string): Promise<void> {
+  return post<void>(`/orders/${orderNo}/cancel`, {});
 }
 
 export async function getExchangeRate(base = 'AUD', quote = 'CNY'): Promise<ExchangeRateVO> {

@@ -15,8 +15,11 @@ public enum ResultCode {
     SYSTEM_ERROR(500, "internal server error"),
     BUSINESS_ERROR(1000, "business error"),
     STOCK_NOT_ENOUGH(1001, "insufficient stock"),
+    INSUFFICIENT_STOCK(1001, "insufficient stock"),
     ORDER_STATE_ILLEGAL(1002, "illegal order state transition"),
-    PAYMENT_FAILED(1003, "payment failed");
+    ILLEGAL_STATE_TRANSITION(1002, "illegal order state transition"),
+    PAYMENT_FAILED(1003, "payment failed"),
+    ORDER_ALREADY_CLOSED(1004, "order already closed");
 
     private final int code;
     private final String message;

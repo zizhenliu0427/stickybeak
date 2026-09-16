@@ -11,6 +11,7 @@ import ProfilePage from '../pages/ProfilePage';
 import CheckoutPage from '../pages/CheckoutPage';
 import CheckoutSuccessPage from '../pages/CheckoutSuccessPage';
 import CheckoutCancelPage from '../pages/CheckoutCancelPage';
+import OrdersPage from '../pages/OrdersPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
 export const router = createBrowserRouter([
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
         element: <RequireAuth />,
         children: [
           { path: 'profile', element: <ProfilePage /> },
+          { path: 'orders', element: <OrdersPage /> },
           { path: 'checkout', element: <CheckoutPage /> },
           { path: 'checkout/success', element: <CheckoutSuccessPage /> },
           { path: 'checkout/cancel', element: <CheckoutCancelPage /> },

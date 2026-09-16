@@ -48,13 +48,26 @@ public class OrderController {
 
     @GetMapping("/my")
     public Result<List<OrderVO>> listMyOrders(
+            @RequestParam(value = "status", required = false) String status,
             @RequestHeader(value = HEADER_USER_ID, required = false) String userIdHeader) {
         Long userId = parseUserId(userIdHeader);
         if (userId == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED);
         }
-        List<OrderVO> list = orderService.listUserOrders(userId);
+        List<OrderVO> list = orderService.listUserOrders(userId, status);
         return Result.ok(list);
+    }
+
+    @PostMapping("/{orderNo}/cancel")
+    public Result<Void> cancelOrder(
+            @PathVariable String orderNo,
+            @RequestHeader(value = HEADER_USER_ID, required = false) String userIdHeader) {
+        Long userId = parseUserId(userIdHeader);
+        if (userId == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+        orderService.cancelOrder(orderNo, userId);
+        return Result.ok();
     }
 
     private Long parseUserId(String userIdHeader) {

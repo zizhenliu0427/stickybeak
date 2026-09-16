@@ -13,7 +13,11 @@ public interface OrderService {
 
     OrderVO getByOrderNo(String orderNo, Long userId);
 
-    List<OrderVO> listUserOrders(Long userId);
+    List<OrderVO> listUserOrders(Long userId, String status);
+
+    void cancelOrder(String orderNo, Long userId);
 
     void handleOrderPaid(OrderPaidEvent event);
+
+    void handleOrderTimeout(String orderNo);
 }
