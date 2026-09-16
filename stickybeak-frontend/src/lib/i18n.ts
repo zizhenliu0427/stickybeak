@@ -164,6 +164,22 @@ export const translations = {
     'theme.light': 'Light',
     'theme.dark': 'Dark',
     'theme.system': 'System Auto',
+
+    // PWA & Mobile
+    'pwa.offline': "You're currently offline, mate",
+    'pwa.offlineDesc': 'Showing cached catalogue. Some live features may be unavailable.',
+    'pwa.onlineRestored': 'Connection restored! You are back online.',
+    'pwa.retry': 'Retry',
+    'mobile.home': 'Home',
+    'mobile.catalogue': 'Shop',
+    'mobile.trolley': 'Trolley',
+    'mobile.orders': 'Orders',
+    'mobile.account': 'Account',
+    'mobile.settings': 'Preferences & Settings',
+    'mobile.theme': 'Appearance',
+    'mobile.currency': 'Currency',
+    'mobile.language': 'Language',
+    'detail.stickyAdd': 'Add to Trolley',
   },
   'zh-CN': {
     // Nav
@@ -328,6 +344,22 @@ export const translations = {
     'theme.light': '浅色',
     'theme.dark': '深色',
     'theme.system': '跟随系统',
+
+    // PWA & Mobile
+    'pwa.offline': '当前处于离线模式',
+    'pwa.offlineDesc': '正在展示本地缓存的商品目录，部分在线服务暂不可用。',
+    'pwa.onlineRestored': '网络已重新连接！正在恢复在线数据。',
+    'pwa.retry': '重试连接',
+    'mobile.home': '首页',
+    'mobile.catalogue': '分类',
+    'mobile.trolley': '购物车',
+    'mobile.orders': '订单',
+    'mobile.account': '我的',
+    'mobile.settings': '偏好与系统设置',
+    'mobile.theme': '外观主题',
+    'mobile.currency': '货币结算',
+    'mobile.language': '界面语言',
+    'detail.stickyAdd': '加入购物车',
   },
 } as const;
 

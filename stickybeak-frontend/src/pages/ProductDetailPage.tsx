@@ -174,14 +174,14 @@ export default function ProductDetailPage() {
             <button
               onClick={onAddToCart}
               disabled={soldOut}
-              className="inline-flex items-center gap-2 rounded-lg bg-accent-500 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-600 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-stone-700"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-accent-500 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-600 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-stone-700"
             >
               <ShoppingCartOutlined /> {t('detail.addToTrolley')}
             </button>
             <button
               type="button"
               onClick={onToggleWishlist}
-              className={`flex h-10 w-10 items-center justify-center rounded-lg border text-lg transition-colors ${
+              className={`flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border text-lg transition-colors ${
                 inWishlist
                   ? 'border-red-300 bg-red-50 text-red-500 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400'
                   : 'border-sand-200 text-gray-400 hover:text-red-500 dark:border-stone-700 dark:text-stone-400 dark:hover:text-red-400'
@@ -217,6 +217,31 @@ export default function ProductDetailPage() {
           </div>
         </section>
       )}
+
+      {/* 移动端吸底快捷操作条（浮动在底部导航栏上方，单手可加购） */}
+      <div className="fixed bottom-14 left-0 right-0 z-30 flex items-center justify-between gap-3 border-t border-sand-200 bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur sm:hidden dark:border-stone-800 dark:bg-stone-900/95">
+        <div className="flex items-center gap-3">
+          <Price cents={product.priceCents} className="text-xl font-bold text-accent-600 dark:text-accent-400" />
+          <button
+            type="button"
+            onClick={onToggleWishlist}
+            className={`flex h-10 w-10 items-center justify-center rounded-lg border text-base ${
+              inWishlist
+                ? 'border-red-300 bg-red-50 text-red-500 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400'
+                : 'border-sand-200 text-gray-400 dark:border-stone-700 dark:text-stone-400'
+            }`}
+          >
+            {inWishlist ? <HeartFilled /> : <HeartOutlined />}
+          </button>
+        </div>
+        <button
+          onClick={onAddToCart}
+          disabled={soldOut}
+          className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg bg-accent-500 px-4 text-sm font-semibold text-white shadow transition-colors hover:bg-accent-600 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-stone-700"
+        >
+          <ShoppingCartOutlined /> {t('detail.stickyAdd')}
+        </button>
+      </div>
     </div>
   );
 }

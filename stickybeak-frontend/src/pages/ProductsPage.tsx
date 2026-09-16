@@ -77,52 +77,55 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-5">
-      {/* 工具栏 */}
-      <div className="flex flex-wrap items-center gap-3">
+      {/* 工具栏（移动端自适应流式排列） */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Input.Search
           placeholder={t('products.searchPlaceholder')}
           allowClear
           defaultValue={query.q}
           onSearch={(v) => patchParams({ q: v || undefined })}
-          className="max-w-64"
+          className="w-full sm:max-w-64"
         />
-        <Select
-          value={query.sort}
-          options={sortOptions}
-          onChange={(v) => patchParams({ sort: v === 'new' ? undefined : v })}
-          className="w-40"
-        />
-        <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-stone-400">
-          <span>{t('products.filterPrice')}</span>
-          <Slider
-            range
-            min={0}
-            max={Math.round((PRICE_CAP / 100) * (currency === 'CNY' ? rate : 1))}
-            value={priceValue}
-            onChange={(v) => {
-              // 展示币种 → 转回 AUD cents 存 URL（URL 永远以 AUD 为准）
-              const toAudCents = (display: number) =>
-                Math.round((display * 100) / (currency === 'CNY' ? rate : 1));
-              patchParams({
-                minPrice: v[0] > 0 ? String(toAudCents(v[0])) : undefined,
-                maxPrice: v[1] < priceValue[1] || query.maxPrice ? String(toAudCents(v[1])) : undefined,
-              });
-            }}
-            className="w-40"
-            tooltip={{
-              formatter: (v) => formatPrice(Math.round((v ?? 0) * 100), currency),
-            }}
+        <div className="flex flex-wrap items-center gap-3">
+          <Select
+            value={query.sort}
+            options={sortOptions}
+            onChange={(v) => patchParams({ sort: v === 'new' ? undefined : v })}
+            className="w-36 sm:w-40"
           />
+          <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-stone-400">
+            <span>{t('products.filterPrice')}</span>
+            <Slider
+              range
+              min={0}
+              max={Math.round((PRICE_CAP / 100) * (currency === 'CNY' ? rate : 1))}
+              value={priceValue}
+              onChange={(v) => {
+                // 展示币种 → 转回 AUD cents 存 URL（URL 永远以 AUD 为准）
+                const toAudCents = (display: number) =>
+                  Math.round((display * 100) / (currency === 'CNY' ? rate : 1));
+                patchParams({
+                  minPrice: v[0] > 0 ? String(toAudCents(v[0])) : undefined,
+                  maxPrice: v[1] < priceValue[1] || query.maxPrice ? String(toAudCents(v[1])) : undefined,
+                });
+              }}
+              className="w-28 sm:w-40"
+              tooltip={{
+                formatter: (v) => formatPrice(Math.round((v ?? 0) * 100), currency),
+              }}
+            />
+          </div>
         </div>
       </div>
 
-      {/* 品类 tab */}
-      <div className="flex flex-wrap gap-2">
+      {/* 品类滑动栏（触控高度 >= 44px 舒适可点） */}
+      <div className="no-scrollbar flex overflow-x-auto pb-1 gap-2 sm:flex-wrap">
         <button
+          type="button"
           onClick={() => patchParams({ category: undefined })}
-          className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
+          className={`flex min-h-[44px] shrink-0 items-center justify-center rounded-full px-5 py-2 text-sm font-medium transition-colors ${
             !query.category
-              ? 'bg-brand-600 text-white'
+              ? 'bg-brand-600 text-white shadow-sm'
               : 'border border-sand-200 bg-white text-gray-600 hover:border-brand-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300 dark:hover:border-brand-700'
           }`}
         >
@@ -134,10 +137,11 @@ export default function ProductsPage() {
           return (
             <button
               key={c.slug}
+              type="button"
               onClick={() => patchParams({ category: c.slug })}
-              className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
+              className={`flex min-h-[44px] shrink-0 items-center justify-center rounded-full px-5 py-2 text-sm font-medium transition-colors ${
                 query.category === c.slug
-                  ? 'bg-brand-600 text-white'
+                  ? 'bg-brand-600 text-white shadow-sm'
                   : 'border border-sand-200 bg-white text-gray-600 hover:border-brand-300 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-300 dark:hover:border-brand-700'
               }`}
             >

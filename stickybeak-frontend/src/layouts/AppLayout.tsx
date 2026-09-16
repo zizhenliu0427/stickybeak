@@ -22,6 +22,8 @@ import { setTheme, syncSystemTheme } from '../features/theme/themeSlice';
 import type { ThemeMode } from '../features/theme/themeSlice';
 import { useI18n } from '../lib/i18n';
 import Price from '../components/Price';
+import OfflineBanner from '../components/OfflineBanner';
+import MobileBottomNav from '../components/MobileBottomNav';
 
 export default function AppLayout() {
   const cartCount = useAppSelector(selectCartCount);
@@ -77,13 +79,14 @@ export default function AppLayout() {
         },
       }}
     >
-      <div className={`flex min-h-screen flex-col ${isDark ? 'dark bg-[#141716] text-[#f5f5f4]' : 'bg-[#faf8f4] text-[#1c1917]'}`}>
+      <div className={`flex min-h-screen flex-col overflow-x-hidden ${isDark ? 'dark bg-[#141716] text-[#f5f5f4]' : 'bg-[#faf8f4] text-[#1c1917]'}`}>
+        <OfflineBanner />
         <header className="sticky top-0 z-20 border-b border-sand-200 bg-sand-50/90 backdrop-blur dark:border-stone-800 dark:bg-stone-900/90">
           <div className="mx-auto flex h-14 items-center gap-4 px-4 sm:gap-6" style={{ maxWidth: 'var(--container-max)' }}>
             <Link to="/" className="text-xl font-bold tracking-tight text-brand-800 dark:text-brand-300">
               🧲 {t('nav.brand')}
             </Link>
-            <nav className="flex items-center gap-3 text-sm text-gray-700 sm:gap-4 dark:text-stone-300">
+            <nav className="hidden items-center gap-3 text-sm text-gray-700 sm:flex sm:gap-4 dark:text-stone-300">
               <Link to="/products" className="hover:text-brand-700 dark:hover:text-brand-300">
                 {t('nav.shop')}
               </Link>
@@ -95,42 +98,45 @@ export default function AppLayout() {
               </Link>
             </nav>
             <div className="ml-auto flex items-center gap-2 sm:gap-3">
-              {/* 语言切换器（澳洲英式英语 en-AU vs 中文 zh-CN） */}
-              <Segmented
-                size="small"
-                value={locale}
-                options={[
-                  { label: '🇦🇺 EN', value: 'en-AU' },
-                  { label: '🇨🇳 中文', value: 'zh-CN' },
-                ]}
-                onChange={(v) => dispatch(setLocale(v as Locale))}
-              />
+              {/* 桌面端偏好切换器（移动端在底部设置抽屉中提供更舒适的触控操作） */}
+              <div className="hidden items-center gap-2 sm:flex sm:gap-3">
+                {/* 语言切换器（澳洲英式英语 en-AU vs 中文 zh-CN） */}
+                <Segmented
+                  size="small"
+                  value={locale}
+                  options={[
+                    { label: '🇦🇺 EN', value: 'en-AU' },
+                    { label: '🇨🇳 中文', value: 'zh-CN' },
+                  ]}
+                  onChange={(v) => dispatch(setLocale(v as Locale))}
+                />
 
-              {/* 币种切换器（AUD / CNY） */}
-              <Segmented
-                size="small"
-                value={currency}
-                options={['AUD', 'CNY']}
-                onChange={(v) => dispatch(setCurrency(v as Currency))}
-              />
+                {/* 币种切换器（AUD / CNY） */}
+                <Segmented
+                  size="small"
+                  value={currency}
+                  options={['AUD', 'CNY']}
+                  onChange={(v) => dispatch(setCurrency(v as Currency))}
+                />
 
-              {/* 深浅色自适应切换器（Light / Dark / System） */}
-              <Segmented
-                size="small"
-                value={themeMode}
-                options={[
-                  { label: <SunOutlined title={t('theme.light')} />, value: 'light' },
-                  { label: <MoonOutlined title={t('theme.dark')} />, value: 'dark' },
-                  { label: <DesktopOutlined title={t('theme.system')} />, value: 'system' },
-                ]}
-                onChange={(v) => dispatch(setTheme(v as ThemeMode))}
-              />
+                {/* 深浅色自适应切换器（Light / Dark / System） */}
+                <Segmented
+                  size="small"
+                  value={themeMode}
+                  options={[
+                    { label: <SunOutlined title={t('theme.light')} />, value: 'light' },
+                    { label: <MoonOutlined title={t('theme.dark')} />, value: 'dark' },
+                    { label: <DesktopOutlined title={t('theme.system')} />, value: 'system' },
+                  ]}
+                  onChange={(v) => dispatch(setTheme(v as ThemeMode))}
+                />
+              </div>
 
-              {/* 购物车（Trolley）按钮 */}
+              {/* 购物车（Trolley）按钮 - 触控靶心优化 */}
               <button
                 onClick={() => setCartOpen(true)}
                 aria-label={t('nav.trolley')}
-                className="cursor-pointer p-1 text-gray-700 hover:text-brand-700 dark:text-stone-300 dark:hover:text-brand-300"
+                className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg p-1 text-gray-700 hover:bg-sand-100 hover:text-brand-700 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-brand-300"
               >
                 <Badge count={cartCount} size="small">
                   <ShoppingCartOutlined style={{ fontSize: 20 }} />
@@ -162,13 +168,13 @@ export default function AppLayout() {
                     },
                   }}
                 >
-                  <a className="flex items-center gap-2" onClick={(e) => e.preventDefault()}>
+                  <a className="flex min-h-[44px] items-center gap-2 p-1" onClick={(e) => e.preventDefault()}>
                     <Avatar size="small" icon={<UserOutlined />} src={user.avatarUrl ?? undefined} />
                     <span className="hidden text-sm sm:inline">{user.nickname}</span>
                   </a>
                 </Dropdown>
               ) : (
-                <Link to="/login" className="text-sm hover:underline dark:text-stone-300">
+                <Link to="/login" className="flex min-h-[44px] items-center px-2 text-sm hover:underline dark:text-stone-300">
                   {t('nav.signIn')}
                 </Link>
               )}
@@ -176,7 +182,7 @@ export default function AppLayout() {
           </div>
         </header>
 
-        <main className="mx-auto w-full flex-1 px-4 py-6" style={{ maxWidth: 'var(--container-max)' }}>
+        <main className="mx-auto w-full flex-1 px-4 py-6 pb-20 sm:pb-6" style={{ maxWidth: 'var(--container-max)' }}>
           <Outlet />
         </main>
 
@@ -246,6 +252,9 @@ export default function AppLayout() {
             </ul>
           )}
         </Drawer>
+
+        {/* 沉浸式移动端底部导航栏 */}
+        <MobileBottomNav />
       </div>
     </ConfigProvider>
   );
