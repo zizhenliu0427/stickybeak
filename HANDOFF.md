@@ -1,7 +1,7 @@
 # HANDOFF — StickyBeak 交接文档
 
 > 给下一个 AI 会话/协作者：读完本文 + `docs/` 三份文档即可无缝接手。
-> 最近更新：2026-09-16 · Sprint 3 完成（tag v0.3.0）
+> 最近更新：2026-09-16 · Sprint 5 完成（tag v0.5.0 · 订单状态机与防超卖三层防线）
 
 ## 项目是什么
 
@@ -13,14 +13,9 @@
 - **v0.0.1**（main）：Sprint 0 骨架，已用 Docker Maven 验证编译 + 7 服务注册进 Nacos + 网关路由全通
 - **v0.1.0**（main）：Sprint 1 认证与 RBAC 完成
 - **v0.2.0**（main）：Sprint 2 商品目录 + 真实数据导入完成，全栈 E2E 联通
-- **v0.3.0**（feature/sprint-3-cart-wishlist）：Sprint 3 购物车与心愿单全栈完成，E2E 验证全通
-  - **cart 库表 3 张**：`t_cart` / `t_cart_item` / `t_wishlist` 已落地 MySQL
-  - **网关可选认证模式**：`OPTIONAL_AUTH_PREFIXES` 支持游客（无 token 放行）与登录用户（验签注入 X-User-Id）
-  - **购物车双模式 + 游客 Session Cookie**：首次访问自动签发 `sb_guest` Cookie（30天），后端支持游客与用户双轨
-  - **微服务协同**：Cart 服务通过 `@LoadBalanced RestTemplate` 调用 Product 服务实时获取商品信息与库存，解耦库边界
-  - **⭐ 登录合并购物车**：合并四场景（仅游客/仅用户/双方无交集/双方交集累加且封顶库存）算法完备，单测与 E2E 双验证
-  - **心愿单（Wishlist）**：Toggle 收藏/取消、列表查询、一键移入购物车
-  - **前端全栈联动**：Redux `cartSlice` 双模式改造（游客 localStorage / 登录全走后端 REST API），商品详情页与购物车页全部联通
+- **v0.3.0**（main）：Sprint 3 购物车与心愿单全栈完成，E2E 验证全通
+- **v0.4.0**（main）：Sprint 4 结账与 Stripe、Webhook 幂等、多币种、多支付方式、邮件通知（达成简历可用下限！）
+- **v0.5.0**（main / 当前发布）：Sprint 5 订单状态机、防超卖三层防线（Redis Lua 预扣 → Redisson 排序互斥锁 → MySQL 条件更新）、RabbitMQ 原生 DLX 30m 延迟关单与库存原子回滚、前端订单管理中心
 - 开发分支：`develop`；功能分支：`feature/sprint-N-xxx`（Git Flow）
 
 ## Sprint 1 交付明细（均已 E2E 验证）
@@ -76,6 +71,41 @@
   - 后端：`CartServiceImplTest` 覆盖全部 CRUD + ⭐ 登录合并 4 场景（仅游客/仅用户/无交集双方/交集双方数量累加封顶库存）；`WishlistServiceImplTest` 覆盖心愿单
   - 前端：Vitest 17/17 单元测试通过，TypeScript 0 错误
 
+## Sprint 4 交付明细（均已 E2E 验证 · 达成简历可用下限）
+
+- **库表与基础设施**：
+  - `docker/mysql/init/05-order-schema.sql`（`t_order`, `t_order_item`, `t_order_status_history`）
+  - `docker/mysql/init/06-payment-schema.sql`（`t_payment_record`, `t_exchange_rate`, `t_payment_webhook`）
+- **支付微服务（`stickybeak-payment`）**：
+  - 策略模式收单（`PaymentProvider` 接口，`StripePaymentProvider` 与 `MockPaymentProvider`）
+  - 多支付方式（Card 澳洲卡 / Alipay 支付宝 / WeChat Pay 微信支付）
+  - ⭐ **Webhook 幂等验签**：`t_payment_webhook.event_id` UK 防重，成功落流水并投递 `order.paid` 至 RabbitMQ
+  - 多币种实时汇率：`t_exchange_rate` 存储基准汇率（AUD→CNY），Redis 24h 缓存，定时任务同步
+- **订单微服务（`stickybeak-order`）**：
+  - 下单瞬间冻结商品单价/图文快照与收货地址 JSON 快照，记录汇率快照
+  - 监听 RabbitMQ `order.paid` 事件推进订单为 `paid`，记录审计日志，触发 Cart 服务清空买家购物车
+- **通知微服务（`stickybeak-notification`）**：
+  - 消费 `order.paid` 事件，Thymeleaf 渲染澳洲主题 HTML 确认信，SMTP 发送至 MailHog（8025 查看）
+- **前端全栈（`stickybeak-frontend`）**：
+  - `/checkout` 结账页、`/checkout/success` 轮询庆贺页、`/checkout/cancel` 取消页，双语字典
+
+## Sprint 5 交付明细（均已 E2E 验证 · 高并发防超卖与订单状态机）
+
+- **商品微服务 — 防超卖三层防线（`stickybeak-product`）**：
+  - 第 1 道（内存削峰）：Redis Lua 原子预扣减，拦截 99% 无效流量
+  - 第 2 道（分布式防死锁）：Redisson 升序排序加锁，彻底规避 AB-BA 交叉锁死锁
+  - 第 3 道（DB 乐观更新与流水审计）：MySQL 条件更新 `UPDATE t_product SET stock = stock - ? WHERE id = ? AND stock >= ?`，落地预占流水表 `t_stock_hold`（0-HELD, 1-CONFIRMED, 2-RELEASED），支持逆向自动补偿
+- **订单微服务 — 状态机与延迟关单（`stickybeak-order`）**：
+  - `OrderStateMachine`：严格白名单转移规则校验，拦截非法逆向跃迁（抛 1002），写审计日志
+  - RabbitMQ 原生 DLX 延迟队列：`order.delay.queue` (TTL 30m) $\to$ `order.dlx.exchange` $\to$ `order.close.queue`
+  - 关单监听器：`OrderTimeoutCloseListener` 幂等消费超时消息并原子释放库存
+- **购物车微服务（`stickybeak-cart`）**：
+  - 彻底解决 `t_cart_item.uk_cart_product` 软删除与唯一键冲突，采用物理清理与历史行复用
+- **前端订单中心（`stickybeak-frontend`）**：
+  - 新增 `/orders` 页面（状态筛选 Tabs、订单卡片、商品快照、30m 实时倒计时组件、取消订单 Popconfirm、继续支付入口）
+- **真实环境 E2E 验证（`scripts/test-sprint5-e2e.js`）**：
+  - 覆盖下单预占、主动取消回滚、非法流转拦截、Webhook 确认、20 并发争抢 5 件库存压测（严格 0 超卖）、DLX 超时关单回滚全部 6 大用例通过
+
 ## 环境差异（本机实测，新机器必读）
 
 - **Redis 宿主端口 16379**（6379/6380 被 Windows Hyper-V 保留段 6346-6445 占用）；容器网络内仍是 6379
@@ -98,7 +128,7 @@ powershell -File scripts/rebuild-services.ps1
 docker run --rm -v "${PWD}:/workspace" -v stickybeak-m2:/root/.m2 -w /workspace maven:3.9-eclipse-temurin-17 mvn -q test
 
 # 前端类型检查与测试
-cd stickybeak-frontend; npx tsc --noEmit; npm run test; npm run dev
+cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 ```
 
 ## 踩过的坑（别再踩）
@@ -121,18 +151,18 @@ cd stickybeak-frontend; npx tsc --noEmit; npm run test; npm run dev
 16. **Mockito 验证 BaseMapper 歧义**：BaseMapper 拥有 `insert(T)` 和 `insert(Collection<T>)` 重载，测试中 `verify(mapper).insert(any())` 会因歧义编译报错，必须显式声明 `any(CartItem.class)`
 17. **网关可选认证（Optional Auth）路由**：类似购物车这类游客与登录用户皆可访问的接口，不能简单挂入纯白名单或强制拦截，需通过 `OPTIONAL_AUTH_PREFIXES`：有 token 则验签注入身份，无 token 剥离伪造头后放行
 18. **PowerShell 中 curl 传参 `@file`**：在 PowerShell 下 `@` 是 splatting 操作符，不加引号的 `@file.json` 会导致语法解析错误，必须使用单引号 `'@file.json'`
+19. **Windows 火绒杀毒拦截本地 `.ps1` 并发/自动化脚本**：严禁创建复杂的新 `.ps1` 脚本进行自动化测试或压测；应统一使用 Node.js 脚本驱动（如 `scripts/test-sprint5-e2e.js`）或 Docker 容器内执行。
+20. **MySQL 逻辑删除与唯一键冲突**：当数据表有 `UNIQUE KEY (a, b)` 同时开启 MyBatis-Plus `@TableLogic` 软删除时，删除行仍占用物理唯一键索引，再次添加相同键会报 `Duplicate entry`。购物车等临时表应采用物理删除 `DELETE FROM ...`。
+21. **RabbitMQ 原生 DLX 延迟队列配置**：队列设置 `x-message-ttl` + `x-dead-letter-exchange` + `x-dead-letter-routing-key` 即可实现原生延迟，无需安装第三方延迟插件；消费者只监听 DLX 死信目标队列，确保消息到期后精确触发。
 
-## 下一步（Sprint 4 — 结账与 Stripe，tag v0.4.0 ← 简历可用下限！）
+## 下一步（Sprint 6 — 管理后台 Dashboard、销售分析与库存管理，tag v0.6.0）
 
-按 `docs/SPRINT_ISSUES.md` Issue 4.1→4.8：
-1. **4.1** 支付提供商抽象（策略模式：`PaymentProvider` 接口，Stripe 实现）
-2. **4.2** Checkout Session 创建（冻结购物车价格快照，先生成 pending 订单）
-3. **4.3** ⭐ **Webhook 幂等性**（验签、`t_payment_webhook.event_id` 唯一去重、成功投递 MQ）
-4. **4.4** 本地联调文档 + Stripe CLI / ngrok 脚本
-5. **4.5** 前端结账流（地址确认 → Stripe 跳转 → 成功页轮询 webhook 落地）
-6. **4.6** 异步订单确认邮件（RabbitMQ + Thymeleaf 模板 + MailHog）
-7. **4.7** ⭐ **多币种 AUD / CNY 真实结账**（汇率定时刷新与快照落单）
-8. **4.8** 多支付方式支持（Card 澳洲银行卡 / Alipay / WeChat Pay）
+按 `docs/SPRINT_ISSUES.md` Issue 6.1→6.6：
+1. **6.1** 管理后台权限隔离（RBAC: `ROLE_ADMIN` / `ROLE_SYSADMIN` 专用路由拦截）
+2. **6.2** 仪表盘与销售报表（日/周/月 GMV、客单价、热销商品 Top 10）
+3. **6.3** 订单全状态管理后台（订单列表分页/多维检索、发货流转推进 `SHIPPED`）
+4. **6.4** 商品与库存后台管理（商品上下架、分类/标签维护、动态增补库存与库存预警）
+5. **6.5** 前端管理界面（Ant Design 5 Pro 风格后台布局、数据表格、可视化图表）
 
 ## 硬性规范（不要违反）
 
