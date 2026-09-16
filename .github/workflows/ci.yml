@@ -1,6 +1,10 @@
 name: CI
 
 on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
   workflow_dispatch:
 
 jobs:
@@ -44,3 +48,4 @@ jobs:
         run: |
           docker compose -f docker/docker-compose-infra.yml config -q
           docker compose -f docker/docker-compose.yml config -q
+          docker compose -f docker/docker-compose.prod.yml --env-file docker/.env.prod.example config -q

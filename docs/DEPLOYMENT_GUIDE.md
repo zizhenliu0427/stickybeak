@@ -178,12 +178,42 @@ For enterprise high-availability without managing host servers, Stickybeak image
                   └─────────────────────────────────────────┘
 ```
 
-### CI/CD Deployment Workflow (GitHub Actions)
-1. **Lint & Test**: Run `mvn clean test` and `npm run test` on branch merge to `main`.
-2. **Build Docker Images**: Build multi-stage production Docker images.
-3. **Push to Amazon ECR**: Push images tagged with Git commit SHA and `v1.0.0`.
-4. **Update ECS Task Definition**: Register new task revisions referencing secrets in **AWS Secrets Manager**.
-5. **Rolling Update**: Deploy zero-downtime rolling update with 50% minimum healthy task threshold.
+### 5.1 Step 1: Provision Infrastructure via AWS CloudFormation
+Deploy the standard VPC, subnets, NAT Gateway, ALB, and ECS Fargate cluster in one step:
+```bash
+aws cloudformation create-stack \
+  --stack-name stickybeak-production-stack \
+  --template-body file://docker/aws/cloudformation-vpc-ecs.yml \
+  --capabilities CAPABILITY_IAM \
+  --region ap-southeast-2
+```
+
+### 5.2 Step 2: Build & Push Images to Amazon ECR
+Use the provided automated automation script to build and push all 8 microservices and frontend images:
+```bash
+chmod +x scripts/aws-ecr-push.sh
+./scripts/aws-ecr-push.sh <AWS_ACCOUNT_ID> ap-southeast-2 v1.0.0
+```
+
+### 5.3 Step 3: Register ECS Task Definitions & Update Services
+Register the Fargate task definition templates:
+```bash
+aws ecs register-task-definition --cli-input-json file://docker/aws/ecs-task-definition-gateway.json
+aws ecs register-task-definition --cli-input-json file://docker/aws/ecs-task-definition-order.json
+
+# Deploy or rolling update ECS Fargate service
+aws ecs update-service \
+  --cluster stickybeak-prod-cluster \
+  --service stickybeak-gateway-service \
+  --task-definition stickybeak-prod-gateway \
+  --force-new-deployment
+```
+
+### 5.4 Step 4: Pre-flight Production Readiness Verification
+Run the automated pre-flight audit script to ensure all configurations, credentials, and templates are compliant:
+```bash
+node scripts/verify-aws-readiness.js
+```
 
 ---
 

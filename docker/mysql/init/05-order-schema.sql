@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS t_order (
     PRIMARY KEY (id),
     UNIQUE KEY uk_order_no (order_no),
     INDEX idx_order_user (user_id),
-    INDEX idx_order_status (status)
+    INDEX idx_order_status (status),
+    INDEX idx_order_user_status_create (user_id, status, create_time),
+    INDEX idx_order_status_create (status, create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单主表';
 
 -- ============================================================
