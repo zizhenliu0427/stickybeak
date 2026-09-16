@@ -5,6 +5,7 @@ target/
 !.mvn/wrapper/maven-wrapper.jar
 .mvn/
 .idea/
+.vscode/
 *.iml
 .classpath
 .project
