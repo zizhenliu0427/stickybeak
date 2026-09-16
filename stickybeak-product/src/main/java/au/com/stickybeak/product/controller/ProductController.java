@@ -34,6 +34,16 @@ public class ProductController {
         return Result.ok(productService.getBySlug(slug));
     }
 
+    @GetMapping("/id/{id}")
+    public Result<ProductVO> getById(@PathVariable Long id) {
+        return Result.ok(productService.getById(id));
+    }
+
+    @PostMapping("/batch")
+    public Result<List<ProductVO>> listByIds(@RequestBody List<Long> ids) {
+        return Result.ok(productService.listByIds(ids));
+    }
+
     @GetMapping("/{slug}/related")
     public Result<List<ProductVO>> listRelated(@PathVariable String slug,
                                                @RequestParam(defaultValue = "4") int limit) {

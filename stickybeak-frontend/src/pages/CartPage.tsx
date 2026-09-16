@@ -4,7 +4,12 @@ import { DeleteOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import Price from '../components/Price';
 import QtyStepper from '../components/QtyStepper';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { removeItem, selectCartTotalCents, setQty } from '../features/cart/cartSlice';
+import {
+  clearCartAsync,
+  removeItemAsync,
+  selectCartTotalCents,
+  updateQtyAsync,
+} from '../features/cart/cartSlice';
 import { useI18n } from '../lib/i18n';
 
 /** 满额包邮线（AUD cents） */
@@ -44,7 +49,17 @@ export default function CartPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900 dark:text-stone-100">{t('cart.title')}</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-stone-100">{t('cart.title')}</h1>
+        <Popconfirm
+          title={locale === 'en-AU' ? 'Clear entire trolley?' : '确定清空购物车？'}
+          onConfirm={() => dispatch(clearCartAsync())}
+        >
+          <Button type="text" danger size="small">
+            {t('cart.clear')}
+          </Button>
+        </Popconfirm>
+      </div>
 
       <div className="grid gap-8 sm:grid-cols-[1fr_280px]">
         {/* 明细 */}
@@ -71,14 +86,18 @@ export default function CartPage() {
                 <div className="mt-auto flex items-center justify-between pt-2">
                   <QtyStepper
                     value={item.qty}
-                    onChange={(v) => dispatch(setQty({ productId: item.productId, qty: v }))}
+                    onChange={(v) =>
+                      dispatch(updateQtyAsync({ itemId: item.id, productId: item.productId, qty: v }))
+                    }
                     max={item.stock}
                   />
                   <div className="flex items-center gap-3">
                     <Price cents={item.priceCents * item.qty} className="font-bold text-gray-900 dark:text-stone-100" />
                     <Popconfirm
                       title={locale === 'en-AU' ? 'Remove from trolley?' : '移出购物车？'}
-                      onConfirm={() => dispatch(removeItem(item.productId))}
+                      onConfirm={() =>
+                        dispatch(removeItemAsync({ itemId: item.id, productId: item.productId }))
+                      }
                     >
                       <Button type="text" danger size="small" icon={<DeleteOutlined />} />
                     </Popconfirm>

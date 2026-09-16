@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { fetchMe, logout } from '../features/auth/authSlice';
-import { selectCartCount, selectCartTotalCents } from '../features/cart/cartSlice';
+import { clearCart, mergeCartOnLogin, selectCartCount, selectCartTotalCents } from '../features/cart/cartSlice';
 import { setCurrency } from '../features/currency/currencySlice';
 import type { Currency } from '../features/currency/currencySlice';
 import { setLocale } from '../features/locale/localeSlice';
@@ -51,8 +51,16 @@ export default function AppLayout() {
     return () => mediaQuery.removeEventListener('change', handler);
   }, [dispatch]);
 
+  // 登录后将本地游客购物车与服务端合并，并拉取最新购物车
+  useEffect(() => {
+    if (user) {
+      dispatch(mergeCartOnLogin());
+    }
+  }, [dispatch, user]);
+
   const onLogout = async () => {
     await dispatch(logout());
+    dispatch(clearCart());
     navigate('/');
   };
 
