@@ -2,12 +2,16 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from '../features/auth/authSlice';
 import cartReducer, { persistCart } from '../features/cart/cartSlice';
 import currencyReducer from '../features/currency/currencySlice';
+import localeReducer from '../features/locale/localeSlice';
+import themeReducer from '../features/theme/themeSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     cart: cartReducer,
     currency: currencyReducer,
+    locale: localeReducer,
+    theme: themeReducer,
   },
 });
 

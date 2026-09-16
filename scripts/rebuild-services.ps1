@@ -18,6 +18,7 @@ if ($LASTEXITCODE -ne 0) { throw "maven build failed" }
 # 容器网络 docker_default 内的服务环境变量
 $envMap = @{
     "auth"    = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis")
+    "product" = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis")
     "gateway" = @("REDIS_HOST=sb-redis")
 }
 

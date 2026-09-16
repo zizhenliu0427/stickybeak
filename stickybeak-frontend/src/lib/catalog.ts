@@ -1,13 +1,14 @@
-import catalogJson from '../mocks/catalog.json';
-
 /**
  * 商品目录服务层。
- * 当前实现：本地 mock（真实 GDCUP 数据，scripts/generate-mock-catalog.cjs 生成）。
- * Sprint 2 后端就绪后，把函数体换成 lib/api 的 get() 调用即可，签名不变：
- *   listProducts  → GET /api/products?category&tags&minPrice&maxPrice&sort&page&q
+ * Sprint 2：从 mock 切换到真实后端 API。
+ *   listProducts  → GET /api/products?category&tags&minPrice&maxPrice&sort&page&size&q
  *   getProductBySlug → GET /api/products/:slug
  *   listCategories → GET /api/categories
+ *   listFeatured   → GET /api/products/featured
+ *   listRelated    → GET /api/products/:slug/related
  */
+
+import { get } from './api';
 
 export interface Category {
   slug: string;
@@ -51,81 +52,38 @@ export interface ProductListResult {
   size: number;
 }
 
-const catalog = catalogJson as unknown as { categories: Category[]; products: Product[] };
-
-/** 模拟网络延迟，让骨架屏可见 */
-function latency(): Promise<void> {
-  return new Promise((r) => setTimeout(r, 120 + Math.random() * 180));
-}
-
 export async function listProducts(query: ProductQuery = {}): Promise<ProductListResult> {
-  await latency();
-  const { category, tags, minPrice, maxPrice, sort = 'new', q, page = 1, size = 12 } = query;
+  const params: Record<string, unknown> = {};
+  if (query.category) params.category = query.category;
+  if (query.tags) params.tags = query.tags;
+  if (query.minPrice != null) params.minPrice = query.minPrice;
+  if (query.maxPrice != null) params.maxPrice = query.maxPrice;
+  if (query.sort) params.sort = query.sort;
+  if (query.q) params.q = query.q;
+  params.page = query.page ?? 1;
+  params.size = query.size ?? 12;
 
-  let items = catalog.products.slice();
-
-  if (category) {
-    items = items.filter((p) => p.category === category);
-  }
-  if (tags) {
-    const wanted = tags.split(',').map((t) => t.trim().toLowerCase());
-    items = items.filter((p) => p.tags.some((t) => wanted.includes(t.toLowerCase())));
-  }
-  if (minPrice != null) {
-    items = items.filter((p) => p.priceCents >= minPrice);
-  }
-  if (maxPrice != null) {
-    items = items.filter((p) => p.priceCents <= maxPrice);
-  }
-  if (q) {
-    const needle = q.toLowerCase();
-    items = items.filter(
-      (p) =>
-        p.name.toLowerCase().includes(needle) ||
-        p.description.toLowerCase().includes(needle) ||
-        p.tags.some((t) => t.toLowerCase().includes(needle)),
-    );
-  }
-
-  switch (sort) {
-    case 'sales':
-      items.sort((a, b) => b.sales - a.sales);
-      break;
-    case 'price-asc':
-      items.sort((a, b) => a.priceCents - b.priceCents);
-      break;
-    case 'price-desc':
-      items.sort((a, b) => b.priceCents - a.priceCents);
-      break;
-    default: // new —— mock 用 id 倒序近似
-      items.sort((a, b) => b.id - a.id);
-  }
-
-  const total = items.length;
-  const start = (page - 1) * size;
-  return { items: items.slice(start, start + size), total, page, size };
+  return get<ProductListResult>('/products', params);
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
-  await latency();
-  return catalog.products.find((p) => p.slug === slug) ?? null;
+  try {
+    return await get<Product>(`/products/${slug}`);
+  } catch {
+    return null;
+  }
 }
 
 export async function listCategories(): Promise<Category[]> {
-  await latency();
-  return catalog.categories.slice().sort((a, b) => a.sortOrder - b.sortOrder);
+  return get<Category[]>('/categories');
 }
 
 /** 首页精选 */
 export async function listFeatured(): Promise<Product[]> {
-  await latency();
-  return catalog.products.filter((p) => p.featured);
+  return get<Product[]>('/products/featured');
 }
 
 /** 同类推荐（详情页） */
-export async function listRelated(category: string, excludeSlug: string, limit = 4): Promise<Product[]> {
-  await latency();
-  return catalog.products
-    .filter((p) => p.category === category && p.slug !== excludeSlug)
-    .slice(0, limit);
+export async function listRelated(_category: string, excludeSlug: string, limit = 4): Promise<Product[]> {
+  return get<Product[]>(`/products/${excludeSlug}/related`, { limit });
 }
