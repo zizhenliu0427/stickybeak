@@ -1,0 +1,213 @@
+# ==============================================================================
+# Stickybeak Enterprise E-Commerce Platform - Production Docker Compose
+# Usage: docker compose -f docker/docker-compose.prod.yml --env-file .env.prod up -d
+# ==============================================================================
+
+version: '3.8'
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+x-svc-defaults: &svc-defaults
+  restart: always
+  logging: *default-logging
+  environment:
+    - SPRING_PROFILES_ACTIVE=prod
+    - NACOS_ADDR=${NACOS_ADDR:-nacos:8848}
+    - NACOS_USERNAME=${NACOS_USERNAME:-nacos}
+    - NACOS_PASSWORD=${NACOS_PASSWORD:-nacos}
+    - DB_HOST=${DB_HOST:-rds-mysql.internal}
+    - DB_PORT=${DB_PORT:-3306}
+    - DB_USER=${DB_USER:-stickybeak_prod}
+    - DB_PASSWORD=${DB_PASSWORD}
+    - REDIS_HOST=${REDIS_HOST:-elasticache-redis.internal}
+    - REDIS_PORT=${REDIS_PORT:-6379}
+    - REDIS_PASSWORD=${REDIS_PASSWORD}
+    - RABBITMQ_HOST=${RABBITMQ_HOST:-amazon-mq.internal}
+    - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+    - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+    - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+    - SEATA_ADDR=${SEATA_ADDR:-seata:8091}
+    - STRIPE_API_KEY=${STRIPE_API_KEY}
+    - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+    - JWT_SECRET=${JWT_SECRET}
+    - JAVA_OPTS=-Xms512m -Xmx1024m -XX:+UseG1GC -XX:MaxGCPauseMillis=200
+
+services:
+  # ----------------------------------------------------------------------------
+  # Microservices Gateway
+  # ----------------------------------------------------------------------------
+  gateway:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+      args:
+        MODULE: stickybeak-gateway
+    image: stickybeak/gateway:${TAG:-v1.0.0}
+    container_name: sb-prod-gateway
+    restart: always
+    logging: *default-logging
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - NACOS_ADDR=${NACOS_ADDR:-nacos:8848}
+      - JAVA_OPTS=-Xms256m -Xmx512m -XX:+UseG1GC
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - stickybeak-network
+
+  # ----------------------------------------------------------------------------
+  # Business Microservices
+  # ----------------------------------------------------------------------------
+  auth:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+      args:
+        MODULE: stickybeak-auth
+    image: stickybeak/auth:${TAG:-v1.0.0}
+    container_name: sb-prod-auth
+    <<: *svc-defaults
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+    networks:
+      - stickybeak-network
+
+  product:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+      args:
+        MODULE: stickybeak-product
+    image: stickybeak/product:${TAG:-v1.0.0}
+    container_name: sb-prod-product
+    <<: *svc-defaults
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+    networks:
+      - stickybeak-network
+
+  cart:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+      args:
+        MODULE: stickybeak-cart
+    image: stickybeak/cart:${TAG:-v1.0.0}
+    container_name: sb-prod-cart
+    <<: *svc-defaults
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+    networks:
+      - stickybeak-network
+
+  order:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+      args:
+        MODULE: stickybeak-order
+    image: stickybeak/order:${TAG:-v1.0.0}
+    container_name: sb-prod-order
+    <<: *svc-defaults
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1536M
+    networks:
+      - stickybeak-network
+
+  payment:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+      args:
+        MODULE: stickybeak-payment
+    image: stickybeak/payment:${TAG:-v1.0.0}
+    container_name: sb-prod-payment
+    <<: *svc-defaults
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+    networks:
+      - stickybeak-network
+
+  notification:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+      args:
+        MODULE: stickybeak-notification
+    image: stickybeak/notification:${TAG:-v1.0.0}
+    container_name: sb-prod-notification
+    <<: *svc-defaults
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+    networks:
+      - stickybeak-network
+
+  # ----------------------------------------------------------------------------
+  # Production Frontend & Reverse Proxy (Nginx + SSL)
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    image: stickybeak/frontend:${TAG:-v1.0.0}
+    container_name: sb-prod-frontend
+    restart: always
+    logging: *default-logging
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ${SSL_CERT_DIR:-/etc/ssl/stickybeak}:/etc/nginx/ssl:ro
+      - ${CERTBOT_WWW:-/var/www/certbot}:/var/www/certbot:ro
+    depends_on:
+      - gateway
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/robots.txt || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - stickybeak-network
+
+networks:
+  stickybeak-network:
+    driver: bridge
