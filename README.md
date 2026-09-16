@@ -1,7 +1,8 @@
 # StickyBeak 🧲🦜
 
 > Aussie-themed fridge magnet e-commerce platform — Spring Cloud microservices + React.
-> 名字来源：StickyBeak 是澳俚"爱凑热闹的人"，同时暗合 sticky（磁贴）+ beak（鸟喙，招牌大葵小鸟系列）。
+
+[中文文档](README_CN.md)
 
 [![CI](.github/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
 
