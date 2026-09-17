@@ -11,8 +11,10 @@ import {
 } from '../../lib/cart';
 
 export interface CartItem {
-  id?: number;
-  productId: number;
+  /** 服务端条目 id（游客本地项无） */
+  id?: string;
+  /** 雪花 ID 字符串 */
+  productId: string;
   slug: string;
   name: string;
   imageUrl: string;
@@ -37,7 +39,8 @@ function loadInitialItems(): CartItem[] {
     if (raw) {
       const items = JSON.parse(raw) as CartItem[];
       if (Array.isArray(items)) {
-        return items;
+        // 兼容旧版数值型 id：统一转字符串
+        return items.map((i) => ({ ...i, productId: String(i.productId) }));
       }
     }
   } catch {
@@ -78,7 +81,7 @@ export const addCartItemAsync = createAsyncThunk<
   CartItem[],
   {
     product: {
-      id: number;
+      id: string;
       slug: string;
       name: string;
       imageUrl?: string;
@@ -114,7 +117,7 @@ export const addCartItemAsync = createAsyncThunk<
 
 export const updateQtyAsync = createAsyncThunk<
   CartItem[],
-  { itemId?: number; productId: number; qty: number },
+  { itemId?: string; productId: string; qty: number },
   { state: { auth: { user: unknown }; cart: CartState } }
 >('cart/updateQty', async ({ itemId, productId, qty }, { getState, dispatch }) => {
   const state = getState();
@@ -130,7 +133,7 @@ export const updateQtyAsync = createAsyncThunk<
 
 export const removeItemAsync = createAsyncThunk<
   CartItem[],
-  { itemId?: number; productId: number },
+  { itemId?: string; productId: string },
   { state: { auth: { user: unknown }; cart: CartState } }
 >('cart/removeItem', async ({ itemId, productId }, { getState, dispatch }) => {
   const state = getState();
@@ -202,13 +205,13 @@ const cartSlice = createSlice({
         });
       }
     },
-    setQty(state, action: PayloadAction<{ productId: number; qty: number }>) {
+    setQty(state, action: PayloadAction<{ productId: string; qty: number }>) {
       const item = state.items.find((i) => i.productId === action.payload.productId);
       if (item) {
         item.qty = Math.max(1, Math.min(item.stock, action.payload.qty));
       }
     },
-    removeItem(state, action: PayloadAction<number>) {
+    removeItem(state, action: PayloadAction<string>) {
       state.items = state.items.filter((i) => i.productId !== action.payload);
     },
     clearCart(state) {

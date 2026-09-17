@@ -164,14 +164,17 @@
 - **差值提醒**：店铺库导入的是旧口径 265 件；最新分类 268 篇 → 有 3 篇可增量导入
 - Sprint 2 导入用的是 `scripts/import-products.py` → `generated-product-data.sql`
 
-## 2026-09-17 追加：管理端新建商品 + 图片上传（MinIO 预签名直传）
+## 2026-09-17 追加：管理端新建商品 + 图片/视频上传（MinIO 预签名直传）
 
-- **链路**：admin 前端 `ProductCreateDrawer` → `POST /products/admin/upload-url` 拿预签名 PUT URL → 浏览器直传 MinIO → `POST /products/admin` 建商品（图片 URL 列表 + 标签自动 upsert + slug 缺省自动生成 `p-{id}`）→ MQ 事件刷 ES
-- **MinIO 接线**：product 服务 `MinioConfig` 双 client（internal 管理 / presign 签发），`StorageServiceImpl` 启动时建 bucket `stickybeak` + 匿名读策略；容器 env：`MINIO_ENDPOINT=http://sb-minio:9000`、`MINIO_PUBLIC_ENDPOINT=http://localhost:9000`
-- **E2E**：`scripts/test-product-create-e2e.cjs`（登录→签发→直传→建品→ES 搜索→前台可见 全过）
+- **链路**：admin 前端 `ProductCreateDrawer` → `POST /products/admin/upload-url` 拿预签名 PUT URL → 浏览器直传 MinIO → `POST /products/admin` 建商品（`media[{url,mediaType}]` + 标签自动 upsert + slug 缺省自动生成 `p-{id}`）→ MQ 事件刷 ES
+- **媒体**：`t_product_image.media_type` = `image` | `video`（存量默认 image）。封面只能是图片；详情页画廊可播 mp4/mov/webm。卡片封面取第一张图，没有图时退化播视频首帧。
+- **MinIO 接线**：product 服务 `MinioConfig` 双 client（internal 管理 / presign 签发），`StorageServiceImpl` 启动时建 bucket `stickybeak` + 匿名读策略；允许 jpeg/png/webp/gif + mp4/mov/webm。容器 env：`MINIO_ENDPOINT=http://sb-minio:9000`、`MINIO_PUBLIC_ENDPOINT=http://localhost:9000`
+- **雪花 ID 精度**：`JacksonLongConfig` 全局 Long→String；前端实体 ID 一律 `string`。MP Page / 列表 `total` 等计数 Long 在 API 边界 `Number()` 归一化。存量小 id 与新建雪花 id 都安全。
+- **E2E**：`scripts/test-product-create-e2e.cjs`（图片建品）+ `scripts/test-product-video-e2e.cjs`（视频+图片建品，校验 media_type 与 id 字符串）
 - ⚠️ **已知坑（新）**：
   28. **MinIO java SDK 预签名前会联网查 bucket region**——必须 `region("us-east-1")` 显式设置，否则容器内用 public endpoint 签发时连接失败
-  29. **雪花 ID 撞 JS Number 精度上限（2^53）**：admin 新建商品的 id（如 2100424492876623874）经 JSON.parse 后精度丢失，前端拿错 id 调接口会 404。**存量 265 件导入商品是小 id（1000001+）不受影响**；新建商品在 admin UI 的后续操作会踩到。正解：后端 Jackson 全局 Long→String 序列化 + 前端 id 类型改 string（一次专门的重构 pass，未做）
+  29. **~~雪花 ID 撞 JS Number 精度上限~~（已修）**：Jackson 全局 Long→String + 前端 ID 改 string。计数类 Long（Page.total 等）记得 `Number()`，不要当 ID 用字符串做加减。
+  30. **存量库要跑增量 SQL**：`docker/mysql/init/08-product-media-type.sql`（幂等 ADD COLUMN media_type）。全新安装已写进 `03-product-schema.sql`
 
 ## 环境差异（本机实测，新机器必读）
 

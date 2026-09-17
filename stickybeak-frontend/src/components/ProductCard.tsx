@@ -6,6 +6,8 @@ import { useI18n } from '../lib/i18n';
 /** 商品卡片：封面图 + 名称 + 价格 + 标签，整卡可点 */
 export default function ProductCard({ product }: { product: Product }) {
   const { t, locale } = useI18n();
+  const cover = product.images[0];
+  const videoFallback = product.media?.find((m) => m.mediaType === 'video')?.url;
 
   return (
     <Link
@@ -13,12 +15,24 @@ export default function ProductCard({ product }: { product: Product }) {
       className="product-card group block overflow-hidden rounded-xl border border-sand-200 bg-white transition-colors hover:border-brand-300 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-brand-700"
     >
       <div className="aspect-square overflow-hidden bg-sand-100 dark:bg-stone-800">
-        <img
-          src={product.images[0]}
-          alt={product.name}
-          loading="lazy"
-          className="product-card-img h-full w-full object-cover"
-        />
+        {cover ? (
+          <img
+            src={cover}
+            alt={product.name}
+            loading="lazy"
+            className="product-card-img h-full w-full object-cover"
+          />
+        ) : videoFallback ? (
+          <video
+            src={videoFallback}
+            muted
+            playsInline
+            preload="metadata"
+            className="product-card-img h-full w-full object-cover"
+          />
+        ) : (
+          <div className="h-full w-full bg-sand-100 dark:bg-stone-800" />
+        )}
       </div>
       <div className="p-3">
         <h3 className="line-clamp-2 min-h-10 text-sm font-medium text-gray-800 group-hover:text-brand-700 dark:text-stone-200 dark:group-hover:text-brand-300">

@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * 管理端新建商品入参。金额为 AUD 元（与现有 admin 改价接口一致），图片为已上传完成的公网 URL 列表。
+ * 管理端新建商品入参。金额为 AUD 元（与现有 admin 改价接口一致），媒体为已上传完成的公网 URL 列表。
  */
 public record ProductCreateRequest(
 
@@ -36,12 +36,19 @@ public record ProductCreateRequest(
         @Size(max = 2000)
         String description,
 
-        /** 图片公网 URL 列表，第一张为封面 */
+        /** 图片公网 URL 列表（旧字段，等价于全 image 的 media） */
         List<String> images,
+
+        /** 媒体列表（优先于 images），第一张图片为封面 */
+        List<MediaInput> media,
 
         /** 标签名列表（不存在则自动创建） */
         List<String> tags,
 
         Boolean featured
 ) {
+
+    /** 媒体项（图/视频） */
+    public record MediaInput(String url, String mediaType) {
+    }
 }

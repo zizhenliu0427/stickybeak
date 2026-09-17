@@ -27,9 +27,10 @@ public class StorageServiceImpl implements StorageService {
 
     private static final Logger log = LoggerFactory.getLogger(StorageServiceImpl.class);
 
-    /** 允许的图片类型 */
+    /** 允许的媒体类型：图片 + 视频 */
     private static final Set<String> ALLOWED_TYPES = Set.of(
-            "image/jpeg", "image/png", "image/webp", "image/gif");
+            "image/jpeg", "image/png", "image/webp", "image/gif",
+            "video/mp4", "video/quicktime", "video/webm");
     private static final long PRESIGN_EXPIRY_MINUTES = 10;
 
     private final MinioClient minioClient;
@@ -68,7 +69,7 @@ public class StorageServiceImpl implements StorageService {
     public PresignedUpload createUploadUrl(String filename, String contentType) {
         if (contentType == null || !ALLOWED_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
             throw new BusinessException(ResultCode.BAD_REQUEST,
-                    "unsupported content type: " + contentType + " (allowed: jpeg/png/webp/gif)");
+                    "unsupported content type: " + contentType + " (allowed: jpeg/png/webp/gif/mp4/mov/webm)");
         }
         String ext = filename != null && filename.contains(".")
                 ? filename.substring(filename.lastIndexOf('.')).toLowerCase(Locale.ROOT)

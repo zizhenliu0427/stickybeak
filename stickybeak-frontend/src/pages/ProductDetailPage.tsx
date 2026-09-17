@@ -111,30 +111,61 @@ export default function ProductDetailPage() {
       />
 
       <div className="grid gap-8 sm:grid-cols-2">
-        {/* 图集 */}
+        {/* 图集（图片 + 视频） */}
         <div>
-          <div className="overflow-hidden rounded-2xl border border-sand-200 bg-white dark:border-stone-800 dark:bg-stone-900">
-            <img
-              src={product.images[activeImg]}
-              alt={product.name}
-              className="aspect-square w-full object-cover"
-            />
-          </div>
-          {product.images.length > 1 && (
-            <div className="mt-3 flex gap-2">
-              {product.images.map((img, i) => (
-                <button
-                  key={img}
-                  onClick={() => setActiveImg(i)}
-                  className={`h-16 w-16 overflow-hidden rounded-lg border-2 transition-colors ${
-                    i === activeImg ? 'border-brand-500' : 'border-transparent'
-                  }`}
-                >
-                  <img src={img} alt={`${product.name} ${i + 1}`} className="h-full w-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
+          {(() => {
+            // media 为空时退化用 images（全按 image）
+            const mediaList =
+              product.media && product.media.length > 0
+                ? product.media
+                : product.images.map((url) => ({ url, mediaType: 'image' as const }));
+            const active = mediaList[activeImg];
+            return (
+              <>
+                <div className="overflow-hidden rounded-2xl border border-sand-200 bg-white dark:border-stone-800 dark:bg-stone-900">
+                  {active?.mediaType === 'video' ? (
+                    <video
+                      key={active.url}
+                      src={active.url}
+                      controls
+                      playsInline
+                      className="aspect-square w-full object-cover bg-black"
+                    />
+                  ) : (
+                    <img
+                      src={active?.url}
+                      alt={product.name}
+                      className="aspect-square w-full object-cover"
+                    />
+                  )}
+                </div>
+                {mediaList.length > 1 && (
+                  <div className="mt-3 flex gap-2">
+                    {mediaList.map((m, i) => (
+                      <button
+                        key={m.url}
+                        onClick={() => setActiveImg(i)}
+                        className={`relative h-16 w-16 overflow-hidden rounded-lg border-2 transition-colors ${
+                          i === activeImg ? 'border-brand-500' : 'border-transparent'
+                        }`}
+                      >
+                        {m.mediaType === 'video' ? (
+                          <>
+                            <video src={m.url} muted preload="metadata" className="h-full w-full object-cover" />
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/30 text-white text-xs">
+                              ▶
+                            </span>
+                          </>
+                        ) : (
+                          <img src={m.url} alt={`${product.name} ${i + 1}`} className="h-full w-full object-cover" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* 信息与加购 */}

@@ -11,13 +11,15 @@
 import { get } from './api';
 
 export interface Category {
+  id: string;
   slug: string;
   name: string;
   sortOrder: number;
 }
 
 export interface Product {
-  id: number;
+  /** 雪花 ID，后端 Long 序列化为字符串（防 JS 精度丢失） */
+  id: string;
   slug: string;
   name: string;
   description: string;
@@ -27,7 +29,10 @@ export interface Product {
   stock: number;
   sales: number;
   tags: string[];
+  /** 仅图片 URL（卡片/封面安全） */
   images: string[];
+  /** 全量媒体（含视频），详情页画廊用 */
+  media: { url: string; mediaType: 'image' | 'video' }[];
   sourceNoteId: string;
   featured: boolean;
 }
@@ -63,7 +68,9 @@ export async function listProducts(query: ProductQuery = {}): Promise<ProductLis
   params.page = query.page ?? 1;
   params.size = query.size ?? 12;
 
-  return get<ProductListResult>('/products', params);
+  const raw = await get<ProductListResult>('/products', params);
+  // 后端 Long 全局序列化为字符串：total 是计数不是 ID，转回 number
+  return { ...raw, total: Number(raw.total) };
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {

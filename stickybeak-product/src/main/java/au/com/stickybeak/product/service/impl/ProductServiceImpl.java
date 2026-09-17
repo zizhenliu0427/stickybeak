@@ -255,10 +255,19 @@ public class ProductServiceImpl implements ProductService {
         imgWrapper.eq(ProductImage::getProductId, p.getId()).orderByAsc(ProductImage::getSortOrder);
         List<ProductImage> images = productImageMapper.selectList(imgWrapper);
         if (images != null && !images.isEmpty()) {
-            List<String> imageUrls = images.stream().map(ProductImage::getUrl).collect(Collectors.toList());
-            vo.setImages(imageUrls);
+            List<ProductVO.MediaItem> media = images.stream()
+                    .map(i -> new ProductVO.MediaItem(i.getUrl(),
+                            i.getMediaType() == null ? "image" : i.getMediaType()))
+                    .collect(Collectors.toList());
+            vo.setMedia(media);
+            // images 只含图片（卡片/封面安全），视频走 media
+            vo.setImages(media.stream()
+                    .filter(m -> "image".equals(m.mediaType()))
+                    .map(ProductVO.MediaItem::url)
+                    .collect(Collectors.toList()));
         } else {
             vo.setImages(new ArrayList<>());
+            vo.setMedia(new ArrayList<>());
         }
 
         LambdaQueryWrapper<ProductTagRel> relWrapper = new LambdaQueryWrapper<>();

@@ -93,7 +93,7 @@ export default function ProfilePage() {
     }
   };
 
-  const removeAddress = async (id: number) => {
+  const removeAddress = async (id: string) => {
     try {
       await dispatch(deleteAddress(id)).unwrap();
       message.success('Address deleted');

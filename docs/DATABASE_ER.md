@@ -83,8 +83,8 @@ erDiagram
 索引：`idx_product_category_status(category_id, status)`、`idx_product_sales(sales)`
 
 ### t_product_image
-`id, product_id, url, sort_order, is_cover` — idx_image_product(product_id)
-> 开发期用本地 MinIO / 静态目录，生产 S3/OSS。
+`id, product_id, url, media_type(image|video), sort_order, is_cover` — idx_image_product(product_id)
+> 封面只能是 image；视频走详情页画廊。开发期用本地 MinIO / 静态目录，生产 S3/OSS。
 
 ### t_tag / t_product_tag_rel
 - `t_tag(id, name)`：UNSW、USYD、扣死、窝窝屎、T9、电车、大葵……

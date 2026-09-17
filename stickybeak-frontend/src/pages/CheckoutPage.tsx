@@ -44,7 +44,7 @@ export default function CheckoutPage() {
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loadingAddr, setLoadingAddr] = useState(true);
-  const [selectedAddrId, setSelectedAddrId] = useState<number | null>(null);
+  const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'alipay' | 'wechat_pay'>('card');
   const [remark, setRemark] = useState('');
   const [submitting, setSubmitting] = useState(false);

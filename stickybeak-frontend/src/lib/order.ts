@@ -1,7 +1,8 @@
 import { get, post } from './api';
 
+/** 所有 ID 均为字符串（后端雪花 Long 序列化为字符串） */
 export interface AddressSnapshot {
-  id?: number;
+  id?: string;
   receiver: string;
   phone: string;
   email?: string;
@@ -14,7 +15,7 @@ export interface AddressSnapshot {
 }
 
 export interface CreateOrderPayload {
-  addressId?: number;
+  addressId?: string;
   address?: AddressSnapshot;
   currency?: 'AUD' | 'CNY';
   paymentMethod?: 'card' | 'alipay' | 'wechat_pay';
@@ -31,8 +32,8 @@ export interface CheckoutResponseVO {
 }
 
 export interface OrderItemVO {
-  id: number;
-  productId: number;
+  id: string;
+  productId: string;
   productName: string;
   productImage: string;
   price: number;
@@ -40,9 +41,9 @@ export interface OrderItemVO {
 }
 
 export interface OrderVO {
-  id: number;
+  id: string;
   orderNo: string;
-  userId: number;
+  userId: string;
   addressSnapshot: string;
   totalAmount: number;
   payAmount: number;

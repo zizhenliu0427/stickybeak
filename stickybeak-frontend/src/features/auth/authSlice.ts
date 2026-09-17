@@ -5,7 +5,8 @@ import { del, errorMessage, get, patch, post } from '../../lib/api';
 export type UserRole = 'customer' | 'admin' | 'sysadmin';
 
 export interface AuthUser {
-  id: number;
+  /** 雪花 ID 字符串（后端 Long 序列化为字符串） */
+  id: string;
   email: string;
   nickname: string;
   phone: string | null;
@@ -15,7 +16,7 @@ export interface AuthUser {
 
 /** mirrors backend AddressVO */
 export interface Address {
-  id: number;
+  id: string;
   receiver: string;
   phone: string;
   country: string;
@@ -125,7 +126,7 @@ export const createAddress = createAsyncThunk<Address, AddressPayload>(
   },
 );
 
-export const updateAddress = createAsyncThunk<Address, { id: number; body: AddressPayload }>(
+export const updateAddress = createAsyncThunk<Address, { id: string; body: AddressPayload }>(
   'auth/updateAddress',
   async ({ id, body }, { rejectWithValue }) => {
     try {
@@ -136,7 +137,7 @@ export const updateAddress = createAsyncThunk<Address, { id: number; body: Addre
   },
 );
 
-export const deleteAddress = createAsyncThunk<number, number>(
+export const deleteAddress = createAsyncThunk<string, string>(
   'auth/deleteAddress',
   async (id, { rejectWithValue }) => {
     try {

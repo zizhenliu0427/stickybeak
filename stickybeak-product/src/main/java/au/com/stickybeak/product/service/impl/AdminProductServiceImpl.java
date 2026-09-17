@@ -127,6 +127,9 @@ public class AdminProductServiceImpl implements AdminProductService {
             imgWrapper.in(ProductImage::getProductId, productIds);
             List<ProductImage> images = productImageMapper.selectList(imgWrapper);
             for (ProductImage img : images) {
+                if ("video".equalsIgnoreCase(img.getMediaType())) {
+                    continue;
+                }
                 if (img.getIsCover() != null && img.getIsCover() == 1) {
                     coverImageMap.put(img.getProductId(), img.getUrl());
                 } else if (!coverImageMap.containsKey(img.getProductId())) {
@@ -296,21 +299,34 @@ public class AdminProductServiceImpl implements AdminProductService {
             product.setSlug("p-" + product.getId());
         }
 
-        // 图片：第一张为封面
-        if (req.images() != null && !req.images().isEmpty()) {
-            int sort = 0;
-            for (String url : req.images()) {
-                if (!StringUtils.hasText(url)) {
-                    continue;
-                }
-                ProductImage image = new ProductImage();
-                image.setProductId(product.getId());
-                image.setUrl(url.trim());
-                image.setSortOrder(sort);
-                image.setIsCover(sort == 0 ? 1 : 0);
-                productImageMapper.insert(image);
-                sort++;
+        // 媒体：优先 media（含类型），兼容旧 images 字段（全按 image）；第一张图片为封面
+        List<ProductCreateRequest.MediaInput> mediaInputs = req.media() != null && !req.media().isEmpty()
+                ? req.media()
+                : (req.images() == null ? List.of()
+                        : req.images().stream()
+                                .filter(StringUtils::hasText)
+                                .map(u -> new ProductCreateRequest.MediaInput(u.trim(), "image"))
+                                .toList());
+        int sort = 0;
+        boolean coverAssigned = false;
+        for (ProductCreateRequest.MediaInput m : mediaInputs) {
+            if (m == null || !StringUtils.hasText(m.url())) {
+                continue;
             }
+            String mediaType = "video".equalsIgnoreCase(m.mediaType()) ? "video" : "image";
+            ProductImage image = new ProductImage();
+            image.setProductId(product.getId());
+            image.setUrl(m.url().trim());
+            image.setMediaType(mediaType);
+            image.setSortOrder(sort);
+            // 封面只能是图片（视频不做封面）
+            boolean isCover = !coverAssigned && "image".equals(mediaType);
+            image.setIsCover(isCover ? 1 : 0);
+            if (isCover) {
+                coverAssigned = true;
+            }
+            productImageMapper.insert(image);
+            sort++;
         }
 
         // 标签：按名 upsert 后关联

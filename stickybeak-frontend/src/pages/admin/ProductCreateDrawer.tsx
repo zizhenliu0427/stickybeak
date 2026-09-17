@@ -23,13 +23,13 @@ import {
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreated: (id: number) => void;
+  onCreated: (id: string) => void;
 }
 
 interface FormValues {
   name: string;
   slug?: string;
-  categoryId: number;
+  categoryId: string;
   price: number;
   stock: number;
   description?: string;
@@ -37,11 +37,28 @@ interface FormValues {
   featured?: boolean;
 }
 
+type MediaUploadFile = UploadFile & { mediaType?: 'image' | 'video' };
+
+const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 80 * 1024 * 1024;
+
+function guessContentType(file: File): string {
+  if (file.type) return file.type;
+  const n = file.name.toLowerCase();
+  if (n.endsWith('.mp4')) return 'video/mp4';
+  if (n.endsWith('.mov')) return 'video/quicktime';
+  if (n.endsWith('.webm')) return 'video/webm';
+  if (n.endsWith('.png')) return 'image/png';
+  if (n.endsWith('.webp')) return 'image/webp';
+  if (n.endsWith('.gif')) return 'image/gif';
+  return 'image/jpeg';
+}
+
 /** 管理端新建商品抽屉：MinIO 预签名直传图片 + 表单提交 */
 export default function ProductCreateDrawer({ open, onClose, onCreated }: Props) {
   const [form] = Form.useForm<FormValues>();
   const [categories, setCategories] = useState<AdminCategory[]>([]);
-  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [fileList, setFileList] = useState<MediaUploadFile[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -55,14 +72,19 @@ export default function ProductCreateDrawer({ open, onClose, onCreated }: Props)
     setFileList([]);
   };
 
-  /** 自定义上传：拿预签名 URL → PUT 直传 MinIO → 记录公网 URL */
-  const handleUpload = async (file: File, uploadFile: UploadFile) => {
+  /** 自定义上传：拿预签名 URL → PUT 直传 MinIO → 记录公网 URL 与媒体类型 */
+  const handleUpload = async (file: File, uploadFile: MediaUploadFile) => {
     try {
-      const presigned = await getUploadUrl(file.name, file.type || 'image/jpeg');
+      const contentType = guessContentType(file);
+      const presigned = await getUploadUrl(file.name, contentType);
       await uploadToPresigned(presigned.uploadUrl, file);
-      uploadFile.url = presigned.publicUrl;
+      const mediaType = contentType.startsWith('video/') ? 'video' : 'image';
       setFileList((prev) =>
-        prev.map((f) => (f.uid === uploadFile.uid ? { ...f, status: 'done', url: presigned.publicUrl } : f)),
+        prev.map((f) =>
+          f.uid === uploadFile.uid
+            ? { ...f, status: 'done', url: presigned.publicUrl, mediaType }
+            : f,
+        ),
       );
       message.success(`${file.name} uploaded`);
     } catch (e) {
@@ -77,18 +99,21 @@ export default function ProductCreateDrawer({ open, onClose, onCreated }: Props)
       message.warning('Images still uploading, please wait');
       return;
     }
-    const images = fileList
+    const media = fileList
       .filter((f) => f.status === 'done' && f.url)
-      .map((f) => f.url as string);
-    if (images.length === 0) {
-      message.warning('Please upload at least one product image');
+      .map((f) => ({
+        url: f.url as string,
+        mediaType: (f.mediaType ?? 'image') as 'image' | 'video',
+      }));
+    if (media.length === 0) {
+      message.warning('Please upload at least one product image or video');
       return;
     }
     setSubmitting(true);
     try {
       const { id } = await createProduct({
         ...values,
-        images,
+        media,
         featured: Boolean(values.featured),
       });
       message.success(`Product #${id} created and listed`);
@@ -169,18 +194,31 @@ export default function ProductCreateDrawer({ open, onClose, onCreated }: Props)
           <Select mode="tags" placeholder="e.g. T9, 悉尼火车" open={false} tokenSeparators={[',', '，']} />
         </Form.Item>
 
-        <Form.Item label="Images (first = cover)" required>
+        <Form.Item label="Media (first image = cover)" required>
           <Upload.Dragger
             multiple
-            accept="image/jpeg,image/png,image/webp,image/gif"
+            accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm"
             fileList={fileList}
             beforeUpload={(file) => {
-              const uf: UploadFile = {
+              const contentType = guessContentType(file);
+              const isVideo = contentType.startsWith('video/');
+              const isImage = contentType.startsWith('image/');
+              if (!isVideo && !isImage) {
+                message.error('Only jpeg/png/webp/gif images or mp4/mov/webm videos');
+                return Upload.LIST_IGNORE;
+              }
+              const max = isVideo ? VIDEO_MAX_BYTES : IMAGE_MAX_BYTES;
+              if (file.size > max) {
+                message.error(`${file.name} exceeds ${isVideo ? '80MB' : '8MB'} limit`);
+                return Upload.LIST_IGNORE;
+              }
+              const uf: MediaUploadFile = {
                 uid: file.uid,
                 name: file.name,
                 size: file.size,
-                type: file.type,
+                type: contentType,
                 status: 'uploading',
+                mediaType: isVideo ? 'video' : 'image',
               };
               setFileList((prev) => [...prev, uf]);
               handleUpload(file, uf);
@@ -191,8 +229,8 @@ export default function ProductCreateDrawer({ open, onClose, onCreated }: Props)
             <p className="ant-upload-drag-icon">
               <InboxOutlined />
             </p>
-            <p className="ant-upload-text">Click or drag images here</p>
-            <p className="ant-upload-hint">jpeg / png / webp / gif，直传对象存储（MinIO）</p>
+            <p className="ant-upload-text">Click or drag images / videos here</p>
+            <p className="ant-upload-hint">图片 jpeg/png/webp/gif · 视频 mp4/mov/webm，直传对象存储（MinIO）</p>
           </Upload.Dragger>
         </Form.Item>
       </Form>

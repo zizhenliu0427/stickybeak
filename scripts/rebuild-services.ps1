@@ -1,6 +1,7 @@
 # StickyBeak dev helper: rebuild all backend jars via Docker Maven and restart the sb-run-* containers.
-# Windows 上运行中的容器会锁定 target/*.jar，必须「停全部 → 构建 → 起全部」。
-# 用法: powershell -File scripts/rebuild-services.ps1
+# On Windows, running containers lock target/*.jar, so: stop ALL -> clean package -> start ALL.
+# (clean matters: stale target/classes once produced a fat jar with a duplicated method.)
+# Usage: powershell -File scripts/rebuild-services.ps1
 $ErrorActionPreference = "Stop"
 $repo = Resolve-Path "$PSScriptRoot\.."
 
@@ -10,12 +11,12 @@ $runContainers = $all | ForEach-Object { "sb-run-stickybeak-$_" }
 Write-Host "==> stopping all service containers (Windows jar file locks)"
 docker stop $runContainers 2>$null | Out-Null
 
-Write-Host "==> mvn package (docker)"
+Write-Host "==> mvn clean package (docker)"
 docker run --rm -v "${repo}:/workspace" -v stickybeak-m2:/root/.m2 -w /workspace `
-    maven:3.9-eclipse-temurin-17 mvn -q -DskipTests package
+    maven:3.9-eclipse-temurin-17 mvn -q -DskipTests clean package
 if ($LASTEXITCODE -ne 0) { throw "maven build failed" }
 
-# 容器网络 docker_default 内的服务环境变量
+# Env vars inside the docker_default container network
 $envMap = @{
     "auth"         = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis")
     "product"      = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis", "ES_URIS=http://sb-elasticsearch:9200", "RABBITMQ_HOST=sb-rabbitmq", "MINIO_ENDPOINT=http://sb-minio:9000", "MINIO_PUBLIC_ENDPOINT=http://localhost:9000")
