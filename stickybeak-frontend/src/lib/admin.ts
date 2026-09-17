@@ -1,4 +1,4 @@
-import { get, put } from './api';
+import { get, post, put } from './api';
 
 export interface AnalyticsSummary {
   totalGmv: number;
@@ -170,4 +170,53 @@ export async function updateProductPrice(id: number, price: number): Promise<voi
 
 export async function getStockAlerts(threshold: number = 10): Promise<StockAlertSummary> {
   return get<StockAlertSummary>(`/products/admin/stock-alerts?threshold=${threshold}`);
+}
+
+// ================= Product Create & Upload API =================
+
+export interface AdminCategory {
+  id: number;
+  name: string;
+  slug: string;
+  sortOrder: number;
+}
+
+export interface PresignedUpload {
+  objectKey: string;
+  uploadUrl: string;
+  publicUrl: string;
+}
+
+export interface ProductCreatePayload {
+  name: string;
+  slug?: string;
+  categoryId: number;
+  /** AUD 元（后端 BigDecimal） */
+  price: number;
+  stock: number;
+  description?: string;
+  images?: string[];
+  tags?: string[];
+  featured?: boolean;
+}
+
+export async function getAdminCategories(): Promise<AdminCategory[]> {
+  return get<AdminCategory[]>('/categories');
+}
+
+/** 申请 MinIO 预签名上传 URL（浏览器直传） */
+export async function getUploadUrl(filename: string, contentType: string): Promise<PresignedUpload> {
+  return post<PresignedUpload>('/products/admin/upload-url', { filename, contentType });
+}
+
+/** PUT 文件到预签名 URL（直传 MinIO，不经网关） */
+export async function uploadToPresigned(uploadUrl: string, file: File): Promise<void> {
+  const resp = await fetch(uploadUrl, { method: 'PUT', body: file });
+  if (!resp.ok) {
+    throw new Error(`upload failed: ${resp.status}`);
+  }
+}
+
+export async function createProduct(payload: ProductCreatePayload): Promise<{ id: number }> {
+  return post<{ id: number }>('/products/admin', payload);
 }

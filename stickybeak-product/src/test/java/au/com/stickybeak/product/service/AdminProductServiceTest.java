@@ -9,6 +9,8 @@ import au.com.stickybeak.product.entity.Product;
 import au.com.stickybeak.product.mapper.CategoryMapper;
 import au.com.stickybeak.product.mapper.ProductImageMapper;
 import au.com.stickybeak.product.mapper.ProductMapper;
+import au.com.stickybeak.product.mapper.ProductTagRelMapper;
+import au.com.stickybeak.product.mapper.TagMapper;
 import au.com.stickybeak.product.service.impl.AdminProductServiceImpl;
 import au.com.stickybeak.product.vo.AdminProductVO;
 import au.com.stickybeak.product.vo.StockAlertSummaryVO;
@@ -45,6 +47,10 @@ class AdminProductServiceTest {
     private ValueOperations<String, String> valueOperations;
     @Mock
     private RabbitTemplate rabbitTemplate;
+    @Mock
+    private TagMapper tagMapper;
+    @Mock
+    private ProductTagRelMapper productTagRelMapper;
 
     private AdminProductServiceImpl adminProductService;
 
@@ -52,7 +58,8 @@ class AdminProductServiceTest {
     void setUp() {
         lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
         adminProductService = new AdminProductServiceImpl(
-                productMapper, categoryMapper, productImageMapper, stringRedisTemplate, rabbitTemplate);
+                productMapper, categoryMapper, productImageMapper, tagMapper, productTagRelMapper,
+                stringRedisTemplate, rabbitTemplate);
     }
 
     @Test

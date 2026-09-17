@@ -32,6 +32,7 @@
         <spring-cloud-alibaba.version>2023.0.1.2</spring-cloud-alibaba.version>
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <minio.version>8.5.12</minio.version>
         <stripe-java.version>26.1.0</stripe-java.version>
         <redisson.version>3.34.1</redisson.version>
         <knife4j.version>4.5.0</knife4j.version>
@@ -82,6 +83,11 @@
                 <artifactId>jjwt-jackson</artifactId>
                 <version>${jjwt.version}</version>
                 <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version>${minio.version}</version>
             </dependency>
             <dependency>
                 <groupId>au.com.stickybeak</groupId>

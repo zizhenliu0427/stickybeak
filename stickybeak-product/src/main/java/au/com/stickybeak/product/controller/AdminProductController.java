@@ -7,8 +7,11 @@ import au.com.stickybeak.product.dto.AdminProductPageQuery;
 import au.com.stickybeak.product.dto.ProductPriceUpdateRequest;
 import au.com.stickybeak.product.dto.ProductStatusUpdateRequest;
 import au.com.stickybeak.product.dto.ProductStockUpdateRequest;
+import au.com.stickybeak.product.dto.ProductCreateRequest;
+import au.com.stickybeak.product.dto.UploadUrlRequest;
 import au.com.stickybeak.product.service.AdminProductService;
 import au.com.stickybeak.product.service.ProductIndexService;
+import au.com.stickybeak.product.service.StorageService;
 import au.com.stickybeak.product.vo.AdminProductVO;
 import au.com.stickybeak.product.vo.StockAlertSummaryVO;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -24,11 +27,14 @@ public class AdminProductController {
 
     private final AdminProductService adminProductService;
     private final ProductIndexService productIndexService;
+    private final StorageService storageService;
 
     public AdminProductController(AdminProductService adminProductService,
-                                  ProductIndexService productIndexService) {
+                                  ProductIndexService productIndexService,
+                                  StorageService storageService) {
         this.adminProductService = adminProductService;
         this.productIndexService = productIndexService;
+        this.storageService = storageService;
     }
 
     @GetMapping("/page")
@@ -84,6 +90,25 @@ public class AdminProductController {
         checkAdminRole(roles);
         int count = productIndexService.reindexAll();
         return Result.ok(Map.of("indexed", count));
+    }
+
+    /** 申请图片预签名上传 URL（浏览器直传 MinIO） */
+    @PostMapping("/upload-url")
+    public Result<StorageService.PresignedUpload> createUploadUrl(
+            @RequestHeader(value = "X-User-Roles", required = false) String roles,
+            @Valid @RequestBody UploadUrlRequest req) {
+        checkAdminRole(roles);
+        return Result.ok(storageService.createUploadUrl(req.filename(), req.contentType()));
+    }
+
+    /** 新建商品（含图片/标签），返回新商品 id */
+    @PostMapping
+    public Result<Map<String, Object>> createProduct(
+            @RequestHeader(value = "X-User-Roles", required = false) String roles,
+            @Valid @RequestBody ProductCreateRequest req) {
+        checkAdminRole(roles);
+        Long id = adminProductService.createProduct(req);
+        return Result.ok(Map.of("id", id));
     }
 
     private void checkAdminRole(String rolesHeader) {

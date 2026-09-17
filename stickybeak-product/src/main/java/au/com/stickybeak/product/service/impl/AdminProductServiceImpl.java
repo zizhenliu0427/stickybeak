@@ -4,15 +4,20 @@ import au.com.stickybeak.common.event.ProductChangedEvent;
 import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.common.result.ResultCode;
 import au.com.stickybeak.product.dto.AdminProductPageQuery;
+import au.com.stickybeak.product.dto.ProductCreateRequest;
 import au.com.stickybeak.product.dto.ProductPriceUpdateRequest;
 import au.com.stickybeak.product.dto.ProductStatusUpdateRequest;
 import au.com.stickybeak.product.dto.ProductStockUpdateRequest;
 import au.com.stickybeak.product.entity.Category;
 import au.com.stickybeak.product.entity.Product;
 import au.com.stickybeak.product.entity.ProductImage;
+import au.com.stickybeak.product.entity.ProductTagRel;
+import au.com.stickybeak.product.entity.Tag;
 import au.com.stickybeak.product.mapper.CategoryMapper;
 import au.com.stickybeak.product.mapper.ProductImageMapper;
 import au.com.stickybeak.product.mapper.ProductMapper;
+import au.com.stickybeak.product.mapper.ProductTagRelMapper;
+import au.com.stickybeak.product.mapper.TagMapper;
 import au.com.stickybeak.product.service.AdminProductService;
 import au.com.stickybeak.product.vo.AdminProductVO;
 import au.com.stickybeak.product.vo.StockAlertSummaryVO;
@@ -40,17 +45,23 @@ public class AdminProductServiceImpl implements AdminProductService {
     private final ProductMapper productMapper;
     private final CategoryMapper categoryMapper;
     private final ProductImageMapper productImageMapper;
+    private final TagMapper tagMapper;
+    private final ProductTagRelMapper productTagRelMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final RabbitTemplate rabbitTemplate;
 
     public AdminProductServiceImpl(ProductMapper productMapper,
                                    CategoryMapper categoryMapper,
                                    ProductImageMapper productImageMapper,
+                                   TagMapper tagMapper,
+                                   ProductTagRelMapper productTagRelMapper,
                                    StringRedisTemplate stringRedisTemplate,
                                    RabbitTemplate rabbitTemplate) {
         this.productMapper = productMapper;
         this.categoryMapper = categoryMapper;
         this.productImageMapper = productImageMapper;
+        this.tagMapper = tagMapper;
+        this.productTagRelMapper = productTagRelMapper;
         this.stringRedisTemplate = stringRedisTemplate;
         this.rabbitTemplate = rabbitTemplate;
     }
@@ -253,6 +264,78 @@ public class AdminProductServiceImpl implements AdminProductService {
         summary.setLowStockCount(low);
         summary.setAlertProducts(voList);
         return summary;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long createProduct(ProductCreateRequest req) {
+        Category category = categoryMapper.selectById(req.categoryId());
+        if (category == null) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "category not found: " + req.categoryId());
+        }
+
+        Product product = new Product();
+        product.setName(req.name().trim());
+        // slug：未提供则先占位，插入后更新为 p-{id}
+        product.setSlug(StringUtils.hasText(req.slug()) ? req.slug().trim()
+                : "tmp-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
+        product.setDescription(req.description());
+        product.setCategoryId(req.categoryId());
+        product.setPrice(req.price());
+        product.setStock(req.stock());
+        product.setSales(0);
+        product.setFeatured(Boolean.TRUE.equals(req.featured()) ? 1 : 0);
+        product.setStatus(Product.STATUS_ACTIVE);
+        productMapper.insert(product);
+
+        if (!StringUtils.hasText(req.slug())) {
+            Product slugUpdate = new Product();
+            slugUpdate.setId(product.getId());
+            slugUpdate.setSlug("p-" + product.getId());
+            productMapper.updateById(slugUpdate);
+            product.setSlug("p-" + product.getId());
+        }
+
+        // 图片：第一张为封面
+        if (req.images() != null && !req.images().isEmpty()) {
+            int sort = 0;
+            for (String url : req.images()) {
+                if (!StringUtils.hasText(url)) {
+                    continue;
+                }
+                ProductImage image = new ProductImage();
+                image.setProductId(product.getId());
+                image.setUrl(url.trim());
+                image.setSortOrder(sort);
+                image.setIsCover(sort == 0 ? 1 : 0);
+                productImageMapper.insert(image);
+                sort++;
+            }
+        }
+
+        // 标签：按名 upsert 后关联
+        if (req.tags() != null) {
+            for (String raw : req.tags()) {
+                if (!StringUtils.hasText(raw)) {
+                    continue;
+                }
+                String tagName = raw.trim();
+                Tag tag = tagMapper.selectOne(new LambdaQueryWrapper<Tag>().eq(Tag::getName, tagName));
+                if (tag == null) {
+                    tag = new Tag();
+                    tag.setName(tagName);
+                    tagMapper.insert(tag);
+                }
+                ProductTagRel rel = new ProductTagRel();
+                rel.setProductId(product.getId());
+                rel.setTagId(tag.getId());
+                productTagRelMapper.insert(rel);
+            }
+        }
+
+        publishProductChanged(product.getId());
+        log.info("Admin created product {} ({}), category={}", product.getId(), product.getName(), req.categoryId());
+        return product.getId();
     }
 
     /**

@@ -33,6 +33,7 @@ import {
   type AdminProductQueryParams,
   type StockAlertSummary,
 } from '../../lib/admin';
+import ProductCreateDrawer from './ProductCreateDrawer';
 import { useI18n } from '../../lib/i18n';
 
 const { Title, Text } = Typography;
@@ -60,6 +61,9 @@ export default function AdminProductsPage() {
   const [priceModalVisible, setPriceModalVisible] = useState(false);
   const [priceTargetProduct, setPriceTargetProduct] = useState<AdminProduct | null>(null);
   const [priceForm] = Form.useForm();
+
+  // 新建商品抽屉
+  const [createOpen, setCreateOpen] = useState(false);
 
   const fetchProducts = async (
     p = page,
@@ -268,9 +272,14 @@ export default function AdminProductsPage() {
           </Title>
           <Text type="secondary">Manage product catalogue, listing status, prices and inventory thresholds.</Text>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={() => fetchProducts()}>
-          Refresh
-        </Button>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={() => fetchProducts()}>
+            Refresh
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+            New Product
+          </Button>
+        </Space>
       </div>
 
       <Card bordered={false} className="shadow-sm border border-gray-100 dark:border-gray-800">
@@ -385,6 +394,13 @@ export default function AdminProductsPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* 新建商品抽屉 */}
+      <ProductCreateDrawer
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => fetchProducts(1, pageSize, keyword, activeTab)}
+      />
     </div>
   );
 }
