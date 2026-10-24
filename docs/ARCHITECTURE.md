@@ -64,6 +64,7 @@ flowchart TB
 | `stickybeak-payment` | 支付提供商抽象、Stripe Session、Webhook 幂等、退款 | `stickybeak_payment` | RabbitMQ |
 | `stickybeak-notification` | 订单确认/状态变更邮件，MQ 消费异步投递 | — | RabbitMQ、邮件 SMTP |
 | `stickybeak-agent`（Python） | AI 购物助手：LangGraph 意图路由、导购 / 订单工具（调用上面的 Java 服务）、售后 RAG、写操作确认 | `stickybeak_agent`（LangGraph checkpoint） | Redis（限流与额度）、ES（知识库索引）、通义千问 / DeepSeek |
+| `stickybeak-mcp`（Python） | MCP Server：商品、售后检索、本人订单 5 个只读工具，给自家 agent 与外部 AI 客户端用 | — | ES（知识库）、通义（向量化与重排） |
 | `stickybeak-admin`（可并入 order/product） | 管理后台聚合 API、销售分析 | 只读跨库 | Redis（分析结果缓存 5min） |
 | `stickybeak-common` | 共享模块：`Result<T>`、`ResultCode`、`BusinessException`、`GlobalExceptionHandler`、DTO/VO 基类 | — | — |
 

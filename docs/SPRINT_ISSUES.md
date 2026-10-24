@@ -564,18 +564,59 @@
 `type:feature` `area:agent` `p0`
 - `stickybeak-mcp`（Python 官方 MCP SDK，Streamable HTTP 传输）；工具：`search_products` `get_product` `list_my_orders` `get_order` `search_faq`，以只读为主
 
+> 实现说明：
+> - 与 agent 同一个 Python 项目、同一个镜像，`python -m stickybeak_agent.mcp_server` 启动（:8089），在 Nacos 注册为 `stickybeak-mcp`。
+> - 用官方 SDK 的 FastMCP 实现，Streamable HTTP 无状态 + JSON 响应，可以直接放在网关和负载均衡后面。
+> - 5 个工具全部只读，并标注 `readOnlyHint`。写操作（加购、取消订单）不对外提供。
+> - `search_faq` 返回带出处的原文片段；内部错误（ES 地址等）不返回给调用方。
+> - 售后知识库的检索与入库从 agent 移到这里。
+> - 测试：MCP Server 在进程内运行（httpx ASGITransport），用官方客户端走真实协议。
+
 ### Issue 14.2 — 鉴权
 `type:feature` `area:agent` `area:gateway` `p0`
 - 复用现有 JWT：经网关校验后注入身份；未登录只能使用公开工具
+
+> 实现说明：
+> - 网关路由 `mcp`（`/api/mcp` → `lb://stickybeak-mcp`，Sentinel 30 QPS），`/api/mcp` 为可选认证：
+>   - 带令牌：注入 `X-User-Id`。
+>   - 不带令牌：剥离伪造的身份头后放行，订单工具由 MCP Server 拒绝。
+> - MCP 令牌：网页登录的 access token 只有 15 分钟，不适合配进 AI 客户端。auth 服务新增 `POST/GET/DELETE /users/me/mcp-token`：
+>   - 签发 30 天、`scope=mcp` 的 JWT。
+>   - 每个用户只保留一个有效令牌（jti 存 Redis `auth:mcp:{userId}`），重新生成或撤销立即生效。
+> - 网关看到 `scope=mcp`：
+>   - 不是 `/api/mcp` 的请求返回 403，包括用它再签发令牌。
+>   - jti 与 Redis 不一致返回 401。
+> - 个人中心新增"AI 客户端接入（MCP）"卡片：生成、撤销令牌，复制客户端配置。
+> - 本地实测（真实网关、auth、order 服务）：
+>   - 匿名可以用商品工具，订单工具提示需要登录。
+>   - 带令牌可以查到自己的真实订单。
+>   - 令牌调 `/api/orders/my` 返回 403；撤销后再调 MCP 返回 401。
 
 ### Issue 14.3 — agent 改为 MCP 客户端
 `type:feature` `area:agent` `p1`
 - 用 langchain-mcp-adapters 加载 MCP 工具，替换 13.3 中的进程内工具定义
 - 验收：13.7 评测集结果不下降
 
+> 实现说明：
+> - agent 启动后从 MCP Server 加载 5 个只读工具；MCP 服务没起来时每隔几秒重试，期间助手返回"暂不可用"。
+> - 进程内只保留两个写工具，它们依赖 confirm 节点的人工确认，不能对外。
+> - 售后检索也改为调用 MCP 的 `search_faq`。
+> - 用户身份：拦截器从当前运行配置取出用户 ID，写进 `X-User-Id`；工具参数里没有用户 ID。
+> - `MCP_URL=http://stickybeak-mcp/mcp`：主机名按 Nacos 解析（`DiscoveryTransport`，类似 Spring 的 `lb://`）。
+> - MCP 工具结果在发给模型前转成单行文本（部分 OpenAI 兼容接口不接受数组内容；单行也省 token）。
+> - 单测和评测都改为经进程内 MCP Server 调用，与生产链路一致。
+> - 本地实测：agent → MCP Server → Java 服务全部是真实服务；模型参数里伪造 `user_id` 也只能查到当前用户的订单。
+> - SkyWalking 里可以看到网关 → MCP（Python）→ 订单服务（Java）的完整链路。
+> - 未完成：评测集需要真实模型，本机无法访问模型 API，"结果不下降"还没法对比。工具定义（名称、参数、描述）与 Sprint 13 保持一致。
+
 ### Issue 14.4 — 外部客户端演示
 `type:docs` `area:agent` `p1`
 - 用 Cherry Studio / Cursor 等 MCP 客户端连接商城查询商品与订单，录制 GIF 放入 README
+
+> 实现说明：
+> - `stickybeak-agent/README.md` 给出 Cursor、Cherry Studio、Claude Code、mcp-remote 的接入配置。
+> - 命令行演示脚本：`python -m stickybeak_agent.mcp_demo`，README 里附了本地经网关的实际输出。
+> - 未完成：GIF 需要在桌面端的 Cherry Studio / Cursor 里录制，本环境做不了，待补。
 
 ---
 

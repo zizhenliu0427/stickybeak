@@ -10,7 +10,7 @@
 [![Python](https://img.shields.io/badge/Python-3.12%20%C2%B7%20LangGraph-3776AB.svg?logo=python)](stickybeak-agent/README.md)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-v2.0.0-success.svg)](docs/SPRINT_ISSUES.md)
+[![Version](https://img.shields.io/badge/Version-v2.1.0-success.svg)](docs/SPRINT_ISSUES.md)
 
 **A Cloud-Native, High-Performance Microservices E-Commerce Platform for Australian Themed Souvenirs & Regional Specialities.**
 
@@ -29,6 +29,7 @@
 - **Event-Driven Fulfilment**: RabbitMQ topic exchange with manual ACK, retry queues and dead-letter queues; 30-minute auto-cancellation via a delay queue plus a sweeper; order confirmation emails over SMTP (MailHog locally, Amazon SES in production).
 - **Full-Text Search**: Elasticsearch 8 with the IK Chinese analyzer — weighted multi-field matching, highlighting and relevance sorting, with automatic fallback to MySQL.
 - **AI Shopping Assistant**: A Python service (FastAPI + LangGraph) that finds products, checks and cancels orders, and answers after-sales questions from a bilingual knowledge base (hybrid kNN + BM25 retrieval in Elasticsearch, RRF and reranking, cited answers). Answers stream over SSE, and every write needs the shopper's confirmation.
+- **MCP Server**: the shop's read-only capabilities (catalogue, help-article search, the shopper's own orders) are exposed over the Model Context Protocol, so the assistant and external AI clients such as Cursor or Cherry Studio use the same tools. Shoppers generate a 30-day token that only works on the MCP endpoint.
 - **Dual-Front React 18 Application**: TailwindCSS-powered consumer storefront (PWA) paired with an Ant Design 5 admin console.
 - **Engineering Rigor**: A JaCoCo coverage gate in `mvn verify` (≥ 90% line coverage enforced for the order state machine and Stripe webhook handling), Playwright journeys on desktop and mobile in CI, and full-stack API E2E scripts.
 
@@ -109,9 +110,12 @@
 - **LangGraph state graph**: an intent router hands off to a shopping agent, an order agent, a RAG after-sales node or small talk. Each agent only gets its own tools, and the tools call the existing Java services.
 - **Safe by construction**: the user ID comes from the gateway's `X-User-Id` and is injected into tools by the runtime, never as a model argument. Adding to the trolley or cancelling an order pauses the graph (`interrupt`) until the shopper confirms on a card built from server-side data. Conversations, including pending confirmations, are checkpointed in MySQL and survive refreshes and restarts.
 - **Grounded answers**: kNN (text-embedding-v3) and BM25 (IK) results are fused with RRF, reranked with gte-rerank and filtered by score. When nothing relevant is found the assistant says it doesn't know instead of guessing, and it cites its sources.
+- **MCP Server** (`stickybeak-mcp`): five read-only tools over Streamable HTTP behind the gateway at `/api/mcp`. Anonymous callers get the catalogue and help articles; order tools need a scoped MCP token from the profile page. The token is valid only on `/api/mcp`, can be revoked, and is replaced when a new one is issued. The assistant loads the same tools through langchain-mcp-adapters, and only the two confirmed write tools stay in-process.
 - **Operable**: Qwen with DeepSeek fallback through OpenAI-compatible APIs, per-user rate limits and daily token quotas in Redis, token and latency logging, SkyWalking traces across Java and Python, and a 50-case eval set ([details](stickybeak-agent/README.md)).
 
 ![Assistant asking for confirmation before adding to the trolley](docs/images/agent/chat-confirm.png)
+
+![MCP token and client configuration on the profile page](docs/images/agent/mcp-token.png)
 
 ### 6. Observability, API Docs & Quality Gates
 - **SkyWalking Tracing**: all 7 services run the SkyWalking Java agent, so one trace covers gateway → order → cart / product / payment and the asynchronous `order.paid` hand-off to order and notification. Responses carry an `X-Trace-Id` header, and logs carry the same trace ID and are shipped to OAP.
@@ -135,7 +139,7 @@ stickybeak/
 ├── stickybeak-payment/        # Stripe sandbox, payment provider abstraction, webhooks & refunds
 ├── stickybeak-notification/   # Email notifications via RabbitMQ & SMTP (MailHog / SES)
 ├── stickybeak-common/         # Response wrapper, error codes, internal-API guard, OpenAPI config
-├── stickybeak-agent/          # AI assistant: Python 3.12, FastAPI, LangGraph, RAG on Elasticsearch, eval set
+├── stickybeak-agent/          # AI assistant + MCP Server: Python 3.12, FastAPI, LangGraph, MCP, RAG on ES, eval set
 ├── stickybeak-frontend/       # React 18 + Vite + Redux Toolkit + Tailwind + AntD, Playwright e2e
 ├── docker/                    # Docker Compose files (local & prod), Nginx configs, MySQL DDL
 ├── docs/                      # Deployment guide, demo script, architecture, ER diagrams
@@ -197,6 +201,7 @@ Open **http://localhost** in your browser.
 | **MinIO Storage Console** | 9001 | `http://localhost:9001` | `minioadmin / minioadmin` |
 | **Elasticsearch** | 9200 (full stack) / 19200 (infra compose) | `http://localhost:9200` | Security disabled |
 | **AI Assistant** | 8087 (internal) | `http://localhost:8080/api/agent/health` via the gateway | Needs `DASHSCOPE_API_KEY` or `DEEPSEEK_API_KEY` |
+| **MCP Server** | 8089 (internal) | `http://localhost:8080/api/mcp` via the gateway | Public tools anonymously; orders need an MCP token |
 | **SkyWalking UI** | 8088 | `http://localhost:8088` | Public |
 | **SkyWalking OAP** | 11800 (agent gRPC) / 12800 (HTTP, GraphQL) | `http://localhost:12800/healthcheck` | Storage: BanyanDB |
 
@@ -217,13 +222,13 @@ Reports: `stickybeak-<module>/target/site/jacoco/index.html`. Current line cover
 
 | Module | Line coverage | Floor |
 | :--- | :--- | :--- |
-| gateway | 74.3% | 65% |
+| gateway | 88.5% | 65% |
 | product | 62.5% | 55% |
 | notification | 54.0% | 50% |
 | cart | 53.9% | 50% |
 | order | 49.9% | 45% (`OrderStateMachine` 100%, floor 90%) |
 | payment | 45.2% | 35% (`WebhookServiceImpl` 97.2%, floor 90%) |
-| auth | 30.5% | 30% |
+| auth | 34.7% | 30% |
 
 ### 2. Frontend Unit, Type Safety & Journey Tests
 ```bash

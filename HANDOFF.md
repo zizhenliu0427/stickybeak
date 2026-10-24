@@ -22,6 +22,7 @@
 - **Sprint 11**（`feature/sprint-11-readme-capabilities`，基于 Sprint 10 分支，待合并后打 `v1.3.0`）：把 README 宣称的能力全部落地 —— Seata AT 结账事务、ES 商品搜索（IK + 高亮 + MySQL 回退）、退款全流程、JaCoCo 覆盖率门禁、网关 Knife4j 文档聚合、Playwright 桌面 + 移动端用户旅程、SES 邮件配置、`LICENSE`；顺带修复了"网关无法启动"（Sprint 9 引入）、"管理后台刷新一直转圈"、"商品列表缓存从不命中"
 - **Sprint 12**（`feature/sprint-12-skywalking`，基于 Sprint 11 分支，待合并后打 `v1.4.0`）：SkyWalking 全链路追踪 —— OAP 10.4 + BanyanDB + UI（:8088），7 个服务挂 agent 9.7，日志带 traceId 并上报、响应头 `X-Trace-Id`，告警规则（含死信队列积压自定义指标），网关端点分组；用链路定位并修复商品列表 N+1（`docs/PERF_PRODUCT_LIST.md`）
 - **Sprint 13**（`feature/sprint-13-ai-agent`，基于 Sprint 12 分支，待合并后打 `v2.0.0`）：Python AI 购物助手 `stickybeak-agent` —— FastAPI + LangGraph，导购 / 订单 / 售后 RAG，写操作 interrupt 确认，MySQL checkpoint，SSE 流式，Redis 限流与额度，SkyWalking 跨语言链路，前端聊天抽屉，50 条评测集（详见 `stickybeak-agent/README.md`）
+- **Sprint 14**（`feature/sprint-14-mcp`，基于 Sprint 13 分支，待合并后打 `v2.1.0`）：MCP Server `stickybeak-mcp`（5 个只读工具，Streamable HTTP，网关 `/api/mcp`），个人中心签发 30 天 `scope=mcp` 令牌（网关限制只能访问 MCP、可撤销），agent 改为通过 langchain-mcp-adapters 加载只读工具，Cursor / Cherry Studio / Claude Code 接入说明与命令行演示
 - 开发分支：`develop`；功能分支：`feature/sprint-N-xxx`（Git Flow）
 
 ## Sprint 1 交付明细（均已 E2E 验证）
@@ -187,6 +188,10 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 46. **DashScope 兼容模式**：结构化输出要用 `method="function_calling"`（不支持 json_schema）；`OpenAIEmbeddings` 要设 `check_embedding_ctx_length=False`（不接受 token id），text-embedding-v3 每批最多 10 条。
 47. **ES Python 客户端必须是 8.x**（`elasticsearch<9`）：9.x 客户端发 v9 兼容头，ES 8.14 会拒绝。
 48. **AI 助手的 thread_id 由服务端生成，格式 `{userId}-{32 位 hex}`**：接口按前缀校验归属，不要改成客户端随意传入。
+49. **MCP Server 只放只读工具**：写操作只能在自家 agent 里经用户确认后执行，不要加到 MCP（外部 AI 客户端可能不经用户确认就调用）。新增 MCP 工具要标 `readOnlyHint`，需要身份的用 `require_user(ctx)`。
+50. **MCP 令牌（`scope=mcp`）只能访问 `/api/mcp`**：网关按 scope 拦截，并比对 Redis `auth:mcp:{userId}` 里的当前 jti。新增给外部客户端的入口时，不要放宽这个限制。
+51. **`mcp` 固定在 1.x**：langchain-mcp-adapters 0.3 只支持 mcp<2。升级 MCP SDK 前先确认 adapters 的版本支持。
+52. **agent 依赖 MCP Server 才能工作**：启动时每隔几秒重试加载工具，期间 `/agent/health` 的 `mcpConnected=false`，聊天返回"暂不可用"。本地调试先起 `python -m stickybeak_agent.mcp_server`。
 
 ## 下一步（第二阶段路线图，2026-10 制定）
 
@@ -195,7 +200,7 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 2. **Sprint 11**（v1.3.0）补齐 README 宣称的能力：Seata、ES 商品搜索、退款、JaCoCo 门禁、Knife4j、Playwright —— 代码已完成，待在完整 Docker 环境验收 Seata 回滚与 ES 搜索
 3. **Sprint 12**（v1.4.0）SkyWalking 全链路追踪 —— 代码已完成，链路 / 日志 / 告警 / 优化已在本机用同版本二进制验证，待在 Docker 环境构建镜像验收
 4. **Sprint 13**（v2.0.0）Python AI Agent（FastAPI + LangGraph）+ RAG（向量库用 ES）—— 代码已完成，已在本机连真实 Java 服务、MariaDB、Redis、SkyWalking 验证；真实模型评测与 ES 向量检索待配置 DashScope key 后实测
-5. **Sprint 14**（v2.1.0）MCP Server 与客户端接入
+5. **Sprint 14**（v2.1.0）MCP Server 与客户端接入 —— 代码已完成，经网关的匿名 / 令牌 / 撤销流程与跨语言链路已在本机验证；外部客户端的演示 GIF 待在桌面端录制
 
 ## 硬性规范（不要违反）
 
