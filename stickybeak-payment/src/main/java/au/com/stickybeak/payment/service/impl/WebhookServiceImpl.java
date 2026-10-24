@@ -24,11 +24,22 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Service
 public class WebhookServiceImpl implements WebhookService {
 
     private static final Logger log = LoggerFactory.getLogger(WebhookServiceImpl.class);
+
+    public static final String RESULT_SUCCESS = "SUCCESS";
+    public static final String RESULT_IGNORED = "IGNORED";
+    public static final String RESULT_REJECTED = "REJECTED";
+
+    /** 视为"已付款"的 Stripe 事件；async_payment_succeeded 对应异步支付方式的延迟到账 */
+    private static final Set<String> STRIPE_PAID_EVENT_TYPES = Set.of(
+            "checkout.session.completed",
+            "checkout.session.async_payment_succeeded"
+    );
 
     private final StripePaymentProvider stripePaymentProvider;
     private final MockPaymentProvider mockPaymentProvider;
@@ -116,87 +127,52 @@ public class WebhookServiceImpl implements WebhookService {
             String eventType = root.has("type") ? root.get("type").asText() : (isMock ? "mock.payment.paid" : "unknown");
             webhookRecord.setEventType(eventType);
 
-            // Extract order details
-            String orderNo = null;
-            String transactionId = null;
-            BigDecimal amount = null;
-            String currency = null;
-            String customerEmail = null;
-
-            if (isMock && root.has("orderNo")) {
-                orderNo = root.get("orderNo").asText();
-                transactionId = root.has("transactionId") ? root.get("transactionId").asText() : "mock_tx_" + System.currentTimeMillis();
-                amount = root.has("amount") ? new BigDecimal(root.get("amount").asText()) : null;
-                currency = root.has("currency") ? root.get("currency").asText() : "AUD";
-                customerEmail = root.has("email") ? root.get("email").asText() : null;
-            } else if (root.has("data") && root.get("data").has("object")) {
-                JsonNode obj = root.get("data").get("object");
-
-                // Check client_reference_id or metadata.orderNo
-                if (obj.hasNonNull("client_reference_id")) {
-                    orderNo = obj.get("client_reference_id").asText();
-                } else if (obj.has("metadata") && obj.get("metadata").hasNonNull("orderNo")) {
-                    orderNo = obj.get("metadata").get("orderNo").asText();
-                }
-
-                if (obj.hasNonNull("payment_intent")) {
-                    transactionId = obj.get("payment_intent").asText();
-                } else if (obj.hasNonNull("id")) {
-                    transactionId = obj.get("id").asText();
-                }
-
-                if (obj.hasNonNull("amount_total")) {
-                    long cents = obj.get("amount_total").asLong();
-                    amount = BigDecimal.valueOf(cents).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-                }
-
-                if (obj.hasNonNull("currency")) {
-                    currency = obj.get("currency").asText().toUpperCase();
-                }
-
-                if (obj.has("customer_details") && obj.get("customer_details").hasNonNull("email")) {
-                    customerEmail = obj.get("customer_details").get("email").asText();
-                }
+            PaidPayment paid = isMock ? parseMockPayment(root) : parseStripePayment(root, eventType);
+            if (paid == null) {
+                // 非支付成功事件（如 checkout.session.expired）只记录，不推进订单
+                log.info("Ignoring webhook event {} of type {}", eventId, eventType);
+                markProcessed(webhookRecord, 1, null);
+                return RESULT_IGNORED;
             }
 
             log.info("Extracted webhook info: eventId={}, eventType={}, orderNo={}, transactionId={}",
-                    eventId, eventType, orderNo, transactionId);
+                    eventId, eventType, paid.orderNo, paid.transactionId);
 
-            if (StringUtils.hasText(orderNo)) {
-                // Update payment record
-                PaymentRecord record = paymentRecordMapper.selectOne(
-                        new LambdaQueryWrapper<PaymentRecord>().eq(PaymentRecord::getOrderNo, orderNo)
-                );
-
-                LocalDateTime now = LocalDateTime.now();
-                if (record != null) {
-                    record.setStatus("succeeded");
-                    if (transactionId != null) {
-                        record.setTransactionId(transactionId);
-                    }
-                    record.setPayTime(now);
-                    paymentRecordMapper.updateById(record);
-                }
-
-                // Publish OrderPaidEvent to RabbitMQ
-                OrderPaidEvent event = new OrderPaidEvent();
-                event.setOrderNo(orderNo);
-                event.setAmount(amount != null ? amount : (record != null ? record.getAmount() : BigDecimal.ZERO));
-                event.setCurrency(currency != null ? currency : (record != null ? record.getCurrency() : "AUD"));
-                event.setPaymentMethod(record != null ? record.getPaymentMethod() : "card");
-                event.setTransactionId(transactionId != null ? transactionId : (record != null ? record.getTransactionId() : ""));
-                event.setPayTime(now);
-                event.setEmail(customerEmail);
-
-                log.info("Publishing OrderPaidEvent to RabbitMQ: exchange={}, routingKey={}, orderNo={}",
-                        OrderPaidEvent.EXCHANGE, OrderPaidEvent.ROUTING_KEY, orderNo);
-                rabbitTemplate.convertAndSend(OrderPaidEvent.EXCHANGE, OrderPaidEvent.ROUTING_KEY, event);
+            PaymentRecord record = paymentRecordMapper.selectOne(
+                    new LambdaQueryWrapper<PaymentRecord>().eq(PaymentRecord::getOrderNo, paid.orderNo)
+            );
+            String rejectReason = verifyAgainstRecord(paid, record, isMock);
+            if (rejectReason != null) {
+                // 返回 200 让 Stripe 停止重试；记录原因供人工核查
+                log.error("Webhook event {} for order {} rejected: {}", eventId, paid.orderNo, rejectReason);
+                markProcessed(webhookRecord, 2, rejectReason);
+                return RESULT_REJECTED;
             }
 
-            webhookRecord.setProcessed(1);
-            webhookRecord.setErrorMsg(null);
-            paymentWebhookMapper.updateById(webhookRecord);
-            return "SUCCESS";
+            LocalDateTime now = LocalDateTime.now();
+            record.setStatus("succeeded");
+            if (paid.transactionId != null) {
+                record.setTransactionId(paid.transactionId);
+            }
+            record.setPayTime(now);
+            paymentRecordMapper.updateById(record);
+
+            // Publish OrderPaidEvent to RabbitMQ
+            OrderPaidEvent event = new OrderPaidEvent();
+            event.setOrderNo(paid.orderNo);
+            event.setAmount(paid.amount != null ? paid.amount : record.getAmount());
+            event.setCurrency(paid.currency != null ? paid.currency : record.getCurrency());
+            event.setPaymentMethod(record.getPaymentMethod());
+            event.setTransactionId(paid.transactionId != null ? paid.transactionId : record.getTransactionId());
+            event.setPayTime(now);
+            event.setEmail(paid.email);
+
+            log.info("Publishing OrderPaidEvent to RabbitMQ: exchange={}, routingKey={}, orderNo={}",
+                    OrderPaidEvent.EXCHANGE, OrderPaidEvent.ROUTING_KEY, paid.orderNo);
+            rabbitTemplate.convertAndSend(OrderPaidEvent.EXCHANGE, OrderPaidEvent.ROUTING_KEY, event);
+
+            markProcessed(webhookRecord, 1, null);
+            return RESULT_SUCCESS;
 
         } catch (Exception e) {
             log.error("Failed to process webhook event {}: {}", eventId, e.getMessage(), e);
@@ -205,5 +181,88 @@ public class WebhookServiceImpl implements WebhookService {
             paymentWebhookMapper.updateById(webhookRecord);
             throw new BusinessException(ResultCode.SYSTEM_ERROR, "Webhook processing error: " + e.getMessage());
         }
+    }
+
+    /** Stripe：只有支付成功的结账事件才算付款，其余事件（expired、unpaid 等）返回 null */
+    private PaidPayment parseStripePayment(JsonNode root, String eventType) {
+        if (!STRIPE_PAID_EVENT_TYPES.contains(eventType)) {
+            return null;
+        }
+        JsonNode obj = root.path("data").path("object");
+        if (!"paid".equals(obj.path("payment_status").asText())) {
+            return null;
+        }
+
+        PaidPayment paid = new PaidPayment();
+        if (obj.hasNonNull("client_reference_id")) {
+            paid.orderNo = obj.get("client_reference_id").asText();
+        } else if (obj.path("metadata").hasNonNull("orderNo")) {
+            paid.orderNo = obj.get("metadata").get("orderNo").asText();
+        }
+        if (!StringUtils.hasText(paid.orderNo)) {
+            return null;
+        }
+
+        if (obj.hasNonNull("payment_intent")) {
+            paid.transactionId = obj.get("payment_intent").asText();
+        } else if (obj.hasNonNull("id")) {
+            paid.transactionId = obj.get("id").asText();
+        }
+        if (obj.hasNonNull("amount_total")) {
+            long cents = obj.get("amount_total").asLong();
+            paid.amount = BigDecimal.valueOf(cents).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        }
+        if (obj.hasNonNull("currency")) {
+            paid.currency = obj.get("currency").asText().toUpperCase();
+        }
+        if (obj.path("customer_details").hasNonNull("email")) {
+            paid.email = obj.get("customer_details").get("email").asText();
+        }
+        return paid;
+    }
+
+    /** Mock（仅开发环境）：金额、币种可省略 */
+    private PaidPayment parseMockPayment(JsonNode root) {
+        if (!root.hasNonNull("orderNo")) {
+            return null;
+        }
+        PaidPayment paid = new PaidPayment();
+        paid.orderNo = root.get("orderNo").asText();
+        paid.transactionId = root.has("transactionId") ? root.get("transactionId").asText() : "mock_tx_" + System.currentTimeMillis();
+        paid.amount = root.has("amount") ? new BigDecimal(root.get("amount").asText()) : null;
+        paid.currency = root.has("currency") ? root.get("currency").asText().toUpperCase() : null;
+        paid.email = root.has("email") ? root.get("email").asText() : null;
+        return paid;
+    }
+
+    /** 实付金额与币种必须与下单时的支付记录一致，返回拒绝原因；一致时返回 null */
+    private String verifyAgainstRecord(PaidPayment paid, PaymentRecord record, boolean isMock) {
+        if (record == null) {
+            return "UNKNOWN_ORDER: no payment record for " + paid.orderNo;
+        }
+        if (!isMock && (paid.amount == null || paid.currency == null)) {
+            return "MISSING_AMOUNT: event has no amount_total or currency";
+        }
+        if (paid.amount != null && paid.amount.compareTo(record.getAmount()) != 0) {
+            return "AMOUNT_MISMATCH: expected " + record.getAmount() + ", got " + paid.amount;
+        }
+        if (paid.currency != null && !paid.currency.equalsIgnoreCase(record.getCurrency())) {
+            return "CURRENCY_MISMATCH: expected " + record.getCurrency() + ", got " + paid.currency;
+        }
+        return null;
+    }
+
+    private void markProcessed(PaymentWebhook webhookRecord, int processed, String errorMsg) {
+        webhookRecord.setProcessed(processed);
+        webhookRecord.setErrorMsg(errorMsg);
+        paymentWebhookMapper.updateById(webhookRecord);
+    }
+
+    private static class PaidPayment {
+        private String orderNo;
+        private String transactionId;
+        private BigDecimal amount;
+        private String currency;
+        private String email;
     }
 }

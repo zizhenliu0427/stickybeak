@@ -110,4 +110,18 @@ public class PaymentServiceImpl implements PaymentService {
         BeanUtils.copyProperties(record, vo);
         return vo;
     }
+
+    @Override
+    public void expireSession(String orderNo) {
+        PaymentRecord record = paymentRecordMapper.selectOne(
+                new LambdaQueryWrapper<PaymentRecord>().eq(PaymentRecord::getOrderNo, orderNo)
+        );
+        if (record == null || !"pending".equalsIgnoreCase(record.getStatus()) || !StringUtils.hasText(record.getSessionId())) {
+            return;
+        }
+        paymentProviderFactory.getProviderByName(record.getProvider()).expireSession(record.getSessionId());
+        record.setStatus("expired");
+        paymentRecordMapper.updateById(record);
+        log.info("Payment session for order {} expired", orderNo);
+    }
 }

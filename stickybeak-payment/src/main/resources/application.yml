@@ -47,6 +47,13 @@ stripe:
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_mock_secret}
   success-url: ${STRIPE_SUCCESS_URL:http://localhost:5173/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_no={ORDER_NO}}
   cancel-url: ${STRIPE_CANCEL_URL:http://localhost:5173/checkout/cancel?order_no={ORDER_NO}}
+  # Stripe 允许 30–1440 分钟；订单 30 分钟超时关单，关单时还会主动让会话失效
+  session-expiry-minutes: ${STRIPE_SESSION_EXPIRY_MINUTES:31}
+
+stickybeak:
+  payment:
+    # 无签名的模拟回调，只给本地 E2E 用；生产必须保持 false
+    mock-webhook-enabled: ${PAYMENT_MOCK_WEBHOOK_ENABLED:false}
 
 management:
   endpoints:

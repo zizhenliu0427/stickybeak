@@ -24,6 +24,7 @@ import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -69,6 +70,7 @@ class WebhookCoverageTest {
                       "id": "cs_test_123",
                       "client_reference_id": "SO20260916_STRIPE",
                       "payment_intent": "pi_live_stripe_999",
+                      "payment_status": "paid",
                       "amount_total": 5990,
                       "currency": "aud",
                       "customer_details": {
@@ -119,6 +121,7 @@ class WebhookCoverageTest {
                       "metadata": {
                         "orderNo": "SO20260916_METADATA"
                       },
+                      "payment_status": "paid",
                       "amount_total": 3500,
                       "currency": "aud"
                     }
@@ -127,6 +130,7 @@ class WebhookCoverageTest {
                 """;
         when(stripePaymentProvider.verifyWebhook(payload, "sig")).thenReturn("evt_stripe_456");
         when(paymentWebhookMapper.selectOne(any())).thenReturn(null);
+        when(paymentRecordMapper.selectOne(any())).thenReturn(record("SO20260916_METADATA", "35.00", "AUD"));
 
         String result = webhookService.handleStripeWebhook(payload, "sig");
 
@@ -155,6 +159,7 @@ class WebhookCoverageTest {
     void testMockWebhookMissingEventIdGeneratesFallback() {
         String payload = "{\"orderNo\":\"SO_MOCK_NO_EVT\",\"amount\":10.00}";
         when(paymentWebhookMapper.selectOne(any())).thenReturn(null);
+        when(paymentRecordMapper.selectOne(any())).thenReturn(record("SO_MOCK_NO_EVT", "10.00", "AUD"));
 
         String result = webhookService.handleMockWebhook(payload);
 
@@ -170,6 +175,7 @@ class WebhookCoverageTest {
     void testWebhookExceptionMarksFailed() {
         String payload = "{\"eventId\":\"evt_error\",\"orderNo\":\"SO_ERR\"}";
         when(paymentWebhookMapper.selectOne(any())).thenReturn(null);
+        when(paymentRecordMapper.selectOne(any())).thenReturn(record("SO_ERR", "20.00", "AUD"));
         // Throw exception when updating payment record or sending MQ
         doThrow(new RuntimeException("RabbitMQ connection down")).when(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
 
@@ -183,5 +189,130 @@ class WebhookCoverageTest {
         verify(paymentWebhookMapper, times(1)).updateById(updateCaptor.capture());
         assertEquals(2, updateCaptor.getValue().getProcessed());
         assertTrue(updateCaptor.getValue().getErrorMsg().contains("RabbitMQ connection down"));
+    }
+
+    @Test
+    @DisplayName("handleStripeWebhook: checkout.session.expired does not mark the order paid")
+    void testStripeExpiredEventIgnored() {
+        String payload = stripeEvent("evt_expired", "checkout.session.expired", "SO_EXPIRED", "unpaid", 5990);
+        when(stripePaymentProvider.verifyWebhook(payload, "sig")).thenReturn("evt_expired");
+        when(paymentWebhookMapper.selectOne(any())).thenReturn(null);
+
+        String result = webhookService.handleStripeWebhook(payload, "sig");
+
+        assertEquals(WebhookServiceImpl.RESULT_IGNORED, result);
+        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
+        verify(paymentRecordMapper, never()).updateById(any(PaymentRecord.class));
+        ArgumentCaptor<PaymentWebhook> captor = ArgumentCaptor.forClass(PaymentWebhook.class);
+        verify(paymentWebhookMapper).updateById(captor.capture());
+        assertEquals(1, captor.getValue().getProcessed());
+        assertEquals("checkout.session.expired", captor.getValue().getEventType());
+    }
+
+    @Test
+    @DisplayName("handleStripeWebhook: completed but unpaid (async payment pending) is ignored")
+    void testStripeCompletedButUnpaidIgnored() {
+        String payload = stripeEvent("evt_unpaid", "checkout.session.completed", "SO_UNPAID", "unpaid", 5990);
+        when(stripePaymentProvider.verifyWebhook(payload, "sig")).thenReturn("evt_unpaid");
+        when(paymentWebhookMapper.selectOne(any())).thenReturn(null);
+
+        assertEquals(WebhookServiceImpl.RESULT_IGNORED, webhookService.handleStripeWebhook(payload, "sig"));
+        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
+    }
+
+    @Test
+    @DisplayName("handleStripeWebhook: async_payment_succeeded marks the order paid")
+    void testStripeAsyncPaymentSucceeded() {
+        String payload = stripeEvent("evt_async", "checkout.session.async_payment_succeeded", "SO_ASYNC", "paid", 5990);
+        when(stripePaymentProvider.verifyWebhook(payload, "sig")).thenReturn("evt_async");
+        when(paymentWebhookMapper.selectOne(any())).thenReturn(null);
+        when(paymentRecordMapper.selectOne(any())).thenReturn(record("SO_ASYNC", "59.90", "AUD"));
+
+        assertEquals(WebhookServiceImpl.RESULT_SUCCESS, webhookService.handleStripeWebhook(payload, "sig"));
+        verify(rabbitTemplate).convertAndSend(eq(OrderPaidEvent.EXCHANGE), eq(OrderPaidEvent.ROUTING_KEY), any(OrderPaidEvent.class));
+    }
+
+    @Test
+    @DisplayName("handleStripeWebhook: paid amount different from the payment record is rejected")
+    void testStripeAmountMismatchRejected() {
+        String payload = stripeEvent("evt_cheap", "checkout.session.completed", "SO_CHEAP", "paid", 1);
+        when(stripePaymentProvider.verifyWebhook(payload, "sig")).thenReturn("evt_cheap");
+        when(paymentWebhookMapper.selectOne(any())).thenReturn(null);
+        PaymentRecord record = record("SO_CHEAP", "59.90", "AUD");
+        when(paymentRecordMapper.selectOne(any())).thenReturn(record);
+
+        String result = webhookService.handleStripeWebhook(payload, "sig");
+
+        assertEquals(WebhookServiceImpl.RESULT_REJECTED, result);
+        assertEquals("pending", record.getStatus());
+        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
+        ArgumentCaptor<PaymentWebhook> captor = ArgumentCaptor.forClass(PaymentWebhook.class);
+        verify(paymentWebhookMapper).updateById(captor.capture());
+        assertEquals(2, captor.getValue().getProcessed());
+        assertTrue(captor.getValue().getErrorMsg().startsWith("AMOUNT_MISMATCH"));
+    }
+
+    @Test
+    @DisplayName("handleStripeWebhook: currency different from the payment record is rejected")
+    void testStripeCurrencyMismatchRejected() {
+        String payload = stripeEvent("evt_cny", "checkout.session.completed", "SO_CNY", "paid", 5990)
+                .replace("\"aud\"", "\"cny\"");
+        when(stripePaymentProvider.verifyWebhook(payload, "sig")).thenReturn("evt_cny");
+        when(paymentWebhookMapper.selectOne(any())).thenReturn(null);
+        when(paymentRecordMapper.selectOne(any())).thenReturn(record("SO_CNY", "59.90", "AUD"));
+
+        assertEquals(WebhookServiceImpl.RESULT_REJECTED, webhookService.handleStripeWebhook(payload, "sig"));
+        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
+    }
+
+    @Test
+    @DisplayName("handleStripeWebhook: paid event for an order without payment record is rejected")
+    void testStripeUnknownOrderRejected() {
+        String payload = stripeEvent("evt_unknown", "checkout.session.completed", "SO_UNKNOWN", "paid", 5990);
+        when(stripePaymentProvider.verifyWebhook(payload, "sig")).thenReturn("evt_unknown");
+        when(paymentWebhookMapper.selectOne(any())).thenReturn(null);
+
+        assertEquals(WebhookServiceImpl.RESULT_REJECTED, webhookService.handleStripeWebhook(payload, "sig"));
+        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
+    }
+
+    @Test
+    @DisplayName("handleMockWebhook: mock amount must also match the payment record")
+    void testMockAmountMismatchRejected() {
+        String payload = "{\"eventId\":\"evt_mock_cheap\",\"orderNo\":\"SO_MOCK_CHEAP\",\"amount\":0.01}";
+        when(paymentWebhookMapper.selectOne(any())).thenReturn(null);
+        when(paymentRecordMapper.selectOne(any())).thenReturn(record("SO_MOCK_CHEAP", "34.90", "AUD"));
+
+        assertEquals(WebhookServiceImpl.RESULT_REJECTED, webhookService.handleMockWebhook(payload));
+        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
+    }
+
+    private static String stripeEvent(String eventId, String type, String orderNo, String paymentStatus, long amountTotal) {
+        return """
+                {
+                  "id": "%s",
+                  "type": "%s",
+                  "data": {
+                    "object": {
+                      "id": "cs_test_x",
+                      "client_reference_id": "%s",
+                      "payment_status": "%s",
+                      "amount_total": %d,
+                      "currency": "aud"
+                    }
+                  }
+                }
+                """.formatted(eventId, type, orderNo, paymentStatus, amountTotal);
+    }
+
+    private static PaymentRecord record(String orderNo, String amount, String currency) {
+        PaymentRecord record = new PaymentRecord();
+        record.setId(99L);
+        record.setOrderNo(orderNo);
+        record.setAmount(new BigDecimal(amount));
+        record.setCurrency(currency);
+        record.setPaymentMethod("card");
+        record.setStatus("pending");
+        return record;
     }
 }

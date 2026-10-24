@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 
 @Component
 public class StripePaymentProvider implements PaymentProvider {
@@ -40,10 +42,14 @@ public class StripePaymentProvider implements PaymentProvider {
         long amountInCents = cmd.getAmount().multiply(BigDecimal.valueOf(100)).longValue();
         String currency = StringUtils.hasText(cmd.getCurrency()) ? cmd.getCurrency().toLowerCase() : "aud";
 
+        // 会话默认 24 小时有效，远长于订单的 30 分钟超时；不设上限会出现"订单已关闭仍可付款"
+        long expiresAt = Instant.now().plus(Duration.ofMinutes(stripeConfig.getSessionExpiryMinutes())).getEpochSecond();
+
         SessionCreateParams.Builder builder = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
                 .setSuccessUrl(successUrl)
                 .setCancelUrl(cancelUrl)
+                .setExpiresAt(expiresAt)
                 .setClientReferenceId(cmd.getOrderNo())
                 .putMetadata("orderNo", cmd.getOrderNo())
                 .putMetadata("userId", cmd.getUserId() != null ? String.valueOf(cmd.getUserId()) : "")
@@ -94,6 +100,23 @@ public class StripePaymentProvider implements PaymentProvider {
         } catch (Exception e) {
             log.error("Failed to create Stripe Checkout session: {}", e.getMessage(), e);
             throw new BusinessException(ResultCode.BAD_REQUEST, "Stripe session creation failed: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void expireSession(String sessionId) {
+        Stripe.apiKey = stripeConfig.getApiKey();
+        try {
+            Session session = Session.retrieve(sessionId);
+            if ("open".equals(session.getStatus())) {
+                session.expire();
+                log.info("Expired Stripe Checkout session {}", sessionId);
+            } else {
+                log.info("Stripe Checkout session {} is already {}, skip expiring", sessionId, session.getStatus());
+            }
+        } catch (Exception e) {
+            log.error("Failed to expire Stripe Checkout session {}: {}", sessionId, e.getMessage());
+            throw new BusinessException(ResultCode.SYSTEM_ERROR, "Stripe session expire failed: " + e.getMessage());
         }
     }
 

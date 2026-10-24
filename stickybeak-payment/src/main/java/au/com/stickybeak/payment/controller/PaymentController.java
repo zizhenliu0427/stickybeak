@@ -1,5 +1,6 @@
 package au.com.stickybeak.payment.controller;
 
+import au.com.stickybeak.common.internal.InternalApi;
 import au.com.stickybeak.common.result.Result;
 import au.com.stickybeak.payment.dto.CreatePaymentSessionRequest;
 import au.com.stickybeak.payment.service.ExchangeRateService;
@@ -28,6 +29,8 @@ public class PaymentController {
         this.exchangeRateService = exchangeRateService;
     }
 
+    /** 仅订单服务调用：金额由订单服务计算，不能让用户直接指定 */
+    @InternalApi
     @PostMapping("/checkout-session")
     public Result<PaymentSessionVO> createCheckoutSession(@RequestBody @Valid CreatePaymentSessionRequest req) {
         PaymentSessionVO vo = paymentService.createCheckoutSession(req);
@@ -42,9 +45,18 @@ public class PaymentController {
         return Result.ok(vo);
     }
 
+    /** 记录不含用户归属，无法做越权校验，只开放给内部服务 */
+    @InternalApi
     @GetMapping("/records/{orderNo}")
     public Result<PaymentRecordVO> getRecord(@PathVariable String orderNo) {
         PaymentRecordVO vo = paymentService.getByOrderNo(orderNo);
         return Result.ok(vo);
+    }
+
+    @InternalApi
+    @PostMapping("/{orderNo}/expire-session")
+    public Result<Void> expireSession(@PathVariable String orderNo) {
+        paymentService.expireSession(orderNo);
+        return Result.ok();
     }
 }

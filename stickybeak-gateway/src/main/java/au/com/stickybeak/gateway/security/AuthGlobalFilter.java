@@ -19,8 +19,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.util.UriUtils;
 
+import au.com.stickybeak.common.internal.InternalCall;
 import au.com.stickybeak.common.result.Result;
 import au.com.stickybeak.common.result.ResultCode;
 
@@ -41,13 +44,13 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
     public static final String COOKIE_ACCESS = "sb_access";
     private static final String BLACKLIST_PREFIX = "auth:blacklist:";
 
-    /** 全方法公开前缀 */
+    /** 全方法公开前缀（mock 回调不在此列：它没有签名，只在开发环境注册且需要登录） */
     private static final List<String> PUBLIC_PREFIXES = List.of(
             "/api/auth/login",
             "/api/auth/register",
             "/api/auth/refresh",
             "/api/auth/logout",
-            "/api/webhooks",
+            "/api/webhooks/stripe",
             "/actuator",
             "/doc.html",
             "/v3/api-docs",
@@ -69,6 +72,14 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             "/api/wishlist"
     );
 
+    /** 仅供服务间调用的接口，外部一律拒绝（下游还有 @InternalApi 兜底） */
+    private static final List<String> INTERNAL_PREFIXES = List.of(
+            "/api/payments/checkout-session",
+            "/api/payments/records"
+    );
+    /** 库存查询公开，扣减 / 回滚 / 确认只给订单服务 */
+    private static final String STOCK_PREFIX = "/api/products/stock";
+
     private final JwtValidator jwtValidator;
     private final ReactiveStringRedisTemplate redis;
     private final ObjectMapper objectMapper;
@@ -83,15 +94,23 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
-        // 1. 无论是否登录，先剥离可伪造的身份头
+        // 1. 无论是否登录，先剥离可伪造的身份头与内部调用标识
         ServerHttpRequest sanitized = request.mutate()
                 .headers(h -> {
                     h.remove(HEADER_USER_ID);
                     h.remove(HEADER_USER_ROLES);
+                    h.remove(InternalCall.HEADER);
                 })
                 .build();
 
-        String path = request.getPath().value();
+        // 下游会解码并规范化路径，这里按同样方式处理，防止 %73tock、../ 之类绕过前缀判断
+        String path = normalizePath(request.getPath().value());
+        if (path == null) {
+            return writeForbidden(exchange, "invalid path");
+        }
+        if (isInternal(path, request.getMethod())) {
+            return writeForbidden(exchange, "internal API");
+        }
         if (isPublic(path, request.getMethod())) {
             return chain.filter(exchange.mutate().request(sanitized).build());
         }
@@ -136,6 +155,31 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
                     .build();
             return chain.filter(exchange.mutate().request(authenticated).build());
         });
+    }
+
+    /** 解码 → 去掉矩阵参数 → 规范化 ..；含非法编码时返回 null */
+    static String normalizePath(String rawPath) {
+        try {
+            String decoded = UriUtils.decode(rawPath, StandardCharsets.UTF_8);
+            return StringUtils.cleanPath(decoded.replaceAll(";[^/]*", ""));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private boolean isInternal(String path, HttpMethod method) {
+        if (path.startsWith(STOCK_PREFIX) && !HttpMethod.GET.equals(method)) {
+            return true;
+        }
+        if (path.endsWith("/expire-session")) {
+            return true;
+        }
+        for (String prefix : INTERNAL_PREFIXES) {
+            if (path.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isPublic(String path, HttpMethod method) {

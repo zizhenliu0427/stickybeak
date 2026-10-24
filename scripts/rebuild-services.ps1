@@ -21,7 +21,7 @@ $envMap = @{
     "product"      = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis")
     "cart"         = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis")
     "order"        = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis", "RABBITMQ_HOST=sb-rabbitmq")
-    "payment"      = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis", "RABBITMQ_HOST=sb-rabbitmq")
+    "payment"      = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis", "RABBITMQ_HOST=sb-rabbitmq", "PAYMENT_MOCK_WEBHOOK_ENABLED=true")
     "notification" = @("RABBITMQ_HOST=sb-rabbitmq", "MAIL_HOST=sb-mailhog")
     "gateway"      = @("REDIS_HOST=sb-redis")
 }

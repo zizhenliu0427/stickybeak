@@ -7,4 +7,8 @@ public interface PaymentProvider {
     CreateSessionResult createSession(CreateSessionCommand cmd);
 
     String verifyWebhook(String payload, String sigHeader);
+
+    /** 让未支付的会话失效（订单取消 / 超时后调用），默认无操作 */
+    default void expireSession(String sessionId) {
+    }
 }
