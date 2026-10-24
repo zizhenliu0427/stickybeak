@@ -460,8 +460,10 @@ async function runE2ESuite() {
     'Playwright 测试套件配置存在'
   );
   assert(
-    fs.existsSync(path.join(rootDir, 'stickybeak-frontend/e2e/shopping-flow.spec.ts')),
-    'Playwright E2E 规范测试用例存在'
+    ['catalog', 'checkout', 'orders', 'admin-refund'].every((name) =>
+      fs.existsSync(path.join(rootDir, `stickybeak-frontend/e2e/${name}.spec.ts`)),
+    ),
+    'Playwright 用户旅程用例存在（搜索 / 结账 / 订单 / 后台退款）'
   );
 
   console.log('\n===============================================================');

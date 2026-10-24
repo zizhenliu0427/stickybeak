@@ -178,6 +178,8 @@ public class WebhookServiceImpl implements WebhookService {
 
             log.info("Publishing OrderPaidEvent to RabbitMQ: exchange={}, routingKey={}, orderNo={}",
                     OrderPaidEvent.EXCHANGE, OrderPaidEvent.ROUTING_KEY, paid.orderNo);
+            // 有意在事务内发送（SkyWalking 链路里能看到它早于 commit）：发送失败 → 事务回滚 → Stripe 重试；
+            // 发送成功但提交失败 → 重试时再发一次，订单端按状态幂等处理。改成提交后发送反而会在发送失败时丢事件
             rabbitTemplate.convertAndSend(OrderPaidEvent.EXCHANGE, OrderPaidEvent.ROUTING_KEY, event);
 
             markProcessed(webhookRecord, 1, null);
