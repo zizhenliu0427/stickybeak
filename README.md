@@ -9,7 +9,7 @@
 [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg?logo=react)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-v1.3.0-success.svg)](docs/SPRINT_ISSUES.md)
+[![Version](https://img.shields.io/badge/Version-v1.4.0-success.svg)](docs/SPRINT_ISSUES.md)
 
 **A Cloud-Native, High-Performance Microservices E-Commerce Platform for Australian Themed Souvenirs & Regional Specialities.**
 
@@ -104,6 +104,9 @@
 - Admin changes are re-indexed after commit, and a full reconciliation runs at startup and daily. If Elasticsearch is down or disabled, search falls back to MySQL.
 
 ### 5. Observability, API Docs & Quality Gates
+- **SkyWalking Tracing**: all 7 services run the SkyWalking Java agent, so one trace covers gateway → order → cart / product / payment and the asynchronous `order.paid` hand-off to order and notification. Responses carry an `X-Trace-Id` header, and logs carry the same trace ID and are shipped to OAP.
+- **Alerts**: slow and failing services or endpoints, slow SQL, and dead-letter queue backlog (a custom meter reported by the order service).
+- **Trace-driven tuning**: traces exposed an N+1 query on the product list; batching it raised throughput from 64 to 191 req/s and cut p99 from 1.57 s to 392 ms ([details](docs/PERF_PRODUCT_LIST.md)).
 - **Knife4j / OpenAPI 3.0**: each service publishes springdoc specs, aggregated at the gateway's `/doc.html`; service-to-service endpoints are labelled, and docs are switched off in production.
 - **JaCoCo Gate**: `mvn verify` fails when a module drops below its line-coverage floor.
 - **Playwright Journeys**: search, guest-to-checkout, order history and admin refunds run on Desktop Chrome and Pixel 7 in CI.
@@ -182,6 +185,8 @@ Open **http://localhost** in your browser.
 | **MailHog Inbox** | 8025 | `http://localhost:8025` | Public |
 | **MinIO Storage Console** | 9001 | `http://localhost:9001` | `minioadmin / minioadmin` |
 | **Elasticsearch** | 9200 (full stack) / 19200 (infra compose) | `http://localhost:9200` | Security disabled |
+| **SkyWalking UI** | 8088 | `http://localhost:8088` | Public |
+| **SkyWalking OAP** | 11800 (agent gRPC) / 12800 (HTTP, GraphQL) | `http://localhost:12800/healthcheck` | Storage: BanyanDB |
 
 ---
 

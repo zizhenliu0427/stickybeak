@@ -358,23 +358,90 @@
 `type:chore` `area:observability` `p0`
 - compose 新增 SkyWalking OAP + UI；存储复用现有 ES（与 ES 8.14 的兼容性开工时核对）
 
+> 实现说明（与原计划的差异）：
+> - 版本：OAP / UI 10.4.0，Java agent 9.7.0。
+>   - 11.0 去掉了自带的 UI，所以没用。
+>   - `pom.xml` 里 apm-toolkit 的版本必须与 `Dockerfile.backend` 的 agent 版本一致。
+> - 存储没有复用 ES，改用 BanyanDB 0.10.3。
+>   - 它是 OAP 10.x 的默认存储，专为链路 / 指标设计，单个容器。
+>   - 复用 ES 的话，SkyWalking 会建大量索引，并和商品搜索抢同一个 ES 节点的堆内存。
+> - compose 新增 `banyandb`、`oap`、`skywalking-ui` 三个容器，端口：
+>   - UI：`8088`
+>   - OAP gRPC：`11800`
+>   - OAP HTTP / GraphQL：`12800`
+>   - OAP 健康检查是 `/healthcheck`（10.4 里 `/internal/l7check` 返回 404）。
+> - 告警规则、自定义指标和网关端点分组三份配置在 `docker/skywalking/`，以只读方式挂进 OAP。
+
 ### Issue 12.2 — Java 服务接入
 `type:feature` `area:observability` `p0`
 - 7 个服务挂 Java agent（`Dockerfile.backend` 与本地启动脚本同步修改）；启用网关（WebFlux）所需插件；确认 RabbitMQ / Redis / MySQL 链路
 - 验收：结账请求可见 gateway → order → product → payment；支付回调 → MQ → order → notification 的异步链路能串起来
 
+> 实现说明：
+> - `Dockerfile.backend` 从官方 agent 镜像复制 agent，并启用 4 个 optional 插件：
+>   - springmvc-annotation-6.x：Spring 6 下端点按路由模板命名。
+>   - resttemplate-6.x：服务间调用透传 trace。
+>   - spring-cloud-gateway-4.x、spring-webflux-6.x：网关。
+> - 只有设置了 `SW_AGENT_COLLECTOR_BACKEND_SERVICES` 才挂 agent，不配就和以前一样启动。
+> - `scripts/rebuild-services.ps1` 同步修改。
+> - 网关按真实 URL 命名端点，订单号、slug 会让端点数无限增长。
+>   - `docker/skywalking/endpoint-name-grouping.yml` 把它们归成 `/api/products/{var}` 这类模板。
+>   - 同一层的字面量规则必须写在 `{var}` 之前，原因见文件注释。
+> - 本地实测（OAP / BanyanDB / agent 同版本的二进制直接运行，7 个服务挂 agent）：
+>   - 7 个服务都注册到了 OAP。
+>   - 结账链路 gateway → order → cart / product（Lua、Redisson、MySQL）→ payment 完整可见。
+>   - 30 分钟后延迟队列触发的关单也挂在同一条链路上。
+>   - 支付回调 → `order.paid` → order（确认库存、清空购物车）+ notification 在同一条链路里。
+>   - 网关端点分组生效，OAP 里出现的是 `/api/products/{var}`、`/api/orders/{var}`。
+>   - 链路截图和调用树见 `docs/PERF_PRODUCT_LIST.md`。
+> - 未完成：本地没有 Docker 环境，compose 只做了 `docker compose config` 校验，镜像没有实际构建。
+
 ### Issue 12.3 — 日志关联 traceId
 `type:feature` `area:observability` `p1`
 - logback 输出 traceId（SkyWalking apm-toolkit），日志上报 OAP，可从 trace 跳转到对应日志
+
+> 实现说明：
+> - common 模块提供共享的 `logback-spring.xml`：
+>   - 控制台每行带 `[TID:...]`。
+>   - 同时通过 gRPC 把日志上报 OAP。
+>   - 没挂 agent 时显示 `TID:N/A`，不影响启动。
+> - `TraceIdResponseFilter` 把 traceId 写进响应头 `X-Trace-Id`：
+>   - 网关会原样转发这个头。
+>   - 用户报错时提供这个值，就能直接定位到链路和日志。
+> - 本地实测：响应头里的 traceId 与日志里的 `TID` 一致；按 traceId 查日志，能查到多个服务的日志。
 
 ### Issue 12.4 — 告警
 `type:feature` `area:observability` `p1`
 - 慢接口、错误率、死信队列积压的告警规则
 
+> 实现说明：
+> - `docker/skywalking/alarm-settings.yml` 使用 OAP 10 的 MQE 表达式，规则包括：
+>   - 服务：错误率、平均响应时间。
+>   - 端点：p99、平均响应时间、错误率。
+>   - 慢 SQL。
+>   - 死信队列积压。
+> - 死信队列积压指标：
+>   - SkyWalking 不直接采集 RabbitMQ 队列深度，所以由订单服务用 agent meter API 上报 `order_dlq_backlog`（3 个死信队列的消息数之和）。
+>   - `meter-analyzer-config/stickybeak.yaml` 把它转成 `meter_stickybeak_dlq_backlog`。
+>   - 告警条件：大于 0 就告警，30 分钟内不重复。
+> - 本地实测：往 `order.status.dlq` 放 1 条消息，约 1 分钟后触发告警，截图见 `docs/PERF_PRODUCT_LIST.md`。
+
 ### Issue 12.5 — 用链路数据做一次真实优化（即 9.5）
 `type:feature` `p1`
 - 用现有并发压测脚本压结账接口，按 trace 定位真实瓶颈并优化，优化前后数据与截图写入 docs
 - 验收：有可复现的优化前后对比
+
+> 实现说明：
+> - 优化对象从结账改成了商品列表。结账在热点商品上按设计就是串行的（Lua 预扣、Redisson 锁、AT 全局锁），流量也远小于浏览。
+> - 问题：链路显示商品列表有 N+1 查询。
+>   - 一页 42–50 条 SQL，每条单独借还一次连接。
+>   - 并发时等连接占了大部分耗时。
+> - 修复：改成批量补全，一页固定 6 条 SQL。
+> - 效果（同机，`wrk -t4 -c32`，绕过缓存）：
+>   - 吞吐 64 → 191 req/s。
+>   - p50 476 → 157ms。
+>   - p99 1.57s → 392ms。
+> - 方法、数据与截图见 `docs/PERF_PRODUCT_LIST.md`。
 
 ---
 

@@ -122,6 +122,7 @@ Critical parameters to review:
 - `STRIPE_API_KEY`, `STRIPE_WEBHOOK_SECRET`: Live keys from the Stripe Dashboard.
 - `JWT_SECRET`: Base64-encoded key of at least 256 bits, shared by auth and the gateway (`openssl rand -base64 48`). With the `prod` profile there is no fallback: services refuse to start if it is missing or invalid.
 - `PAYMENT_MOCK_WEBHOOK_ENABLED` must stay unset/false in production; the `prod` profile forces the unsigned mock webhook off.
+- `SW_AGENT_COLLECTOR_BACKEND_SERVICES`: gRPC address (port 11800) of a SkyWalking OAP 10.4 server. When set, each service starts with the SkyWalking Java agent and reports traces, logs and meters. Leave it empty to start without the agent. The production compose file does not run OAP. Deploy OAP separately and mount the three files in `docker/skywalking/` into its `/skywalking/config/` directory (alarm rules, the dead-letter backlog meter and gateway endpoint grouping). Also add `stickybeak` to OAP's `SW_METER_ANALYZER_ACTIVE_FILES`; see the `oap` service in `docker/docker-compose.yml`.
 
 ### 4.2 Step 2: SSL Certificate Installation
 Mount official TLS certificates into `/etc/ssl/stickybeak/`:

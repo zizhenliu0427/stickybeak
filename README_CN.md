@@ -9,7 +9,7 @@
 [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg?logo=react)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-v1.3.0-success.svg)](docs/SPRINT_ISSUES.md)
+[![Version](https://img.shields.io/badge/Version-v1.4.0-success.svg)](docs/SPRINT_ISSUES.md)
 
 **基于 Spring Cloud Alibaba + React 18 的云原生澳大利亚风情文创跨境电商平台。**
 
@@ -106,6 +106,9 @@
 - 后台修改在事务提交后增量重建索引，启动时与每日全量对账；ES 宕机或关闭时自动回退 MySQL。
 
 ### 5. 可观测性、接口文档与质量门禁
+- **SkyWalking 全链路追踪**：7 个服务都挂 Java agent，一条链路串起 gateway → order → cart / product / payment，以及支付成功后经 `order.paid` 异步到 order、notification 的处理；响应头带 `X-Trace-Id`，日志带同一个 traceId 并上报 OAP；
+- **告警**：服务 / 端点的慢响应与错误率、慢 SQL、死信队列积压（订单服务上报的自定义指标）；
+- **用链路数据做优化**：链路暴露出商品列表的 N+1 查询，改成批量查询后吞吐 64 → 191 req/s，p99 1.57s → 392ms（[详情](docs/PERF_PRODUCT_LIST.md)）；
 - **Knife4j / OpenAPI 3.0**：各服务通过 springdoc 输出接口文档，网关 `/doc.html` 统一聚合；服务间内部接口单独标注；生产环境关闭；
 - **JaCoCo 门禁**：模块行覆盖率低于底线时 `mvn verify` 直接失败；
 - **Playwright 用户旅程**：搜索、游客结账、订单列表、后台退款，CI 中在 Desktop Chrome 与 Pixel 7 上运行。
@@ -184,6 +187,8 @@ docker compose -f docker/docker-compose.yml up -d --build
 | **MailHog 邮件测试控制台** | 8025 | `http://localhost:8025` | 邮件实时查看 |
 | **MinIO 对象存储中台** | 9001 | `http://localhost:9001` | `minioadmin / minioadmin` |
 | **Elasticsearch 搜索引擎** | 9200（全栈）/ 19200（仅基础设施） | `http://localhost:9200` | 单节点，未开启安全认证 |
+| **SkyWalking UI** | 8088 | `http://localhost:8088` | 链路、拓扑、日志、告警 |
+| **SkyWalking OAP** | 11800（agent gRPC）/ 12800（HTTP、GraphQL） | `http://localhost:12800/healthcheck` | 存储使用 BanyanDB |
 
 ---
 

@@ -20,6 +20,7 @@
 - **v0.6.0 – v1.1.0**（main / 当前发布）：Sprint 6–9 管理后台、PWA、E2E 与云部署配置、Sentinel 限流与手动 ACK
 - **Sprint 10**（`feature/sprint-10-security-fixes`，待合并后打 `v1.2.0`）：修复 `docs/CODE_REVIEW_TODO.md` 中 P0–P2（支付回调、内部接口隔离、消息重试与死信、状态条件更新、生产配置）
 - **Sprint 11**（`feature/sprint-11-readme-capabilities`，基于 Sprint 10 分支，待合并后打 `v1.3.0`）：把 README 宣称的能力全部落地 —— Seata AT 结账事务、ES 商品搜索（IK + 高亮 + MySQL 回退）、退款全流程、JaCoCo 覆盖率门禁、网关 Knife4j 文档聚合、Playwright 桌面 + 移动端用户旅程、SES 邮件配置、`LICENSE`；顺带修复了"网关无法启动"（Sprint 9 引入）、"管理后台刷新一直转圈"、"商品列表缓存从不命中"
+- **Sprint 12**（`feature/sprint-12-skywalking`，基于 Sprint 11 分支，待合并后打 `v1.4.0`）：SkyWalking 全链路追踪 —— OAP 10.4 + BanyanDB + UI（:8088），7 个服务挂 agent 9.7，日志带 traceId 并上报、响应头 `X-Trace-Id`，告警规则（含死信队列积压自定义指标），网关端点分组；用链路定位并修复商品列表 N+1（`docs/PERF_PRODUCT_LIST.md`）
 - 开发分支：`develop`；功能分支：`feature/sprint-N-xxx`（Git Flow）
 
 ## Sprint 1 交付明细（均已 E2E 验证）
@@ -172,13 +173,20 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 33. **商品搜索走 ES 失败会自动回退 MySQL**：`SEARCH_ES_ENABLED=false` 可整体关闭；索引需要 IK 插件（`docker/elasticsearch/Dockerfile` 构建镜像，插件下载地址在网络受限环境可能需要换成离线 zip）。ES 健康检查已关闭，ES 挂了商品服务仍是 UP。
 34. **Knife4j 文档只在网关 `/doc.html` 看**：网关路由只转发 `/api-docs/{svc}/v3/api-docs/**`，千万别改成 `/api-docs/{svc}/**`——这个前缀是公开的，会变成绕过鉴权的旁路。生产 `API_DOCS_ENABLED=false`。
 35. **Playwright 用例在浏览器里模拟接口**（`stickybeak-frontend/e2e/support/mockApi.ts`）：页面调用了没模拟的接口会让用例失败；PWA 的 Service Worker 会绕过 `page.route`，配置里已 `serviceWorkers: 'block'`。`@playwright/test` 版本固定，升级时 CI 会自动装对应的 Chromium。
+36. **SkyWalking agent 只在设置了 `SW_AGENT_COLLECTOR_BACKEND_SERVICES` 时挂载**（`Dockerfile.backend` 的 ENTRYPOINT）。agent 版本（Dockerfile）必须与 `pom.xml` 的 `skywalking.version`（apm-toolkit）一致，否则 traceId 打不出来。
+37. **Spring Boot 3 / 网关的 agent 插件在 `optional-plugins` 里**，必须复制到 `plugins/`：springmvc-annotation-6.x、resttemplate-6.x、spring-cloud-gateway-4.x、spring-webflux-6.x。少了 resttemplate 插件，订单调其他服务的链路会断开；少了 springmvc 插件，端点按真实 URL 命名。
+38. **网关端点分组规则（`docker/skywalking/endpoint-name-grouping.yml`）**：同一层按书写顺序取第一个命中的节点、不回溯，所以 `/api/orders/my` 这类字面量规则必须写在 `/api/orders/{var}` 之前。新增带路径变量的网关路由时记得补规则。
+39. **OAP 10.4 的健康检查是 `/healthcheck`**（`/internal/l7check` 返回 404）；告警规则用 MQE 表达式（`expression:`），旧版 `metrics-name` / `op` / `threshold` 写法不再生效。
+40. **本机直接跑 BanyanDB 要去掉代理环境变量**（`HTTPS_PROXY` 等）：Go 的 gRPC 客户端会把内部连接也走代理，报 `failed to re-connect to grpc server`。
+41. **支付回调里 `order.paid` 是在事务内发送的**，这是有意的：发送失败 → 事务回滚 → Stripe 重试；提交失败 → 下次回调再发一次，由消费方幂等兜住。改成提交后发送会在进程崩溃时丢消息。
+42. **商品列表 / 搜索 / 精选 / 相关商品都走 `enrichProducts` 批量补全**（一页固定 4 条补全 SQL，单测守住）。不要再在循环里按商品查分类、图片、标签。
 
 ## 下一步（第二阶段路线图，2026-10 制定）
 
 按 `docs/SPRINT_ISSUES.md` 第二阶段路线图依次推进：
 1. **Sprint 10**（v1.2.0）修复 `docs/CODE_REVIEW_TODO.md` 中 P0–P2
 2. **Sprint 11**（v1.3.0）补齐 README 宣称的能力：Seata、ES 商品搜索、退款、JaCoCo 门禁、Knife4j、Playwright —— 代码已完成，待在完整 Docker 环境验收 Seata 回滚与 ES 搜索
-3. **Sprint 12**（v1.4.0）SkyWalking 全链路追踪
+3. **Sprint 12**（v1.4.0）SkyWalking 全链路追踪 —— 代码已完成，链路 / 日志 / 告警 / 优化已在本机用同版本二进制验证，待在 Docker 环境构建镜像验收
 4. **Sprint 13**（v2.0.0）Python AI Agent（FastAPI + LangGraph）+ RAG（向量库用 ES）
 5. **Sprint 14**（v2.1.0）MCP Server 与客户端接入
 
