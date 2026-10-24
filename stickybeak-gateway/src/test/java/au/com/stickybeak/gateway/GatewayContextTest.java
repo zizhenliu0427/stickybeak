@@ -55,6 +55,13 @@ class GatewayContextTest {
     }
 
     @Test
+    void mcpRouteForwardsToMcpServer() {
+        Route mcp = routeLocator.getRoutes().filter(r -> "mcp".equals(r.getId())).blockFirst();
+        assertNotNull(mcp);
+        assertEquals("lb://stickybeak-mcp", mcp.getUri().toString());
+    }
+
+    @Test
     void protectedApiStillRequiresLogin() {
         webTestClient.get().uri("/api/orders/my")
                 .exchange()

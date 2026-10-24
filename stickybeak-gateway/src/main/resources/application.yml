@@ -57,6 +57,13 @@ spring:
             - Path=/api/payments/**,/api/webhooks/**
           filters:
             - StripPrefix=1
+        # MCP Server（Python，Sprint 14）：外部 AI 客户端与自家 agent 共用的只读工具。/api/mcp → /mcp
+        - id: mcp
+          uri: lb://stickybeak-mcp
+          predicates:
+            - Path=/api/mcp,/api/mcp/**
+          filters:
+            - StripPrefix=1
         # AI 助手（Python 服务，同样注册在 Nacos）。回答是 SSE 流，网关逐块转发，不做缓冲
         - id: agent
           uri: lb://stickybeak-agent

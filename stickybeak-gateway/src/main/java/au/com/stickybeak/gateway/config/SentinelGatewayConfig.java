@@ -71,6 +71,11 @@ public class SentinelGatewayConfig {
                 .setCount(20)
                 .setIntervalSec(1));
 
+        // Rate limit for 'mcp' route: max 30 QPS from external AI clients and the agent together.
+        rules.add(new GatewayFlowRule("mcp")
+                .setCount(30)
+                .setIntervalSec(1));
+
         GatewayRuleManager.loadRules(rules);
     }
 }

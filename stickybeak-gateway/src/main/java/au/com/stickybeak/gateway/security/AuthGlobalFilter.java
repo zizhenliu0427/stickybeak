@@ -35,6 +35,7 @@ import reactor.core.publisher.Mono;
  * 2. 白名单路径直接放行
  * 3. 校验 JWT（cookie sb_access 或 Authorization: Bearer）+ Redis 黑名单
  * 4. 注入 X-User-Id / X-User-Roles 供下游服务 @PreAuthorize 兜底
+ * 5. MCP 令牌（scope=mcp，Sprint 14）只能访问 /api/mcp，且 jti 必须是该用户当前有效的那个（可撤销）
  */
 @Component
 public class AuthGlobalFilter implements GlobalFilter, Ordered {
@@ -45,6 +46,10 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
     public static final String HEADER_SEATA_XID = "TX_XID";
     public static final String COOKIE_ACCESS = "sb_access";
     private static final String BLACKLIST_PREFIX = "auth:blacklist:";
+    /** 当前有效的 MCP 令牌 jti，由 auth 服务写入（McpTokenServiceImpl） */
+    private static final String MCP_TOKEN_PREFIX = "auth:mcp:";
+    private static final String MCP_SCOPE = "mcp";
+    static final String MCP_PATH = "/api/mcp";
 
     /** 全方法公开前缀（mock 回调不在此列：它没有签名，只在开发环境注册且需要登录） */
     private static final List<String> PUBLIC_PREFIXES = List.of(
@@ -73,7 +78,9 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
     /** 可选认证前缀（购物车、心愿单等，支持游客与登录用户） */
     private static final List<String> OPTIONAL_AUTH_PREFIXES = List.of(
             "/api/cart",
-            "/api/wishlist"
+            "/api/wishlist",
+            // MCP：未登录只能用公开工具（商品、售后检索），订单工具由 MCP 服务按 X-User-Id 判断
+            MCP_PATH
     );
 
     /** 仅供服务间调用的接口，外部一律拒绝（下游还有 @InternalApi 兜底） */
@@ -135,31 +142,51 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             return writeUnauthorized(exchange, "invalid token");
         }
 
-        String jti = jws.getPayload().getId();
+        Claims claims = jws.getPayload();
+        String jti = claims.getId();
+        if (MCP_SCOPE.equals(claims.get("scope", String.class))) {
+            // 配在外部 AI 客户端里的长期令牌：只放行 MCP 端点，被撤销或被新令牌替换后立即失效
+            if (!isMcpPath(path)) {
+                return writeForbidden(exchange, "MCP tokens can only be used with " + MCP_PATH);
+            }
+            return redis.opsForValue().get(MCP_TOKEN_PREFIX + claims.getSubject())
+                    .defaultIfEmpty("")
+                    .flatMap(current -> current.equals(jti)
+                            ? forwardAuthenticated(exchange, chain, sanitized, claims, path)
+                            : writeUnauthorized(exchange, "token revoked"));
+        }
         return redis.hasKey(BLACKLIST_PREFIX + jti).flatMap(blacklisted -> {
             if (Boolean.TRUE.equals(blacklisted)) {
                 return writeUnauthorized(exchange, "token revoked");
             }
-            Claims claims = jws.getPayload();
-            List<?> roles = claims.get("roles", List.class);
-            String rolesHeader = roles == null ? "" :
-                    String.join(",", roles.stream().map(String::valueOf).toList());
-            if (path.contains("/admin")) {
-                boolean hasAdminRole = roles != null && roles.stream().anyMatch(r -> {
-                    String s = String.valueOf(r).toLowerCase();
-                    return s.contains("admin") || s.contains("sysadmin");
-                });
-                if (!hasAdminRole) {
-                    return writeForbidden(exchange, "admin permission required");
-                }
-            }
-
-            ServerHttpRequest authenticated = sanitized.mutate()
-                    .header(HEADER_USER_ID, claims.getSubject())
-                    .header(HEADER_USER_ROLES, rolesHeader)
-                    .build();
-            return chain.filter(exchange.mutate().request(authenticated).build());
+            return forwardAuthenticated(exchange, chain, sanitized, claims, path);
         });
+    }
+
+    private Mono<Void> forwardAuthenticated(ServerWebExchange exchange, GatewayFilterChain chain,
+                                            ServerHttpRequest sanitized, Claims claims, String path) {
+        List<?> roles = claims.get("roles", List.class);
+        String rolesHeader = roles == null ? "" :
+                String.join(",", roles.stream().map(String::valueOf).toList());
+        if (path.contains("/admin")) {
+            boolean hasAdminRole = roles != null && roles.stream().anyMatch(r -> {
+                String s = String.valueOf(r).toLowerCase();
+                return s.contains("admin") || s.contains("sysadmin");
+            });
+            if (!hasAdminRole) {
+                return writeForbidden(exchange, "admin permission required");
+            }
+        }
+
+        ServerHttpRequest authenticated = sanitized.mutate()
+                .header(HEADER_USER_ID, claims.getSubject())
+                .header(HEADER_USER_ROLES, rolesHeader)
+                .build();
+        return chain.filter(exchange.mutate().request(authenticated).build());
+    }
+
+    private static boolean isMcpPath(String path) {
+        return path.equals(MCP_PATH) || path.startsWith(MCP_PATH + "/");
     }
 
     /** 解码 → 去掉矩阵参数 → 规范化 ..；含非法编码时返回 null */

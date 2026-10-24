@@ -48,6 +48,8 @@ app:
     secret: ${JWT_SECRET:c3RpY2t5YmVhay1kZXYtc2VjcmV0LWp3dC1oczI1Ni0yMDI2LWRvLW5vdC11c2UtaW4tcHJvZA==}
     access-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:15}
     refresh-ttl-days: ${JWT_REFRESH_TTL_DAYS:7}
+    # 给外部 MCP 客户端的令牌（只能访问 /api/mcp），见 McpTokenService
+    mcp-ttl-days: ${JWT_MCP_TTL_DAYS:30}
   cookie:
     # 本地 http 开发用 Lax + 非 secure；生产切 Secure + Strict/None
     secure: ${COOKIE_SECURE:false}
