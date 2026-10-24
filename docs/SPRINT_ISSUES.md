@@ -241,6 +241,195 @@
 
 ---
 
+# 第二阶段路线图（2026-10 制定）
+
+> 目标：求职（国内 Java 后端 + AI 应用方向）。
+> 顺序：修好网站 → 补齐 README 宣称的能力 → SkyWalking → Python Agent + RAG → MCP。
+> 规则：
+> - **README 只写已落地并验证过的能力**，每个 Sprint 结束后再更新 README。
+> - 文档与简历中的性能数字一律来自实测（压测脚本 + SkyWalking / 日志截图），不写预估值。Sprint 9 表中的数字同样以实测为准。
+> - 新增 Labels：`area:agent` `area:observability` `sprint:10` … `sprint:14`
+
+## Sprint 10 — 修复资金与库存安全（第一步 · 上）
+
+**目标：** CI 转绿，`docs/CODE_REVIEW_TODO.md` 中 P0–P2 全部关闭。 **Tag:** `v1.2.0`
+
+### Issue 10.1 — CI 转绿
+`type:bug` `area:order` `p0`
+- 修复 P0-0 时间相关测试
+- 验收：后端 `mvn verify` 与前端 CI 全绿
+
+### Issue 10.2 — 支付回调安全
+`type:bug` `area:payment` `area:gateway` `p0`
+- P0-1 mock webhook 仅 dev 环境可用，网关白名单收窄到 `/api/webhooks/stripe`
+- P0-2 只处理 `checkout.session.completed` 且 `payment_status=paid`，核对金额与币种
+- P0-6 Checkout Session 设置 30 分钟过期；取消订单时让 session 失效
+- 验收：单测覆盖伪造 mock 请求、expired 事件、金额不符三种场景；prod profile 下 `/webhooks/mock` 不可访问
+
+### Issue 10.3 — 内部接口隔离
+`type:bug` `area:gateway` `area:product` `p0`
+- P0-3 网关拦截 `/api/products/stock/**` 写接口；新增过期 HELD 预占的清理任务
+- 验收：登录用户经网关调用 deduct / rollback 被拒；过期预占自动释放
+
+### Issue 10.4 — 消息可靠性与状态并发
+`type:bug` `area:order` `p0`
+- P0-4 拆分 `handleOrderPaid` 事务；`order.status.queue` / `order.close.queue` 配置 DLX 与死信队列；区分可重试与不可重试异常
+- P0-5 订单状态与库存预占改为条件更新（`WHERE status = ?`）
+- 验收：product 服务宕机期间支付消息不丢失，恢复后订单变为 PAID；"支付 + 超时"并发时只有一个生效（并发单测）
+
+### Issue 10.5 — 生产配置修正
+`type:bug` `area:devops` `p1`
+- `CODE_REVIEW_TODO` P1 全部：prod compose 环境变量名、网关 `JWT_SECRET` / `REDIS_HOST`、Redis 密码、示例密钥改为合法 Base64、cookie `Secure`、关闭网关 `actuator/gateway`；prod 缺 `JWT_SECRET` 时启动失败
+- 验收：按 prod 变量启动后各服务能连上依赖，网关能校验 auth 签发的 token
+
+### Issue 10.6 — 逻辑小问题 + 冒烟回归
+`type:bug` `p2`
+- `CODE_REVIEW_TODO` P2 全部（Lua `-1`、库存 delta 原子更新、订单号生成、Redis 回滚顺序）
+- 跑一遍全流程（注册 → 加购 → 支付 → 发货 → 取消），收集前端体验问题，按需补 issue
+- 验收：`scripts/test-sprint5-e2e.js` 与 Playwright E2E 全部通过
+
+---
+
+## Sprint 11 — 补齐 README 宣称的能力（第一步 · 下）
+
+**目标：** README 中的 Seata / Elasticsearch / 退款 / 覆盖率门禁全部真实落地。 **Tag:** `v1.3.0`
+
+### Issue 11.1 — Seata 分布式事务
+`type:feature` `area:order` `area:product` `p0`
+- 结账链路"创建订单 + MySQL 扣减库存"纳入 `@GlobalTransactional`（AT 模式），替换现有手工 `compensate`
+- 各业务库补 `undo_log` 表；Seata Server 版本与 Spring Cloud Alibaba 对齐（compose 现为 1.8.0）
+- Redis 预扣不在全局事务内，全局回滚时补偿 Redis
+- 验收：故意让订单写库失败 → MySQL 库存自动回滚；压测热点商品，记录 AT 全局锁对吞吐的影响（面试素材：AT 与 TCC 的取舍）
+
+### Issue 11.2 — Elasticsearch 商品搜索（即 9.2）
+`type:feature` `area:product` `p0`
+- ES 镜像安装 IK 中文分词插件（版本与 ES 8.14.3 一致）；商品索引包含中英文名、描述、分类、标签、价格、销量
+- 搜索接口：多字段检索、高亮、筛选、排序；前端搜索切换到新接口
+- MySQL → ES 同步：商品变更发 RabbitMQ 事件做增量更新 + 每日全量对账
+- 验收：同一查询 MySQL `LIKE` 与 ES 的耗时实测对比写入 docs；后台改价 / 上下架后数秒内搜索结果可见
+
+### Issue 11.3 — 退款流程
+`type:feature` `area:payment` `area:order` `p0`
+- 新增 `REFUNDED` 状态及状态机转移
+- 管理员对已支付订单发起退款 → Stripe Refund API → `charge.refunded` webhook 确认 → 订单 REFUNDED + 库存回补 + 邮件通知
+- 覆盖 P0-6 场景：已取消订单收到支付成功时自动退款
+- 验收：Stripe 测试模式下完整走通，E2E 覆盖
+
+### Issue 11.4 — JaCoCo 覆盖率门禁
+`type:test` `area:devops` `p1`
+- 先实测各模块覆盖率；pom 增加 `check` 规则，按包设阈值（状态机、webhook ≥ 90%，其余按实测设底线）
+- 验收：覆盖率低于阈值时 CI 失败；README 中的覆盖率数字与报告一致
+
+### Issue 11.5 — 文档校准
+`type:docs` `p1`
+- 补 `LICENSE`（Apache 2.0）；修正徽章版本；README 措辞与实际一致（如 Redis 为单节点）；更新 HANDOFF 与架构图
+- 验收：README 中每一项能力都能在代码里找到对应实现
+
+---
+
+## Sprint 12 — SkyWalking 全链路追踪（第二步）
+
+**目标：** 一次下单在 SkyWalking 中能看到跨服务、跨 MQ 的完整链路。 **Tag:** `v1.4.0`
+
+### Issue 12.1 — 部署 OAP + UI
+`type:chore` `area:observability` `p0`
+- compose 新增 SkyWalking OAP + UI；存储复用现有 ES（与 ES 8.14 的兼容性开工时核对）
+
+### Issue 12.2 — Java 服务接入
+`type:feature` `area:observability` `p0`
+- 7 个服务挂 Java agent（`Dockerfile.backend` 与本地启动脚本同步修改）；启用网关（WebFlux）所需插件；确认 RabbitMQ / Redis / MySQL 链路
+- 验收：结账请求可见 gateway → order → product → payment；支付回调 → MQ → order → notification 的异步链路能串起来
+
+### Issue 12.3 — 日志关联 traceId
+`type:feature` `area:observability` `p1`
+- logback 输出 traceId（SkyWalking apm-toolkit），日志上报 OAP，可从 trace 跳转到对应日志
+
+### Issue 12.4 — 告警
+`type:feature` `area:observability` `p1`
+- 慢接口、错误率、死信队列积压的告警规则
+
+### Issue 12.5 — 用链路数据做一次真实优化（即 9.5）
+`type:feature` `p1`
+- 用现有并发压测脚本压结账接口，按 trace 定位真实瓶颈并优化，优化前后数据与截图写入 docs
+- 验收：有可复现的优化前后对比
+
+---
+
+## Sprint 13 — Python AI Agent + RAG（第三步）
+
+**目标：** 买家导购 / 订单查询 / 售后问答助手上线：流式对话、写操作需用户确认、售后回答有据可查。 **Tag:** `v2.0.0`
+
+> 选型：Python 3.12 + FastAPI + LangGraph + LangChain；模型用通义千问（DashScope），DeepSeek 备选，通过配置切换。
+> 架构：Java 业务中台 + Python AI 服务；agent 注册进 Nacos，经网关统一鉴权与限流。
+> 向量库：复用 Elasticsearch（与 11.2 商品搜索共用集群、不同索引）。数据量在千到万条级别，且需要关键词 + 向量混合检索，ES 两者都原生支持；向量规模到千万级或需要 GPU 索引时再考虑 Milvus。
+
+### Issue 13.1 — Python 服务骨架
+`type:chore` `area:agent` `p0`
+- `stickybeak-agent/`（uv 管理依赖）；Nacos 注册（nacos-sdk-python）；网关新增路由 `/api/agent/**` → `lb://stickybeak-agent`；SkyWalking Python agent；Dockerfile；CI 增加 ruff + pytest
+- 验收：经网关访问 `/api/agent/health` 返回 200；SkyWalking 中能看到 Java 网关 → Python agent 的跨语言链路
+
+### Issue 13.2 — 模型接入与降级
+`type:feature` `area:agent` `p0`
+- 模型名与 key 走环境变量 / Nacos 配置；超时与重试；模型不可用时返回友好提示
+- 验收：断开模型 API 时商城其余功能正常
+
+### Issue 13.3 — LangGraph 编排与工具
+`type:feature` `area:agent` `p0`
+- 状态图：意图路由 → 导购 / 订单查询 / 售后问答
+- 工具：`search_products` `get_product` `list_my_orders` `get_order` `add_to_cart` `cancel_order`，调用现有 Java 服务
+- 用户身份取自网关注入的 `X-User-Id`，不由模型传参
+- 写操作用 LangGraph `interrupt` 暂停，前端确认后恢复；多轮对话状态 checkpoint 持久化
+- 验收：查询他人订单被拒；未确认时写操作不执行；刷新页面后对话可继续
+
+### Issue 13.4 — RAG 售后知识库
+`type:feature` `area:agent` `p0`
+- 语料：退换货、物流时效、跨境关税、商品保养、品牌故事（中英双语）
+- 入库：切分 → 向量化（通义 text-embedding 系列，或开源 bge-m3）→ ES 索引（`dense_vector` 字段 + IK 分词文本字段）；离线入库脚本 + 增量更新
+- 检索：kNN 向量检索 + BM25 关键词检索 → 应用层 RRF 融合 → 重排序（如 gte-rerank / bge-reranker）→ 生成带引用来源的回答
+- 验收：知识库覆盖不到的问题明确说"不知道"而不是编造；回答附来源
+
+### Issue 13.5 — 流式输出与前端
+`type:feature` `area:frontend` `area:agent` `p0`
+- SSE 流式输出；网关与 nginx 对 `/api/agent/` 关闭缓冲
+- 前端聊天组件：中英双语、写操作确认卡片、引用来源展示
+- 验收：首字延迟实测并记录
+
+### Issue 13.6 — 安全与成本
+`type:feature` `area:agent` `p1`
+- 按用户限流与每日额度；工具返回内容只当数据（防提示词注入）；记录每次调用的 token 用量与耗时
+- 验收：超额返回 429；注入类测试用例不触发写操作
+
+### Issue 13.7 — 评测集
+`type:test` `area:agent` `p1`
+- 50 条测试对话：导购、订单查询、售后、越权、注入
+- 指标：意图准确率、工具调用正确率、RAG 召回率@k、回答忠实度；修改 prompt 或检索参数后必跑
+- 验收：评测脚本一键运行并输出报告
+
+---
+
+## Sprint 14 — MCP 接入（第四步）
+
+**目标：** 商城能力以 MCP Server 形式提供，agent 与外部 AI 客户端都通过 MCP 调用。 **Tag:** `v2.1.0`
+
+### Issue 14.1 — MCP Server
+`type:feature` `area:agent` `p0`
+- `stickybeak-mcp`（Python 官方 MCP SDK，Streamable HTTP 传输）；工具：`search_products` `get_product` `list_my_orders` `get_order` `search_faq`，以只读为主
+
+### Issue 14.2 — 鉴权
+`type:feature` `area:agent` `area:gateway` `p0`
+- 复用现有 JWT：经网关校验后注入身份；未登录只能使用公开工具
+
+### Issue 14.3 — agent 改为 MCP 客户端
+`type:feature` `area:agent` `p1`
+- 用 langchain-mcp-adapters 加载 MCP 工具，替换 13.3 中的进程内工具定义
+- 验收：13.7 评测集结果不下降
+
+### Issue 14.4 — 外部客户端演示
+`type:docs` `area:agent` `p1`
+- 用 Cherry Studio / Cursor 等 MCP 客户端连接商城查询商品与订单，录制 GIF 放入 README
+
+---
+
 ## 里程碑
 
 | 里程碑 | Tag | 累计周 | 简历可用？ |
@@ -255,3 +444,8 @@
 | PWA | v0.7.0 | 15 | 是 |
 | **生产** | **v1.0.0** | **16+** | **顶级** |
 | 故事线 | v1.x | 按需 | 面试弹药 |
+| 安全修复 | v1.2.0 | +1 | 是 — 去掉硬伤 |
+| 能力补齐（Seata / ES / 退款 / 门禁） | v1.3.0 | +2 | 是 |
+| 全链路追踪 | v1.4.0 | +1 | 是 |
+| **AI Agent + RAG** | **v2.0.0** | **+2–3** | **是 — AI 方向** |
+| MCP | v2.1.0 | +1 | 是 |

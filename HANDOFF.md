@@ -156,14 +156,14 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 20. **MySQL 逻辑删除与唯一键冲突**：当数据表有 `UNIQUE KEY (a, b)` 同时开启 MyBatis-Plus `@TableLogic` 软删除时，删除行仍占用物理唯一键索引，再次添加相同键会报 `Duplicate entry`。购物车等临时表应采用物理删除 `DELETE FROM ...`。
 21. **RabbitMQ 原生 DLX 延迟队列配置**：队列设置 `x-message-ttl` + `x-dead-letter-exchange` + `x-dead-letter-routing-key` 即可实现原生延迟，无需安装第三方延迟插件；消费者只监听 DLX 死信目标队列，确保消息到期后精确触发。
 
-## 下一步（Sprint 6 — 管理后台 Dashboard、销售分析与库存管理，tag v0.6.0）
+## 下一步（第二阶段路线图，2026-10 制定）
 
-按 `docs/SPRINT_ISSUES.md` Issue 6.1→6.6：
-1. **6.1** 管理后台权限隔离（RBAC: `ROLE_ADMIN` / `ROLE_SYSADMIN` 专用路由拦截）
-2. **6.2** 仪表盘与销售报表（日/周/月 GMV、客单价、热销商品 Top 10）
-3. **6.3** 订单全状态管理后台（订单列表分页/多维检索、发货流转推进 `SHIPPED`）
-4. **6.4** 商品与库存后台管理（商品上下架、分类/标签维护、动态增补库存与库存预警）
-5. **6.5** 前端管理界面（Ant Design 5 Pro 风格后台布局、数据表格、可视化图表）
+按 `docs/SPRINT_ISSUES.md` 第二阶段路线图依次推进：
+1. **Sprint 10**（v1.2.0）修复 `docs/CODE_REVIEW_TODO.md` 中 P0–P2
+2. **Sprint 11**（v1.3.0）补齐 README 宣称的能力：Seata、ES 商品搜索、退款、JaCoCo 门禁
+3. **Sprint 12**（v1.4.0）SkyWalking 全链路追踪
+4. **Sprint 13**（v2.0.0）Python AI Agent（FastAPI + LangGraph）+ RAG（向量库用 ES）
+5. **Sprint 14**（v2.1.0）MCP Server 与客户端接入
 
 ## 硬性规范（不要违反）
 
