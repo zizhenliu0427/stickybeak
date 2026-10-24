@@ -458,10 +458,24 @@
 - `stickybeak-agent/`（uv 管理依赖）；Nacos 注册（nacos-sdk-python）；网关新增路由 `/api/agent/**` → `lb://stickybeak-agent`；SkyWalking Python agent；Dockerfile；CI 增加 ruff + pytest
 - 验收：经网关访问 `/api/agent/health` 返回 200；SkyWalking 中能看到 Java 网关 → Python agent 的跨语言链路
 
+> 实现说明：
+> - `stickybeak-agent/`：uv 管理依赖并锁定（`uv.lock`），Python 3.12。
+> - Nacos 注册用 nacos-sdk-python 的 v2 异步接口；没配 `NACOS_ADDR` 时用 `SERVICE_URLS` 静态地址。
+> - 网关路由 `agent`（`lb://stickybeak-agent`，Sentinel 20 QPS）。
+> - Dockerfile 用 uv 分层安装；compose 三套都加了 agent；CI 新增 ruff + pytest。
+> - SkyWalking Python agent 两个坑：1.3.0 的 wheel 漏打了 `skywalking.protocol`，1.2.x 在 Python 3.12 上插件全部加载失败。现在从 1.3.0 源码包安装（`no-binary-package`）。
+> - 本地实测：经网关 `/api/agent/health` 返回 200，未登录调 `/api/agent/chat` 返回 401。SkyWalking 中可见两段跨进程链路：网关 `/api/agent/chat` → Python FastAPI `/agent/chat`，Python httpx → 商品服务 `GET:/products`，都有 CROSS_PROCESS 引用。
+
 ### Issue 13.2 — 模型接入与降级
 `type:feature` `area:agent` `p0`
 - 模型名与 key 走环境变量 / Nacos 配置；超时与重试；模型不可用时返回友好提示
 - 验收：断开模型 API 时商城其余功能正常
+
+> 实现说明：
+> - 通义（DashScope）和 DeepSeek 都用 OpenAI 兼容接口（ChatOpenAI）接入，换模型只改环境变量。
+> - 每个模型单独设超时与重试；主模型超时、限流或 5xx 时 `with_fallbacks` 切到备用模型。
+> - 结构化输出用 function calling，因为 DashScope 兼容模式不支持 json_schema。
+> - 本地实测（本机网络到模型 API 不通，正好验证降级）：助手 SSE 返回"暂时不可用"，同时经网关的商品列表、我的订单正常返回 200。
 
 ### Issue 13.3 — LangGraph 编排与工具
 `type:feature` `area:agent` `p0`
@@ -471,6 +485,17 @@
 - 写操作用 LangGraph `interrupt` 暂停，前端确认后恢复；多轮对话状态 checkpoint 持久化
 - 验收：查询他人订单被拒；未确认时写操作不执行；刷新页面后对话可继续
 
+> 实现说明：
+> - 状态图：route（结构化输出）→ shopping / orders 子 agent（各自只绑定自己的工具）/ after_sales / other。
+> - 用户身份通过 `RunnableConfig` 注入工具，不出现在工具参数里。
+> - 写工具先进 `confirm` 节点：卡片内容由服务端查询，用 `interrupt` 暂停，`Command(resume=...)` 恢复。
+> - 等待确认时用户直接发新消息，悬空的工具调用会补一条"未执行"结果，避免模型接口报错。
+> - 对话状态存 MySQL（langgraph-checkpoint-mysql，库 `stickybeak_agent`）。
+> - 本地实测（真实 Java 服务 + MariaDB，模型用脚本替身）：
+>   - 查他人订单：订单服务返回 403，工具回复"查不到"。
+>   - 取消订单：确认前数据库仍是 pending；新建连接池和图（模拟重启）后，从 MySQL 恢复出等待确认的操作，确认后订单变为 cancelled。
+> - 实测中发现 PyMySQL 1.2 与 aiomysql 0.3 不兼容（写入 bytes 报错），已固定 PyMySQL 1.1.x。
+
 ### Issue 13.4 — RAG 售后知识库
 `type:feature` `area:agent` `p0`
 - 语料：退换货、物流时效、跨境关税、商品保养、品牌故事（中英双语）
@@ -478,22 +503,56 @@
 - 检索：kNN 向量检索 + BM25 关键词检索 → 应用层 RRF 融合 → 重排序（如 gte-rerank / bge-reranker）→ 生成带引用来源的回答
 - 验收：知识库覆盖不到的问题明确说"不知道"而不是编造；回答附来源
 
+> 实现说明：
+> - 语料：`knowledge/{zh,en}/` 7 个主题、中英文各 32 个片段，按二级标题切分。退货期限、运费等运营政策是示例值。
+> - 入库：增量，按内容哈希比对，只向量化新增或改动的片段，删除已不存在的片段；启动时自动执行一次。
+> - 检索：kNN 与 BM25 各取 20 条，应用层 RRF 融合（ES 8.14 的 RRF 需要付费许可），gte-rerank 重排后按阈值过滤，按提问语言过滤语料。
+> - 没有相关片段时直接回答"不知道"并给出客服邮箱，不调用模型；ES 不可用时回答"知识库暂不可用"。
+> - 已验证：只用内存 BM25（不调用模型），评测集 13 条有期望来源的售后问题都能在前 4 条里检索到期望文档。
+> - 未完成：本机无法访问 ES 镜像和 DashScope，ES 上的 dense_vector / IK 索引、真实向量与重排都还没实测。
+
 ### Issue 13.5 — 流式输出与前端
 `type:feature` `area:frontend` `area:agent` `p0`
 - SSE 流式输出；网关与 nginx 对 `/api/agent/` 关闭缓冲
 - 前端聊天组件：中英双语、写操作确认卡片、引用来源展示
 - 验收：首字延迟实测并记录
 
+> 实现说明：
+> - SSE 事件：meta、token、tool、sources、confirm、error、done。`done` 带首字延迟和总耗时，同时写日志。
+> - 网关逐块转发；nginx 对 `/api/agent/` 关闭缓冲，agent 也返回 `X-Accel-Buffering: no`。
+> - 前端右下角聊天抽屉：
+>   - 中英双语，回答逐字显示，显示工具状态（"正在查询订单…"）。
+>   - 写操作显示确认卡片，确认加购后刷新购物车角标；售后回答下方展示引用来源。
+>   - 对话 ID 存在 localStorage，刷新后恢复对话和待确认的卡片。
+> - 测试：Playwright 5 条旅程 × 桌面 / 移动端，覆盖确认、拒绝、来源和刷新恢复；vitest 覆盖 SSE 解析与状态 reducer。
+> - 本地实测：经网关的响应头为 `text/event-stream` + `x-accel-buffering: no`，事件逐条到达。
+> - 未完成：首字延迟需要真实模型，本机无法访问模型 API，待配置 key 后实测。
+
 ### Issue 13.6 — 安全与成本
 `type:feature` `area:agent` `p1`
 - 按用户限流与每日额度；工具返回内容只当数据（防提示词注入）；记录每次调用的 token 用量与耗时
 - 验收：超额返回 429；注入类测试用例不触发写操作
+
+> 实现说明：
+> - Redis 计数：每用户每分钟请求数、每日请求数、每日 token 数（按实际用量累加）。超出返回 429 和 `Retry-After`；Redis 不可用时返回 503，不放开额度。
+> - 每次模型调用写一行 JSON 日志：用户、对话、节点、模型、输入 / 输出 token、耗时。
+> - 防注入：
+>   - 工具结果包成 `{"data": ...}`，提示词声明其中的指令是数据；知识库原文不能闭合 `<documents>` 标签。
+>   - 子 agent 只绑定自己的工具；写操作必须经用户确认（结构上的兜底）。
+> - 本地实测：同一用户第 11 次请求返回 429（`retry-after: 36`）。
 
 ### Issue 13.7 — 评测集
 `type:test` `area:agent` `p1`
 - 50 条测试对话：导购、订单查询、售后、越权、注入
 - 指标：意图准确率、工具调用正确率、RAG 召回率@k、回答忠实度；修改 prompt 或检索参数后必跑
 - 验收：评测脚本一键运行并输出报告
+
+> 实现说明：
+> - `eval/dataset.yaml` 共 50 条：导购 10、订单 10、售后 15、闲聊 3、越权 6、注入 6（其中一个商品描述里藏了注入指令）。
+> - `uv run python -m eval.run_eval` 输出 `report.md` 与 `results.json`。业务数据用固定 fixtures；知识库可选内存版或 ES。
+> - 指标：意图、工具调用、确认、召回率@k、忠实度（模型评审）、拒答、越权泄露；所有用例都断言"未确认的写操作没有执行"。
+> - 指标计算和评测流程有单测（用假模型）。
+> - 未完成：需要模型 key，本机无法访问模型 API，还没有真实模型的评测结果。
 
 ---
 

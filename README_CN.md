@@ -7,9 +7,10 @@
 [![Spring Cloud Alibaba](https://img.shields.io/badge/Spring%20Cloud%20Alibaba-2023.0.1.2-orange.svg)](https://github.com/alibaba/spring-cloud-alibaba)
 [![Java](https://img.shields.io/badge/Java-17%2B-orange.svg?logo=openjdk)](https://openjdk.org/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg?logo=react)](https://react.dev/)
+[![Python](https://img.shields.io/badge/Python-3.12%20%C2%B7%20LangGraph-3776AB.svg?logo=python)](stickybeak-agent/README.md)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-v1.4.0-success.svg)](docs/SPRINT_ISSUES.md)
+[![Version](https://img.shields.io/badge/Version-v2.0.0-success.svg)](docs/SPRINT_ISSUES.md)
 
 **基于 Spring Cloud Alibaba + React 18 的云原生澳大利亚风情文创跨境电商平台。**
 
@@ -29,6 +30,7 @@
 - **Stripe 跨境支付**：托管收银台支持银行卡、支付宝、微信支付；Webhook 验签、金额与币种校验、数据库唯一键幂等，并通过 Stripe Refund API 全额退款；
 - **事件驱动履约**：RabbitMQ 主题交换机 + 手动 ACK + 重试队列 + 死信队列；延迟队列与兜底扫描实现 30 分钟未支付自动关单；订单确认邮件走 SMTP（本地 MailHog，生产 Amazon SES）；
 - **商品全文检索**：Elasticsearch 8 + IK 中文分词，多字段加权匹配、高亮、相关度排序，ES 不可用时自动回退 MySQL；
+- **AI 购物助手**：Python 服务（FastAPI + LangGraph），能导购、查询和取消订单，并基于中英双语知识库回答售后问题（ES 向量 + 关键词混合检索、RRF 融合与重排、回答附引用）；SSE 流式输出，所有写操作都要用户确认；
 - **现代化双模前端**：React 18 + TypeScript + Vite + Redux Toolkit，商城端 TailwindCSS（PWA），管理端 Ant Design 5；
 - **工程化质量门禁**：`mvn verify` 内置 JaCoCo 覆盖率门禁（订单状态机与 Stripe Webhook 处理强制行覆盖率 ≥ 90%），CI 中运行桌面端 + 移动端 Playwright 用户旅程，另有全链路接口 E2E 脚本。
 
@@ -105,7 +107,15 @@
 - Elasticsearch 8 + IK：名称 / 分类 / 标签 / 描述多字段加权匹配，名称高亮，相关度或列表排序；
 - 后台修改在事务提交后增量重建索引，启动时与每日全量对账；ES 宕机或关闭时自动回退 MySQL。
 
-### 5. 可观测性、接口文档与质量门禁
+### 5. AI 购物助手（Python）
+- **LangGraph 状态图**：意图路由后交给导购 agent、订单 agent、RAG 售后节点或闲聊节点；每个 agent 只绑定自己的工具，工具调用现有 Java 服务；
+- **安全由结构保证**：用户 ID 取自网关注入的 `X-User-Id`，由运行时注入工具，不是模型参数；加购、取消订单会让图暂停（`interrupt`），用户在卡片上确认后才执行，卡片内容由服务端查询；对话（包括等待确认的操作）存 MySQL，刷新页面、服务重启后都能继续；
+- **回答有据可查**：kNN（text-embedding-v3）与 BM25（IK）两路结果经 RRF 融合、gte-rerank 重排并按分数过滤；没有相关资料时明确说不知道，不编造，回答附引用来源；
+- **可运营**：通义千问为主、DeepSeek 备用（OpenAI 兼容接口），Redis 按用户限流与每日 token 额度，记录 token 用量与耗时，SkyWalking 跨 Java / Python 链路，50 条评测集（[详情](stickybeak-agent/README.md)）。
+
+![加购前请用户确认](docs/images/agent/chat-confirm.png)
+
+### 6. 可观测性、接口文档与质量门禁
 - **SkyWalking 全链路追踪**：7 个服务都挂 Java agent，一条链路串起 gateway → order → cart / product / payment，以及支付成功后经 `order.paid` 异步到 order、notification 的处理；响应头带 `X-Trace-Id`，日志带同一个 traceId 并上报 OAP；
 - **告警**：服务 / 端点的慢响应与错误率、慢 SQL、死信队列积压（订单服务上报的自定义指标）；
 - **用链路数据做优化**：链路暴露出商品列表的 N+1 查询，改成批量查询后吞吐 64 → 191 req/s，p99 1.57s → 392ms（[详情](docs/PERF_PRODUCT_LIST.md)）；
@@ -127,6 +137,7 @@ stickybeak/
 ├── stickybeak-payment/        # 跨境支付抽象、Stripe 收银台、Webhook 与退款
 ├── stickybeak-notification/   # 邮件通知（RabbitMQ 消费 + SMTP：MailHog / SES）
 ├── stickybeak-common/         # 统一返回体、错误码、内部接口守卫、OpenAPI 配置
+├── stickybeak-agent/          # AI 购物助手：Python 3.12、FastAPI、LangGraph、ES 上的 RAG、评测集
 ├── stickybeak-frontend/       # React 18 + Vite + Redux Toolkit + Tailwind + Ant Design，Playwright e2e
 ├── docker/                    # Docker Compose 编排（本地开发 & 生产）、Nginx、MySQL 初始化
 ├── docs/                      # 架构文档、数据库 ER 图、云上部署手册、演示剧本
@@ -187,6 +198,7 @@ docker compose -f docker/docker-compose.yml up -d --build
 | **MailHog 邮件测试控制台** | 8025 | `http://localhost:8025` | 邮件实时查看 |
 | **MinIO 对象存储中台** | 9001 | `http://localhost:9001` | `minioadmin / minioadmin` |
 | **Elasticsearch 搜索引擎** | 9200（全栈）/ 19200（仅基础设施） | `http://localhost:9200` | 单节点，未开启安全认证 |
+| **AI 购物助手** | 8087（内部） | 经网关 `http://localhost:8080/api/agent/health` | 需要 `DASHSCOPE_API_KEY` 或 `DEEPSEEK_API_KEY` |
 | **SkyWalking UI** | 8088 | `http://localhost:8088` | 链路、拓扑、日志、告警 |
 | **SkyWalking OAP** | 11800（agent gRPC）/ 12800（HTTP、GraphQL） | `http://localhost:12800/healthcheck` | 存储使用 BanyanDB |
 
@@ -207,11 +219,11 @@ docker run --rm \
 
 | 模块 | 行覆盖率 | 底线 |
 | :--- | :--- | :--- |
-| gateway | 73.0% | 65% |
-| product | 61.7% | 55% |
+| gateway | 74.3% | 65% |
+| product | 62.5% | 55% |
 | notification | 54.0% | 50% |
 | cart | 53.9% | 50% |
-| order | 49.3% | 45%（`OrderStateMachine` 100%，底线 90%） |
+| order | 49.9% | 45%（`OrderStateMachine` 100%，底线 90%） |
 | payment | 45.2% | 35%（`WebhookServiceImpl` 97.2%，底线 90%） |
 | auth | 30.5% | 30% |
 
@@ -224,7 +236,14 @@ npm run build        # 生产包编译验证
 npm run e2e          # Playwright 用户旅程，Desktop Chrome + Pixel 7（接口在浏览器内模拟）
 ```
 
-### 3. 全链路 E2E 自动化回归验证
+### 3. AI 助手测试与评测
+```bash
+cd stickybeak-agent
+uv run ruff check . && uv run pytest -q   # 状态图、工具、RAG、接口、额度（脚本化假模型，不调用模型 API）
+uv run python -m eval.run_eval            # 用真实模型跑 50 条评测，报告在 eval/reports/<时间>/report.md
+```
+
+### 4. 全链路 E2E 自动化回归验证
 ```bash
 # 针对已启动的 Docker Compose 全栈：买家流程、Webhook 幂等、管理端操作、RBAC
 node scripts/test-sprint8-e2e.js

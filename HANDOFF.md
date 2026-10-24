@@ -21,6 +21,7 @@
 - **Sprint 10**（`feature/sprint-10-security-fixes`，待合并后打 `v1.2.0`）：修复 `docs/CODE_REVIEW_TODO.md` 中 P0–P2（支付回调、内部接口隔离、消息重试与死信、状态条件更新、生产配置）
 - **Sprint 11**（`feature/sprint-11-readme-capabilities`，基于 Sprint 10 分支，待合并后打 `v1.3.0`）：把 README 宣称的能力全部落地 —— Seata AT 结账事务、ES 商品搜索（IK + 高亮 + MySQL 回退）、退款全流程、JaCoCo 覆盖率门禁、网关 Knife4j 文档聚合、Playwright 桌面 + 移动端用户旅程、SES 邮件配置、`LICENSE`；顺带修复了"网关无法启动"（Sprint 9 引入）、"管理后台刷新一直转圈"、"商品列表缓存从不命中"
 - **Sprint 12**（`feature/sprint-12-skywalking`，基于 Sprint 11 分支，待合并后打 `v1.4.0`）：SkyWalking 全链路追踪 —— OAP 10.4 + BanyanDB + UI（:8088），7 个服务挂 agent 9.7，日志带 traceId 并上报、响应头 `X-Trace-Id`，告警规则（含死信队列积压自定义指标），网关端点分组；用链路定位并修复商品列表 N+1（`docs/PERF_PRODUCT_LIST.md`）
+- **Sprint 13**（`feature/sprint-13-ai-agent`，基于 Sprint 12 分支，待合并后打 `v2.0.0`）：Python AI 购物助手 `stickybeak-agent` —— FastAPI + LangGraph，导购 / 订单 / 售后 RAG，写操作 interrupt 确认，MySQL checkpoint，SSE 流式，Redis 限流与额度，SkyWalking 跨语言链路，前端聊天抽屉，50 条评测集（详见 `stickybeak-agent/README.md`）
 - 开发分支：`develop`；功能分支：`feature/sprint-N-xxx`（Git Flow）
 
 ## Sprint 1 交付明细（均已 E2E 验证）
@@ -180,6 +181,12 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 40. **本机直接跑 BanyanDB 要去掉代理环境变量**（`HTTPS_PROXY` 等）：Go 的 gRPC 客户端会把内部连接也走代理，报 `failed to re-connect to grpc server`。
 41. **支付回调里 `order.paid` 是在事务内发送的**，这是有意的：发送失败 → 事务回滚 → Stripe 重试；提交失败 → 下次回调再发一次，由消费方幂等兜住。改成提交后发送会在进程崩溃时丢消息。
 42. **商品列表 / 搜索 / 精选 / 相关商品都走 `enrichProducts` 批量补全**（一页固定 4 条补全 SQL，单测守住）。不要再在循环里按商品查分类、图片、标签。
+43. **AI 助手的用户身份只能来自网关的 `X-User-Id`**：工具通过 `RunnableConfig` 读取，不要把 user_id 做成工具参数（模型 / 注入的提示词就能冒充别人）。新增写操作工具时加进 `WRITE_TOOLS`，它才会先经过 confirm 节点。
+44. **SkyWalking Python agent**：1.3.0 的 wheel 漏打了 `skywalking.protocol`，1.2.x 在 Python 3.12 上插件全部加载失败（只创建模块不执行），所以 `pyproject.toml` 用 `no-binary-package` 从 1.3.0 源码包安装。升级前先确认 wheel 里有 `skywalking/protocol`。
+45. **PyMySQL 固定在 1.1.x**：1.2 把 `escape_bytes_prefixed` 换成了占位字符串，aiomysql 0.3 仍在调用它，checkpoint 写入 bytes 时直接报错（单测用内存 checkpointer 发现不了）。
+46. **DashScope 兼容模式**：结构化输出要用 `method="function_calling"`（不支持 json_schema）；`OpenAIEmbeddings` 要设 `check_embedding_ctx_length=False`（不接受 token id），text-embedding-v3 每批最多 10 条。
+47. **ES Python 客户端必须是 8.x**（`elasticsearch<9`）：9.x 客户端发 v9 兼容头，ES 8.14 会拒绝。
+48. **AI 助手的 thread_id 由服务端生成，格式 `{userId}-{32 位 hex}`**：接口按前缀校验归属，不要改成客户端随意传入。
 
 ## 下一步（第二阶段路线图，2026-10 制定）
 
@@ -187,7 +194,7 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 1. **Sprint 10**（v1.2.0）修复 `docs/CODE_REVIEW_TODO.md` 中 P0–P2
 2. **Sprint 11**（v1.3.0）补齐 README 宣称的能力：Seata、ES 商品搜索、退款、JaCoCo 门禁、Knife4j、Playwright —— 代码已完成，待在完整 Docker 环境验收 Seata 回滚与 ES 搜索
 3. **Sprint 12**（v1.4.0）SkyWalking 全链路追踪 —— 代码已完成，链路 / 日志 / 告警 / 优化已在本机用同版本二进制验证，待在 Docker 环境构建镜像验收
-4. **Sprint 13**（v2.0.0）Python AI Agent（FastAPI + LangGraph）+ RAG（向量库用 ES）
+4. **Sprint 13**（v2.0.0）Python AI Agent（FastAPI + LangGraph）+ RAG（向量库用 ES）—— 代码已完成，已在本机连真实 Java 服务、MariaDB、Redis、SkyWalking 验证；真实模型评测与 ES 向量检索待配置 DashScope key 后实测
 5. **Sprint 14**（v2.1.0）MCP Server 与客户端接入
 
 ## 硬性规范（不要违反）

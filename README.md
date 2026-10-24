@@ -7,9 +7,10 @@
 [![Spring Cloud Alibaba](https://img.shields.io/badge/Spring%20Cloud%20Alibaba-2023.0.1.2-orange.svg)](https://github.com/alibaba/spring-cloud-alibaba)
 [![Java](https://img.shields.io/badge/Java-17%2B-orange.svg?logo=openjdk)](https://openjdk.org/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg?logo=react)](https://react.dev/)
+[![Python](https://img.shields.io/badge/Python-3.12%20%C2%B7%20LangGraph-3776AB.svg?logo=python)](stickybeak-agent/README.md)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-v1.4.0-success.svg)](docs/SPRINT_ISSUES.md)
+[![Version](https://img.shields.io/badge/Version-v2.0.0-success.svg)](docs/SPRINT_ISSUES.md)
 
 **A Cloud-Native, High-Performance Microservices E-Commerce Platform for Australian Themed Souvenirs & Regional Specialities.**
 
@@ -27,6 +28,7 @@
 - **Stripe Cross-Border Payments**: Hosted Checkout with cards, Alipay and WeChat Pay; webhook signature verification, amount/currency checks, database-backed idempotency, and full refunds through the Stripe Refund API.
 - **Event-Driven Fulfilment**: RabbitMQ topic exchange with manual ACK, retry queues and dead-letter queues; 30-minute auto-cancellation via a delay queue plus a sweeper; order confirmation emails over SMTP (MailHog locally, Amazon SES in production).
 - **Full-Text Search**: Elasticsearch 8 with the IK Chinese analyzer — weighted multi-field matching, highlighting and relevance sorting, with automatic fallback to MySQL.
+- **AI Shopping Assistant**: A Python service (FastAPI + LangGraph) that finds products, checks and cancels orders, and answers after-sales questions from a bilingual knowledge base (hybrid kNN + BM25 retrieval in Elasticsearch, RRF and reranking, cited answers). Answers stream over SSE, and every write needs the shopper's confirmation.
 - **Dual-Front React 18 Application**: TailwindCSS-powered consumer storefront (PWA) paired with an Ant Design 5 admin console.
 - **Engineering Rigor**: A JaCoCo coverage gate in `mvn verify` (≥ 90% line coverage enforced for the order state machine and Stripe webhook handling), Playwright journeys on desktop and mobile in CI, and full-stack API E2E scripts.
 
@@ -103,7 +105,15 @@
 - Elasticsearch 8 with the IK analyzer: weighted multi-field matching (name, category, tags, description), highlighted names and relevance or list sorting.
 - Admin changes are re-indexed after commit, and a full reconciliation runs at startup and daily. If Elasticsearch is down or disabled, search falls back to MySQL.
 
-### 5. Observability, API Docs & Quality Gates
+### 5. AI Shopping Assistant (Python)
+- **LangGraph state graph**: an intent router hands off to a shopping agent, an order agent, a RAG after-sales node or small talk. Each agent only gets its own tools, and the tools call the existing Java services.
+- **Safe by construction**: the user ID comes from the gateway's `X-User-Id` and is injected into tools by the runtime, never as a model argument. Adding to the trolley or cancelling an order pauses the graph (`interrupt`) until the shopper confirms on a card built from server-side data. Conversations, including pending confirmations, are checkpointed in MySQL and survive refreshes and restarts.
+- **Grounded answers**: kNN (text-embedding-v3) and BM25 (IK) results are fused with RRF, reranked with gte-rerank and filtered by score. When nothing relevant is found the assistant says it doesn't know instead of guessing, and it cites its sources.
+- **Operable**: Qwen with DeepSeek fallback through OpenAI-compatible APIs, per-user rate limits and daily token quotas in Redis, token and latency logging, SkyWalking traces across Java and Python, and a 50-case eval set ([details](stickybeak-agent/README.md)).
+
+![Assistant asking for confirmation before adding to the trolley](docs/images/agent/chat-confirm.png)
+
+### 6. Observability, API Docs & Quality Gates
 - **SkyWalking Tracing**: all 7 services run the SkyWalking Java agent, so one trace covers gateway → order → cart / product / payment and the asynchronous `order.paid` hand-off to order and notification. Responses carry an `X-Trace-Id` header, and logs carry the same trace ID and are shipped to OAP.
 - **Alerts**: slow and failing services or endpoints, slow SQL, and dead-letter queue backlog (a custom meter reported by the order service).
 - **Trace-driven tuning**: traces exposed an N+1 query on the product list; batching it raised throughput from 64 to 191 req/s and cut p99 from 1.57 s to 392 ms ([details](docs/PERF_PRODUCT_LIST.md)).
@@ -125,6 +135,7 @@ stickybeak/
 ├── stickybeak-payment/        # Stripe sandbox, payment provider abstraction, webhooks & refunds
 ├── stickybeak-notification/   # Email notifications via RabbitMQ & SMTP (MailHog / SES)
 ├── stickybeak-common/         # Response wrapper, error codes, internal-API guard, OpenAPI config
+├── stickybeak-agent/          # AI assistant: Python 3.12, FastAPI, LangGraph, RAG on Elasticsearch, eval set
 ├── stickybeak-frontend/       # React 18 + Vite + Redux Toolkit + Tailwind + AntD, Playwright e2e
 ├── docker/                    # Docker Compose files (local & prod), Nginx configs, MySQL DDL
 ├── docs/                      # Deployment guide, demo script, architecture, ER diagrams
@@ -185,6 +196,7 @@ Open **http://localhost** in your browser.
 | **MailHog Inbox** | 8025 | `http://localhost:8025` | Public |
 | **MinIO Storage Console** | 9001 | `http://localhost:9001` | `minioadmin / minioadmin` |
 | **Elasticsearch** | 9200 (full stack) / 19200 (infra compose) | `http://localhost:9200` | Security disabled |
+| **AI Assistant** | 8087 (internal) | `http://localhost:8080/api/agent/health` via the gateway | Needs `DASHSCOPE_API_KEY` or `DEEPSEEK_API_KEY` |
 | **SkyWalking UI** | 8088 | `http://localhost:8088` | Public |
 | **SkyWalking OAP** | 11800 (agent gRPC) / 12800 (HTTP, GraphQL) | `http://localhost:12800/healthcheck` | Storage: BanyanDB |
 
@@ -205,11 +217,11 @@ Reports: `stickybeak-<module>/target/site/jacoco/index.html`. Current line cover
 
 | Module | Line coverage | Floor |
 | :--- | :--- | :--- |
-| gateway | 73.0% | 65% |
-| product | 61.7% | 55% |
+| gateway | 74.3% | 65% |
+| product | 62.5% | 55% |
 | notification | 54.0% | 50% |
 | cart | 53.9% | 50% |
-| order | 49.3% | 45% (`OrderStateMachine` 100%, floor 90%) |
+| order | 49.9% | 45% (`OrderStateMachine` 100%, floor 90%) |
 | payment | 45.2% | 35% (`WebhookServiceImpl` 97.2%, floor 90%) |
 | auth | 30.5% | 30% |
 
@@ -222,7 +234,14 @@ npm run build        # Production bundle compilation
 npm run e2e          # Playwright journeys, Desktop Chrome + Pixel 7 (API mocked in the browser)
 ```
 
-### 3. Full-Stack End-to-End (E2E) Regression Testing
+### 3. AI Assistant Tests & Eval
+```bash
+cd stickybeak-agent
+uv run ruff check . && uv run pytest -q   # graph, tools, RAG, API, quotas (scripted fake model, no API calls)
+uv run python -m eval.run_eval            # 50-case eval with a real model; writes eval/reports/<time>/report.md
+```
+
+### 4. Full-Stack End-to-End (E2E) Regression Testing
 ```bash
 # Against a running Docker Compose stack: buyer flow, webhook idempotency, admin operations, RBAC
 node scripts/test-sprint8-e2e.js
