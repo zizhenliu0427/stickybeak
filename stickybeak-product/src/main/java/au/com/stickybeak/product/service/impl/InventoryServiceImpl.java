@@ -2,6 +2,7 @@ package au.com.stickybeak.product.service.impl;
 
 import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.common.result.ResultCode;
+import au.com.stickybeak.common.tx.AfterCommit;
 import au.com.stickybeak.product.dto.StockDeductRequest;
 import au.com.stickybeak.product.dto.StockItemDTO;
 import au.com.stickybeak.product.entity.Product;
@@ -40,17 +41,20 @@ public class InventoryServiceImpl implements InventoryService {
     private final StringRedisTemplate stringRedisTemplate;
     private final RedissonClient redissonClient;
     private final DefaultRedisScript<Long> deductStockScript;
+    private final DefaultRedisScript<Long> incrementIfExistsScript;
 
     public InventoryServiceImpl(ProductMapper productMapper,
                                 StockHoldMapper stockHoldMapper,
                                 StringRedisTemplate stringRedisTemplate,
                                 RedissonClient redissonClient,
-                                DefaultRedisScript<Long> deductStockScript) {
+                                DefaultRedisScript<Long> deductStockScript,
+                                DefaultRedisScript<Long> incrementIfExistsScript) {
         this.productMapper = productMapper;
         this.stockHoldMapper = stockHoldMapper;
         this.stringRedisTemplate = stringRedisTemplate;
         this.redissonClient = redissonClient;
         this.deductStockScript = deductStockScript;
+        this.incrementIfExistsScript = incrementIfExistsScript;
     }
 
     @Override
@@ -75,7 +79,8 @@ public class InventoryServiceImpl implements InventoryService {
             // 防线 1: Redis Lua 脚本原子预扣减 (抗超高并发冲击)
             // -------------------------------------------------------------
             Long luaResult = executeLuaDeduct(stockKey, productId, qty);
-            if (luaResult == null || luaResult == 0) {
+            // 1 = 扣减成功；0 = 库存不足；-1 = 预热后仍无 key（商品不存在）
+            if (luaResult == null || luaResult != 1) {
                 log.warn("Stock pre-deduction failed in Redis for product: {}, requested: {}", productId, qty);
                 compensate(req.getOrderNo(), successfullyDeductedItems);
                 throw new BusinessException(ResultCode.INSUFFICIENT_STOCK, "Product " + productId + " is out of stock");
@@ -97,7 +102,7 @@ public class InventoryServiceImpl implements InventoryService {
             if (!acquired) {
                 log.warn("Failed to acquire Redisson lock for product: {}", productId);
                 // Revert this item in Redis
-                stringRedisTemplate.opsForValue().increment(stockKey, qty);
+                incrementCachedStock(productId, qty);
                 compensate(req.getOrderNo(), successfullyDeductedItems);
                 throw new BusinessException(ResultCode.CONFLICT, "Server is busy, please retry");
             }
@@ -110,7 +115,7 @@ public class InventoryServiceImpl implements InventoryService {
                 if (affectedRows <= 0) {
                     log.error("MySQL optimistic stock deduction failed for product {}, insufficient DB stock", productId);
                     // Revert this item in Redis
-                    stringRedisTemplate.opsForValue().increment(stockKey, qty);
+                    incrementCachedStock(productId, qty);
                     compensate(req.getOrderNo(), successfullyDeductedItems);
                     throw new BusinessException(ResultCode.INSUFFICIENT_STOCK, "Insufficient stock for product " + productId);
                 }
@@ -163,7 +168,7 @@ public class InventoryServiceImpl implements InventoryService {
             Integer qty = item.getQty();
             try {
                 productMapper.rollbackStockOptimistic(productId, qty);
-                stringRedisTemplate.opsForValue().increment(STOCK_KEY_PREFIX + productId, qty);
+                incrementCachedStock(productId, qty);
             } catch (Exception e) {
                 log.error("Error compensating product {} for order {}: {}", productId, orderNo, e.getMessage());
             }
@@ -194,15 +199,17 @@ public class InventoryServiceImpl implements InventoryService {
             RLock lock = redissonClient.getLock(lockKey);
             try {
                 lock.lock(10, TimeUnit.SECONDS);
-                // 1. Rollback MySQL
+                // 1. 条件流转 HELD -> RELEASED；并发的回滚（用户取消 + 超时）只有一个能成功
+                if (stockHoldMapper.transitStatus(hold.getId(), StockHold.STATUS_HELD, StockHold.STATUS_RELEASED) == 0) {
+                    log.info("Hold {} of order {} already processed, skip", hold.getId(), orderNo);
+                    continue;
+                }
+
+                // 2. Rollback MySQL
                 productMapper.rollbackStockOptimistic(productId, qty);
 
-                // 2. Mark hold status as RELEASED
-                hold.setStatus(StockHold.STATUS_RELEASED);
-                stockHoldMapper.updateById(hold);
-
-                // 3. Rollback Redis stock
-                stringRedisTemplate.opsForValue().increment(STOCK_KEY_PREFIX + productId, qty);
+                // 3. Rollback Redis stock：事务提交后再回补，回滚时不会多加
+                AfterCommit.run(() -> incrementCachedStock(productId, qty));
                 log.info("Stock rolled back for order {}, product {}, qty {}", orderNo, productId, qty);
             } finally {
                 if (lock.isHeldByCurrentThread()) {
@@ -223,9 +230,16 @@ public class InventoryServiceImpl implements InventoryService {
         );
 
         for (StockHold hold : holds) {
-            hold.setStatus(StockHold.STATUS_CONFIRMED);
-            stockHoldMapper.updateById(hold);
+            stockHoldMapper.transitStatus(hold.getId(), StockHold.STATUS_HELD, StockHold.STATUS_CONFIRMED);
         }
+    }
+
+    private void incrementCachedStock(Long productId, Integer qty) {
+        stringRedisTemplate.execute(
+                incrementIfExistsScript,
+                Collections.singletonList(STOCK_KEY_PREFIX + productId),
+                String.valueOf(qty)
+        );
     }
 
     @Override

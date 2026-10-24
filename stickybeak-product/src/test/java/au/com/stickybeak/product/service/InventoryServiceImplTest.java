@@ -11,7 +11,6 @@ import au.com.stickybeak.product.service.impl.InventoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.redisson.api.RLock;
@@ -52,13 +51,17 @@ class InventoryServiceImplTest {
     @Mock
     private DefaultRedisScript<Long> deductStockScript;
 
-    @InjectMocks
+    @Mock
+    private DefaultRedisScript<Long> incrementIfExistsScript;
+
     private InventoryServiceImpl inventoryService;
 
     @BeforeEach
     void setUp() {
         lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
         lenient().when(redissonClient.getLock(anyString())).thenReturn(rLock);
+        inventoryService = new InventoryServiceImpl(productMapper, stockHoldMapper, stringRedisTemplate,
+                redissonClient, deductStockScript, incrementIfExistsScript);
     }
 
     @Test
@@ -99,33 +102,67 @@ class InventoryServiceImplTest {
         BusinessException ex = assertThrows(BusinessException.class, () -> inventoryService.deductStock(req));
 
         assertEquals(ResultCode.INSUFFICIENT_STOCK.getCode(), ex.getCode());
-        verify(valueOperations, times(1)).increment("product:stock:1001", 10);
+        // 回补走"key 存在才加"的脚本，key 过期时不会凭空写出错误库存
+        verify(stringRedisTemplate, times(1)).execute(incrementIfExistsScript, List.of("product:stock:1001"), "10");
+        verify(valueOperations, never()).increment(anyString(), anyLong());
         verify(rLock, times(1)).unlock();
+    }
+
+    @Test
+    void deductStock_productMissing_luaMinusOne_fails() {
+        // key 不存在 → 预热时商品也不存在 → 重试仍返回 -1，必须视为失败
+        when(stringRedisTemplate.execute(any(DefaultRedisScript.class), anyList(), any())).thenReturn(-1L);
+        when(valueOperations.get("product:stock:9999")).thenReturn(null);
+        when(productMapper.selectById(9999L)).thenReturn(null);
+
+        StockDeductRequest req = new StockDeductRequest("SO20260916006", List.of(new StockItemDTO(9999L, 1)));
+        BusinessException ex = assertThrows(BusinessException.class, () -> inventoryService.deductStock(req));
+
+        assertEquals(ResultCode.INSUFFICIENT_STOCK.getCode(), ex.getCode());
+        verify(productMapper, never()).deductStockOptimistic(anyLong(), anyInt());
+        verify(stockHoldMapper, never()).insert(any(StockHold.class));
     }
 
     @Test
     void rollbackStock_success() {
         StockHold hold = new StockHold(1001L, "SO20260916004", 3, StockHold.STATUS_HELD, null);
+        hold.setId(1L);
         when(stockHoldMapper.selectList(any())).thenReturn(List.of(hold));
+        when(stockHoldMapper.transitStatus(1L, StockHold.STATUS_HELD, StockHold.STATUS_RELEASED)).thenReturn(1);
         when(rLock.isHeldByCurrentThread()).thenReturn(true);
 
         inventoryService.rollbackStock("SO20260916004");
 
         verify(productMapper, times(1)).rollbackStockOptimistic(1001L, 3);
-        verify(valueOperations, times(1)).increment("product:stock:1001", 3);
-        verify(stockHoldMapper, times(1)).updateById(hold);
-        assertEquals(StockHold.STATUS_RELEASED, hold.getStatus());
+        verify(stringRedisTemplate, times(1)).execute(incrementIfExistsScript, List.of("product:stock:1001"), "3");
+        verify(rLock, times(1)).unlock();
+    }
+
+    @Test
+    void rollbackStock_holdAlreadyReleased_skipsStockChanges() {
+        StockHold hold = new StockHold(1001L, "SO20260916007", 3, StockHold.STATUS_HELD, null);
+        hold.setId(2L);
+        when(stockHoldMapper.selectList(any())).thenReturn(List.of(hold));
+        // 另一个回滚请求先一步把 HELD 改走了
+        when(stockHoldMapper.transitStatus(2L, StockHold.STATUS_HELD, StockHold.STATUS_RELEASED)).thenReturn(0);
+        when(rLock.isHeldByCurrentThread()).thenReturn(true);
+
+        inventoryService.rollbackStock("SO20260916007");
+
+        verify(productMapper, never()).rollbackStockOptimistic(anyLong(), anyInt());
+        verify(stringRedisTemplate, never()).execute(eq(incrementIfExistsScript), anyList(), any());
         verify(rLock, times(1)).unlock();
     }
 
     @Test
     void confirmStock_success() {
         StockHold hold = new StockHold(1001L, "SO20260916005", 2, StockHold.STATUS_HELD, null);
+        hold.setId(3L);
         when(stockHoldMapper.selectList(any())).thenReturn(List.of(hold));
 
         inventoryService.confirmStock("SO20260916005");
 
-        verify(stockHoldMapper, times(1)).updateById(hold);
-        assertEquals(StockHold.STATUS_CONFIRMED, hold.getStatus());
+        verify(stockHoldMapper, times(1)).transitStatus(3L, StockHold.STATUS_HELD, StockHold.STATUS_CONFIRMED);
+        verify(stockHoldMapper, never()).updateById(any(StockHold.class));
     }
 }

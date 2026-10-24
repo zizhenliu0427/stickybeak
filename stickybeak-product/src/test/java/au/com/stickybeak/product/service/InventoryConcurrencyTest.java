@@ -50,6 +50,9 @@ class InventoryConcurrencyTest {
     @Mock
     private DefaultRedisScript<Long> deductStockScript;
 
+    @Mock
+    private DefaultRedisScript<Long> incrementIfExistsScript;
+
     private InventoryServiceImpl inventoryService;
 
     @BeforeEach
@@ -64,7 +67,8 @@ class InventoryConcurrencyTest {
                 stockHoldMapper,
                 stringRedisTemplate,
                 redissonClient,
-                deductStockScript
+                deductStockScript,
+                incrementIfExistsScript
         );
     }
 
@@ -131,5 +135,31 @@ class InventoryConcurrencyTest {
         verify(productMapper, times(5)).deductStockOptimistic(eq(1000001L), eq(1));
         // Verify 5 stock hold records inserted
         verify(stockHoldMapper, times(5)).insert(any(StockHold.class));
+    }
+
+    @Test
+    void testConcurrentRollbackOfSameOrderReleasesStockOnce() throws Exception {
+        // 用户取消与超时关单同时触发回滚：两边都查到 HELD，条件更新只放行一个
+        StockHold hold = new StockHold(1000001L, "SO_DOUBLE", 2, StockHold.STATUS_HELD, null);
+        hold.setId(77L);
+        when(stockHoldMapper.selectList(any())).thenAnswer(inv -> List.of(hold));
+        AtomicInteger holdStatus = new AtomicInteger(StockHold.STATUS_HELD);
+        when(stockHoldMapper.transitStatus(eq(77L), eq(StockHold.STATUS_HELD), eq(StockHold.STATUS_RELEASED)))
+                .thenAnswer(inv -> holdStatus.compareAndSet(StockHold.STATUS_HELD, StockHold.STATUS_RELEASED) ? 1 : 0);
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        List<Future<?>> futures = List.of(
+                executor.submit(() -> { startLatch.await(); inventoryService.rollbackStock("SO_DOUBLE"); return null; }),
+                executor.submit(() -> { startLatch.await(); inventoryService.rollbackStock("SO_DOUBLE"); return null; })
+        );
+        startLatch.countDown();
+        for (Future<?> f : futures) {
+            f.get(5, TimeUnit.SECONDS);
+        }
+        executor.shutdown();
+
+        verify(productMapper, times(1)).rollbackStockOptimistic(1000001L, 2);
+        verify(stringRedisTemplate, times(1)).execute(eq(incrementIfExistsScript), anyList(), any());
     }
 }

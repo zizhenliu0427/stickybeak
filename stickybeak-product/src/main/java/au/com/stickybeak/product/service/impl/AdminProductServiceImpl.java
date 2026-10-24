@@ -2,6 +2,7 @@ package au.com.stickybeak.product.service.impl;
 
 import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.common.result.ResultCode;
+import au.com.stickybeak.common.tx.AfterCommit;
 import au.com.stickybeak.product.dto.AdminProductPageQuery;
 import au.com.stickybeak.product.dto.ProductPriceUpdateRequest;
 import au.com.stickybeak.product.dto.ProductStatusUpdateRequest;
@@ -165,27 +166,27 @@ public class AdminProductServiceImpl implements AdminProductService {
             throw new BusinessException(ResultCode.NOT_FOUND, "Product not found: " + id);
         }
 
-        int targetStock;
+        // 在数据库内原子更新：先读后写（updateById）会覆盖这期间下单产生的扣减，导致超卖
         if (req.getStock() != null) {
-            targetStock = Math.max(0, req.getStock());
+            productMapper.setStock(id, Math.max(0, req.getStock()));
         } else if (req.getDelta() != null) {
-            targetStock = Math.max(0, (product.getStock() != null ? product.getStock() : 0) + req.getDelta());
+            productMapper.adjustStock(id, req.getDelta());
         } else {
             throw new BusinessException(ResultCode.BAD_REQUEST, "Either stock or delta must be provided");
         }
 
-        product.setStock(targetStock);
-        productMapper.updateById(product);
-
-        // 同步更新 Redis 预扣减库存缓存
-        try {
-            stringRedisTemplate.opsForValue().set("product:stock:" + id, String.valueOf(targetStock));
-        } catch (Exception e) {
-            log.warn("Failed to sync Redis stock cache for product {}: {}", id, e.getMessage());
-        }
+        // Redis 预扣缓存在提交后删除，下一次扣减按 MySQL 最新值重新预热（避免覆盖并发扣减的结果）
+        String stockKey = "product:stock:" + id;
+        AfterCommit.run(() -> {
+            try {
+                stringRedisTemplate.delete(stockKey);
+            } catch (Exception e) {
+                log.warn("Failed to evict Redis stock cache for product {}: {}", id, e.getMessage());
+            }
+        });
 
         clearProductCaches(product);
-        log.info("Admin updated product {} stock to {}", id, targetStock);
+        log.info("Admin updated product {} stock (set={}, delta={})", id, req.getStock(), req.getDelta());
     }
 
     @Override

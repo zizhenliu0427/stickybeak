@@ -81,9 +81,10 @@ class AdminProductServiceTest {
 
         adminProductService.updateStock(1001L, req);
 
-        assertEquals(88, p.getStock());
-        verify(productMapper).updateById(p);
-        verify(valueOperations).set("product:stock:1001", "88");
+        verify(productMapper).setStock(1001L, 88);
+        verify(productMapper, never()).updateById(any(Product.class));
+        // Redis 缓存删除，下次扣减从 MySQL 预热
+        verify(stringRedisTemplate).delete("product:stock:1001");
     }
 
     @Test
@@ -98,9 +99,10 @@ class AdminProductServiceTest {
 
         adminProductService.updateStock(1001L, req);
 
-        assertEquals(40, p.getStock());
-        verify(productMapper).updateById(p);
-        verify(valueOperations).set("product:stock:1001", "40");
+        // 增量在 SQL 里原子计算，不再先读后写
+        verify(productMapper).adjustStock(1001L, 25);
+        verify(productMapper, never()).updateById(any(Product.class));
+        verify(stringRedisTemplate).delete("product:stock:1001");
     }
 
     @Test
