@@ -2,6 +2,7 @@
 
     START → route ─┬─ shopping ⇄ shopping_tools        （search_products / get_product / add_to_cart）
                    ├─ orders   ⇄ order_tools           （list_my_orders / get_order / cancel_order）
+                   │     只读工具来自 MCP Server，写工具在进程内（见 mcp_client.py、tools.py）
                    ├─ after_sales（RAG，带引用）→ END
                    └─ other → END
     shopping / orders 产生写工具调用时先进 confirm：interrupt 暂停，前端确认后恢复；拒绝则不执行，告诉模型用户取消了
@@ -26,7 +27,8 @@ from pydantic import BaseModel, Field
 
 from ..java_api import ApiError, JavaApi
 from ..llm import ModelProvider
-from ..rag.retriever import HybridRetriever, detect_lang
+from ..mcp_client import tool_text
+from ..rag.retriever import KnowledgeBase, detect_lang
 from . import prompts
 from .tools import ORDER_TOOLS, SHOPPING_TOOLS, WRITE_TOOLS, as_error, current_user
 
@@ -57,7 +59,8 @@ class GraphDeps:
     models: ModelProvider
     tools: dict[str, BaseTool]
     api: JavaApi
-    retriever: HybridRetriever | None
+    # 售后检索：生产环境是 MCP 的 search_faq（mcp_client.McpKnowledgeBase），需要实现 retrieve(query)
+    retriever: KnowledgeBase | None
 
 
 def latest_user_text(messages: list[AnyMessage]) -> str:
@@ -98,7 +101,7 @@ def repair_tool_calls(messages: list[AnyMessage]) -> list[AnyMessage]:
 
 
 def with_tools_history(messages: list[AnyMessage]) -> list[AnyMessage]:
-    return trim_messages(
+    trimmed = trim_messages(
         repair_tool_calls(messages),
         max_tokens=HISTORY_MESSAGES,
         token_counter=len,
@@ -106,6 +109,13 @@ def with_tools_history(messages: list[AnyMessage]) -> list[AnyMessage]:
         start_on="human",
         include_system=False,
     )
+    # MCP 工具的结果是内容块列表，发给模型前转成纯文本
+    return [
+        m.model_copy(update={"content": tool_text(m.content)})
+        if isinstance(m, ToolMessage) and not isinstance(m.content, str)
+        else m
+        for m in trimmed
+    ]
 
 
 def retrieval_query(messages: list[AnyMessage]) -> str:

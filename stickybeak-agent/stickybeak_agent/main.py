@@ -1,4 +1,7 @@
-"""FastAPI 入口。网关把 /api/agent/** 去掉 /api 前缀后转发到这里（/agent/**），并注入 X-User-Id。"""
+"""FastAPI 入口。网关把 /api/agent/** 去掉 /api 前缀后转发到这里（/agent/**），并注入 X-User-Id。
+
+只读工具与售后检索来自 MCP Server（stickybeak-mcp），写工具在进程内；对话状态存 MySQL。
+"""
 
 from __future__ import annotations
 
@@ -14,7 +17,6 @@ from typing import Annotated
 
 import aiomysql
 import httpx
-from elasticsearch import AsyncElasticsearch
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from langchain_core.messages import AIMessage, HumanMessage
@@ -27,19 +29,15 @@ from redis.exceptions import RedisError
 from sse_starlette import EventSourceResponse
 
 from .config import Settings, get_settings
-from .discovery import ServiceResolver
+from .discovery import DiscoveryTransport, ServiceResolver
 from .graph.builder import GraphDeps, build_graph
 from .graph.prompts import MODEL_UNAVAILABLE
-from .graph.tools import make_tools
+from .graph.tools import make_write_tools
 from .guard import Guard, QuotaExceeded
 from .java_api import JavaApi
 from .llm import ModelProvider
-from .rag.corpus import load_corpus
-from .rag.embeddings import build_embeddings
-from .rag.ingest import ingest
-from .rag.rerank import Reranker
-from .rag.retriever import HybridRetriever, detect_lang
-from .rag.store import KnowledgeStore
+from .mcp_client import McpKnowledgeBase, load_mall_tools
+from .rag.retriever import detect_lang
 from .stream import sse, stream_run
 from .usage import UsageTracker
 
@@ -52,9 +50,15 @@ RECURSION_LIMIT = 25
 @dataclass
 class Services:
     settings: Settings
-    graph: object
+    # MCP 工具加载完成前为 None
+    graph: object | None
     models: ModelProvider
     guard: Guard
+    api: JavaApi | None = None
+
+    @property
+    def ready(self) -> bool:
+        return self.graph is not None and self.models.available
 
 
 async def open_checkpointer(settings: Settings, stack: AsyncExitStack) -> BaseCheckpointSaver:
@@ -94,12 +98,40 @@ async def open_checkpointer(settings: Settings, stack: AsyncExitStack) -> BaseCh
     return saver
 
 
-async def ingest_in_background(store: KnowledgeStore, embeddings) -> None:
-    """启动时增量入库：语料没变时只读一次索引里的哈希，不会重复向量化。失败不影响服务启动。"""
-    try:
-        log.info("knowledge base ingest: %s", await ingest(store, load_corpus(), embeddings))
-    except Exception as e:  # ES 未就绪等，稍后可手动运行 python -m stickybeak_agent.rag.ingest
-        log.warning("knowledge base ingest failed: %s", e)
+def mcp_client_factory(resolver: ServiceResolver):
+    """MCP 客户端用的 httpx 工厂：MCP_URL 里的服务名（stickybeak-mcp）每次请求经 Nacos 解析。"""
+
+    def factory(headers=None, timeout=None, auth=None) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            headers=headers, timeout=timeout, auth=auth, follow_redirects=True, transport=DiscoveryTransport(resolver)
+        )
+
+    return factory
+
+
+async def connect_mcp(app: FastAPI, deps_factory, checkpointer, settings: Settings) -> None:
+    """从 MCP Server 加载只读工具后再建图；MCP 服务还没起来时每隔几秒重试，期间助手返回"暂不可用"。"""
+    delay = 2
+    while True:
+        try:
+            mall_tools = await deps_factory()
+        except Exception as e:  # 连接失败、MCP 服务未就绪
+            log.warning("MCP server not ready (%s), retrying in %ss", e, delay)
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, 30)
+            continue
+        svc: Services = app.state.services
+        svc.graph = build_graph(
+            GraphDeps(
+                svc.models,
+                {**mall_tools, **make_write_tools(svc.api)},
+                svc.api,
+                McpKnowledgeBase(mall_tools["search_faq"]),
+            ),
+            checkpointer,
+        )
+        log.info("loaded %d tools from %s", len(mall_tools), settings.mcp_url)
+        return
 
 
 @asynccontextmanager
@@ -112,8 +144,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         http = httpx.AsyncClient(timeout=settings.downstream_timeout_seconds)
         stack.push_async_callback(http.aclose)
-        es = AsyncElasticsearch(settings.es_uris.split(","), request_timeout=10)
-        stack.push_async_callback(es.close)
         redis = Redis(
             host=settings.redis_host,
             port=settings.redis_port,
@@ -124,16 +154,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         api = JavaApi(resolver, http)
         models = ModelProvider(settings)
-        store = KnowledgeStore(es, settings.kb_index, settings.embedding_dimensions)
-        embeddings = build_embeddings(settings)
-        retriever = HybridRetriever(settings, store, embeddings, Reranker(settings, http))
-        if settings.kb_ingest_on_startup:
-            task = asyncio.create_task(ingest_in_background(store, embeddings))
-            stack.callback(task.cancel)
         checkpointer = await open_checkpointer(settings, stack)
-        graph = build_graph(GraphDeps(models, make_tools(api), api, retriever), checkpointer)
-        app.state.services = Services(settings, graph, models, Guard(redis, settings))
-        log.info("agent ready, models=%s", models.model_names)
+        app.state.services = Services(settings, None, models, Guard(redis, settings), api)
+        task = asyncio.create_task(
+            connect_mcp(
+                app,
+                lambda: load_mall_tools(settings.mcp_url, mcp_client_factory(resolver)),
+                checkpointer,
+                settings,
+            )
+        )
+        stack.callback(task.cancel)
+        log.info("agent started, models=%s", models.model_names)
         yield
 
 
@@ -172,7 +204,18 @@ router = APIRouter(prefix="/agent")
 
 @router.get("/health")
 async def health(svc: Svc) -> dict:
-    return {"status": "UP", "modelConfigured": svc.models.available, "models": svc.models.model_names}
+    return {
+        "status": "UP",
+        "modelConfigured": svc.models.available,
+        "models": svc.models.model_names,
+        "mcpConnected": svc.graph is not None,
+    }
+
+
+def require_graph(svc: Services):
+    if svc.graph is None:
+        raise HTTPException(status_code=503, detail="assistant unavailable")
+    return svc.graph
 
 
 def _config(svc: Services, user_id: str, thread_id: str, usage: UsageTracker) -> dict:
@@ -197,7 +240,7 @@ def _respond(svc: Services, user_id: str, graph_input, thread_id: str, lang_hint
     usage = UsageTracker(user_id, thread_id)
 
     async def events():
-        if not svc.models.available:
+        if not svc.ready:
             yield sse("meta", {"threadId": thread_id})
             yield sse("error", {"message": MODEL_UNAVAILABLE[detect_lang(lang_hint)], "code": "model_unavailable"})
             yield sse("done", {"usage": usage.summary()})
@@ -229,7 +272,7 @@ async def chat(body: ChatRequest, user_id: UserId, svc: Svc):
 @router.post("/chat/{thread_id}/resume")
 async def resume(thread_id: str, body: ResumeRequest, user_id: UserId, svc: Svc):
     check_thread(user_id, thread_id)
-    state = await svc.graph.aget_state({"configurable": {"thread_id": thread_id}})
+    state = await require_graph(svc).aget_state({"configurable": {"thread_id": thread_id}})
     if not state.interrupts:
         raise HTTPException(status_code=409, detail="nothing to confirm")
     await _guard(svc, user_id)
@@ -243,7 +286,7 @@ async def resume(thread_id: str, body: ResumeRequest, user_id: UserId, svc: Svc)
 async def history(thread_id: str, user_id: UserId, svc: Svc) -> dict:
     """刷新页面后恢复对话：文字消息、引用来源，以及仍在等待确认的操作。"""
     check_thread(user_id, thread_id)
-    state = await svc.graph.aget_state({"configurable": {"thread_id": thread_id}})
+    state = await require_graph(svc).aget_state({"configurable": {"thread_id": thread_id}})
     messages = []
     for m in state.values.get("messages", []):
         if isinstance(m, HumanMessage):

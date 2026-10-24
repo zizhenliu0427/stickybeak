@@ -1,5 +1,6 @@
-"""agent 可用的工具（Issue 13.3）。
+"""agent 的工具（Issue 13.3 / 14.3）。
 
+- 只读工具（商品、订单查询、售后检索）从 MCP Server 加载，见 mcp_client.py；这里只剩写操作工具
 - 用户身份从运行配置 configurable.user_id 读取（API 层取自网关注入的 X-User-Id），不是工具参数，模型无法指定
 - 写操作（加购、取消订单）在图里先经过 confirm 节点让用户确认，确认后才会真正执行
 - 工具返回统一包成 {"data": ...} 或 {"error": ...} 的 JSON，提示词里声明这些内容只是数据
@@ -45,28 +46,8 @@ def api_error_message(e: ApiError) -> str:
     return e.message
 
 
-def make_tools(api: JavaApi) -> dict[str, BaseTool]:
-    @tool
-    async def search_products(
-        query: Annotated[str | None, Field(description="keywords, e.g. 'kookaburra' or '公交站牌'")] = None,
-        category: Annotated[CATEGORIES | None, Field(description="category slug")] = None,
-        max_price_aud: Annotated[float | None, Field(description="upper price limit in AUD")] = None,
-        sort: Literal["relevance", "sales", "price-asc", "price-desc", "new"] | None = None,
-        size: Annotated[int, Field(ge=1, le=10)] = 5,
-    ) -> str:
-        """Search the StickyBeak catalogue (Australian-themed fridge magnets and souvenirs). Prices are AUD."""
-        try:
-            return as_data(await api.search_products(query, category, max_price_aud, sort, size))
-        except ApiError as e:
-            return as_error(api_error_message(e))
-
-    @tool
-    async def get_product(slug_or_id: Annotated[str, Field(description="product slug or numeric id")]) -> str:
-        """Get details of one product: description, price (AUD), stock."""
-        try:
-            return as_data(await api.get_product(slug_or_id))
-        except ApiError as e:
-            return as_error(api_error_message(e))
+def make_write_tools(api: JavaApi) -> dict[str, BaseTool]:
+    """写操作工具：只在自家 agent 里使用（经 confirm 节点让用户确认），不通过 MCP 对外提供。"""
 
     @tool
     async def add_to_cart(
@@ -81,37 +62,6 @@ def make_tools(api: JavaApi) -> dict[str, BaseTool]:
             return as_error("the user is not logged in")
         try:
             return as_data(await api.add_to_cart(user_id, product_id, qty))
-        except ApiError as e:
-            return as_error(api_error_message(e))
-
-    @tool
-    async def list_my_orders(
-        status: Literal["pending", "paid", "processing", "shipped", "completed", "cancelled", "refunding", "refunded"]
-        | None = None,
-        *,
-        config: RunnableConfig,
-    ) -> str:
-        """List the current user's orders, newest first, optionally filtered by status."""
-        user_id = current_user(config)
-        if user_id is None:
-            return as_error("the user is not logged in")
-        try:
-            return as_data(await api.list_my_orders(user_id, status))
-        except ApiError as e:
-            return as_error(api_error_message(e))
-
-    @tool
-    async def get_order(
-        order_no: Annotated[str, Field(description="order number, e.g. SO202610240001")],
-        *,
-        config: RunnableConfig,
-    ) -> str:
-        """Get one of the current user's orders with its items and timeline."""
-        user_id = current_user(config)
-        if user_id is None:
-            return as_error("the user is not logged in")
-        try:
-            return as_data(await api.get_order(user_id, order_no))
         except ApiError as e:
             return as_error(api_error_message(e))
 
@@ -131,5 +81,4 @@ def make_tools(api: JavaApi) -> dict[str, BaseTool]:
         except ApiError as e:
             return as_error(api_error_message(e))
 
-    tools = [search_products, get_product, add_to_cart, list_my_orders, get_order, cancel_order]
-    return {t.name: t for t in tools}
+    return {t.name: t for t in (add_to_cart, cancel_order)}

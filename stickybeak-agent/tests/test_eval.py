@@ -3,8 +3,9 @@ from eval.memory_store import MemoryKnowledgeStore, tokenize
 from eval.metrics import CaseResult, evaluate, summarize
 from eval.run_eval import load_dataset, run_case
 from stickybeak_agent.config import Settings
-from stickybeak_agent.graph.tools import make_tools
+from stickybeak_agent.graph.tools import make_write_tools
 from stickybeak_agent.llm import ModelProvider
+from stickybeak_agent.mcp_client import MCP_TOOLS
 from stickybeak_agent.rag.corpus import load_corpus
 from stickybeak_agent.rag.retriever import HybridRetriever
 
@@ -15,7 +16,7 @@ DOC_IDS = {c.doc_id for c in load_corpus()}
 
 def test_dataset_is_well_formed():
     cases = load_dataset()
-    tools = set(make_tools(FixtureJavaApi()))
+    tools = set(make_write_tools(FixtureJavaApi())) | MCP_TOOLS
     assert len(cases) == 50 and len({c["id"] for c in cases}) == 50
     for case in cases:
         e = case.get("expect") or {}

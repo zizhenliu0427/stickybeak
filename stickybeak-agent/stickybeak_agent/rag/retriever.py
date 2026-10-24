@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
+from typing import Protocol
 
 import httpx
 from langchain_core.embeddings import Embeddings
@@ -36,6 +37,12 @@ class RetrievalResult:
     keyword_ids: list[str] = field(default_factory=list)
     vector_ids: list[str] = field(default_factory=list)
     reranked: bool = False
+
+
+class KnowledgeBase(Protocol):
+    """售后检索接口：HybridRetriever（MCP Server 内部）与 McpKnowledgeBase（agent 通过 MCP 调用）都实现它。"""
+
+    async def retrieve(self, query: str) -> RetrievalResult: ...
 
 
 class HybridRetriever:

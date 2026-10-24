@@ -26,8 +26,10 @@ from pydantic import BaseModel, Field
 
 from stickybeak_agent.config import Settings, get_settings
 from stickybeak_agent.graph.builder import GraphDeps, build_graph, format_documents, retrieval_query
-from stickybeak_agent.graph.tools import make_tools
+from stickybeak_agent.graph.tools import make_write_tools
 from stickybeak_agent.llm import ModelProvider
+from stickybeak_agent.mcp_client import McpKnowledgeBase, load_mall_tools
+from stickybeak_agent.mcp_server import McpDeps, serve_in_process
 from stickybeak_agent.rag.corpus import load_corpus
 from stickybeak_agent.rag.embeddings import build_embeddings
 from stickybeak_agent.rag.rerank import Reranker
@@ -64,20 +66,24 @@ def load_dataset(path: Path = HERE / "dataset.yaml") -> list[dict]:
 
 
 async def run_case(case: dict, models: ModelProvider, retriever: HybridRetriever | None) -> CaseResult:
+    """与生产相同的接法：只读工具与售后检索经（进程内的）MCP Server，写工具在进程内。"""
     result = CaseResult(id=case["id"], category=case["category"], expect=case.get("expect") or {})
     api = FixtureJavaApi()
-    graph = build_graph(GraphDeps(models, make_tools(api), api, retriever), InMemorySaver())
     config = {"configurable": {"thread_id": f"7-{uuid.uuid4().hex}", "user_id": "7"}, "recursion_limit": 25}
     try:
-        for turn in case["turns"]:
-            usage = UsageTracker("7", config["configurable"]["thread_id"])
-            events = [
-                e
-                async for e in stream_run(
-                    graph, {"messages": [HumanMessage(turn)]}, {**config, "callbacks": [usage]}, usage, turn
-                )
-            ]
-        state = await graph.aget_state(config)
+        async with serve_in_process(McpDeps(api=api, retriever=retriever)) as factory:
+            mall = await load_mall_tools("http://mcp/mcp", factory)
+            deps = GraphDeps(models, {**mall, **make_write_tools(api)}, api, McpKnowledgeBase(mall["search_faq"]))
+            graph = build_graph(deps, InMemorySaver())
+            for turn in case["turns"]:
+                usage = UsageTracker("7", config["configurable"]["thread_id"])
+                events = [
+                    e
+                    async for e in stream_run(
+                        graph, {"messages": [HumanMessage(turn)]}, {**config, "callbacks": [usage]}, usage, turn
+                    )
+                ]
+            state = await graph.aget_state(config)
         messages = state.values["messages"]
         last_human = max(i for i, m in enumerate(messages) if isinstance(m, HumanMessage))
         result.intent = state.values.get("intent")
