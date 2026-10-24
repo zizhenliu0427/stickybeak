@@ -1,0 +1,9 @@
+# StickyBeak 业务自定义指标（Java agent meter API 上报，见 order 服务 DeadLetterBacklogMeter）。
+# 需要在 OAP 的 SW_METER_ANALYZER_ACTIVE_FILES 里加上 stickybeak 才会生效（docker-compose 已配置）。
+# 生成的指标名 = metricPrefix + "_" + name，即 meter_stickybeak_dlq_backlog，告警规则见 alarm-settings.yml。
+expSuffix: instance(['service'], ['instance'], Layer.GENERAL)
+metricPrefix: meter_stickybeak
+metricsRules:
+  # order 服务各死信队列（支付 / 关单 / 退款重试耗尽后进入）里待人工处理的消息总数
+  - name: dlq_backlog
+    exp: order_dlq_backlog.max(['service', 'instance'])

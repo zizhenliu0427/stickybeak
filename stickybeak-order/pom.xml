@@ -67,6 +67,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
+        <!-- SkyWalking meter API：上报死信队列积压量，供 OAP 告警（没挂 agent 时为空实现） -->
+        <dependency>
+            <groupId>org.apache.skywalking</groupId>
+            <artifactId>apm-toolkit-meter</artifactId>
+        </dependency>
         <!-- Seata AT：结账"扣库存 + 写订单"跨库分布式事务（Sprint 11.1） -->
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
