@@ -108,6 +108,26 @@ services:
       - rabbitmq
       - mailhog
 
+  # AI 助手（Python / FastAPI + LangGraph）。没有配置模型 key 时助手返回"暂不可用"，商城其他功能不受影响
+  agent:
+    build:
+      context: ../stickybeak-agent
+    container_name: sb-agent
+    environment:
+      NACOS_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      REDIS_HOST: redis
+      ES_URIS: http://elasticsearch:9200
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: oap:11800
+      # 通义千问（主）与 DeepSeek（备用），在 docker/.env 或 shell 环境里提供
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    depends_on:
+      - nacos
+      - mysql
+      - redis
+      - elasticsearch
+
   frontend:
     build:
       context: ..

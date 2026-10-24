@@ -39,6 +39,25 @@ jobs:
       - run: npm run test
       - run: npm run build
 
+  agent:
+    name: AI agent lint & test (Python 3.12)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: stickybeak-agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.32"
+          enable-cache: true
+          cache-dependency-glob: stickybeak-agent/uv.lock
+      - run: uv sync --frozen --python 3.12
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      # 单测用脚本化的假模型，不调用真实模型 API；评测集（eval/）需要模型 key，单独手动运行
+      - run: uv run pytest -q
+
   e2e:
     name: Playwright journeys (desktop + mobile)
     runs-on: ubuntu-latest

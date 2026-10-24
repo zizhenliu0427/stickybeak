@@ -199,6 +199,37 @@ services:
     networks:
       - stickybeak-network
 
+  # AI 助手（Python）：与 Java 服务共用 Nacos / MySQL / Redis / ES，变量名一致
+  agent:
+    build:
+      context: ../stickybeak-agent
+    image: stickybeak/agent:${TAG:-v1.0.0}
+    container_name: sb-prod-agent
+    restart: always
+    logging: *default-logging
+    environment:
+      - NACOS_ADDR=${NACOS_ADDR:-nacos:8848}
+      - NACOS_USERNAME=${NACOS_USERNAME:-nacos}
+      - NACOS_PASSWORD=${NACOS_PASSWORD:-nacos}
+      - MYSQL_HOST=${MYSQL_HOST:-rds-mysql.internal}
+      - MYSQL_PORT=${MYSQL_PORT:-3306}
+      - MYSQL_USER=${MYSQL_USER:-stickybeak_prod}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - REDIS_HOST=${REDIS_HOST:-elasticache-redis.internal}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - ES_URIS=${ES_URIS:-http://elasticsearch.internal:9200}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=${SW_AGENT_COLLECTOR_BACKEND_SERVICES:-}
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+    networks:
+      - stickybeak-network
+
   # ----------------------------------------------------------------------------
   # Production Frontend & Reverse Proxy (Nginx + SSL)
   # ----------------------------------------------------------------------------
