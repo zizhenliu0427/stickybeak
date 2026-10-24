@@ -1,6 +1,6 @@
 // Sprint 5 Live End-to-End & Concurrency Verification (Node.js runner)
 const http = require('http');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 
 const GATEWAY = 'http://localhost:8080';
 let cookieHeader = '';
@@ -101,6 +101,32 @@ function runMysql(sql) {
 function runRedis(cmdArgs) {
   const cmd = `docker exec sb-redis redis-cli ${cmdArgs}`;
   return execSync(cmd, { encoding: 'utf-8' }).trim();
+}
+
+// rebuild-services.ps1 起的容器叫 sb-run-stickybeak-<svc>，docker-compose.yml 起的叫 sb-<svc>
+function findServiceContainer(svc) {
+  const names = execSync('docker ps --format "{{.Names}}"', { encoding: 'utf-8' }).split(/\r?\n/);
+  const name = names.find((n) => n === `sb-run-stickybeak-${svc}`) || names.find((n) => n === `sb-${svc}`);
+  if (!name) {
+    throw new Error(`No running container found for service ${svc}`);
+  }
+  return name;
+}
+
+// 在订单服务容器内并发 curl 商品服务的内部扣减接口（模拟订单服务调用）
+function deductConcurrentlyInsideCluster(productId, n) {
+  const runId = Date.now();
+  const orderContainer = findServiceContainer('order');
+  const productContainer = findServiceContainer('product');
+  const script =
+    `for i in $(seq 1 ${n}); do ` +
+    `curl -s -w '\\n' -X POST -H 'Content-Type: application/json' -H 'X-Internal-Call: true' ` +
+    `-d "{\\"orderNo\\":\\"SO_STRESS_${runId}_$i\\",\\"items\\":[{\\"productId\\":${productId},\\"qty\\":1}]}" ` +
+    `http://${productContainer}:8082/products/stock/deduct & done; wait`;
+  const out = execFileSync('docker', ['exec', orderContainer, 'sh', '-c', script], { encoding: 'utf-8' });
+  const lines = out.split('\n').filter((l) => l.trim().startsWith('{'));
+  const successCount = lines.filter((l) => JSON.parse(l).code === 0).length;
+  return { successCount, failCount: n - successCount };
 }
 
 async function sleep(ms) {
@@ -260,11 +286,12 @@ async function main() {
   const orderNo2 = checkout2.data.data.orderNo;
 
   // 触发 Mock Webhook
+  // 金额必须与订单实付一致，否则回调会被拒绝
   await post('/api/webhooks/mock', {
     id: `evt_mock_${Date.now()}`,
     type: 'mock.payment.paid',
     orderNo: orderNo2,
-    amount: 34.9,
+    amount: checkout2.data.data.payAmount,
     currency: 'AUD',
     transactionId: 'tx_sprint5_mock',
   });
@@ -297,23 +324,18 @@ async function main() {
   await get(`/api/products/id/${stressProduct}`);
   console.log(`   商品 ${stressProduct} 初始库存已重置为: 5`);
 
-  // 并发 20 个请求调用扣减库存
-  let successCount = 0;
-  let failCount = 0;
-  const requests = Array.from({ length: 20 }, (_, i) => {
-    return post('/api/products/stock/deduct', {
-      orderNo: `SO_STRESS_${Date.now()}_${i}`,
-      items: [{ productId: stressProduct, qty: 1 }],
-    }).then((res) => {
-      if (res.data && res.data.code === 0) {
-        successCount++;
-      } else {
-        failCount++;
-      }
-    });
+  // 网关已禁止外部调用扣减接口：先确认被拦截
+  const blocked = await post('/api/products/stock/deduct', {
+    orderNo: `SO_STRESS_BLOCKED_${Date.now()}`,
+    items: [{ productId: stressProduct, qty: 1 }],
   });
+  if (blocked.status !== 403) {
+    throw new Error(`Gateway must reject external stock deduction, got HTTP ${blocked.status}`);
+  }
+  console.log('   ✔ 外部经网关调用扣减接口被拒绝 (403)');
 
-  await Promise.all(requests);
+  // 压测改为在集群内部（订单服务容器）并发调用商品服务，带内部调用标识
+  const { successCount, failCount } = deductConcurrentlyInsideCluster(stressProduct, 20);
   console.log(`   并发执行完成: 成功 = ${successCount} 次, 拦截/失败 = ${failCount} 次`);
 
   const finalDbStock = parseInt(

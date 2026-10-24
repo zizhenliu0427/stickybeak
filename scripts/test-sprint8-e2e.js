@@ -135,6 +135,7 @@ async function runE2ESuite() {
   console.log('\n==> 2. [测试用例 1] 买家正向闭环: 浏览 -> 加购 -> 结算 -> 支付确认 -> 订单履约');
   let selectedProduct = null;
   let createdOrderNo = null;
+  let createdPayAmount = null;
 
   // 2.1 目录检索
   try {
@@ -213,6 +214,7 @@ async function runE2ESuite() {
         `订单创建成功, 单号: ${orderRes.json?.data?.orderNo}`
       );
       createdOrderNo = orderRes.json?.data?.orderNo;
+      createdPayAmount = orderRes.json?.data?.payAmount;
     } catch (err) {
       assert(false, `下单异常: ${err.message}`);
     }
@@ -220,16 +222,17 @@ async function runE2ESuite() {
     // 2.5 模拟 Webhook 支付成功通知
     if (createdOrderNo) {
       try {
+        // mock 回调需登录；金额必须与订单实付一致，否则会被拒绝
         const webhookRes = await request(
           {
             path: '/api/webhooks/mock',
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Cookie: `sb_access=${buyerCookie}` },
           },
           {
             eventId: `evt_s8_${timestamp}`,
             orderNo: createdOrderNo,
-            amount: 50.0,
+            amount: createdPayAmount,
             currency: 'AUD',
             transactionId: `tx_s8_${timestamp}`,
           }
@@ -289,7 +292,7 @@ async function runE2ESuite() {
         {
           path: '/api/webhooks/mock',
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Cookie: `sb_access=${buyerCookie}` },
         },
         {
           eventId: `evt_s8_${timestamp}`, // 相同 eventId
