@@ -21,6 +21,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -70,13 +72,15 @@ class AdminOrderServiceTest {
 
     @Test
     void testGetSalesTrend() {
-        Map<String, Object> row = Map.of("order_date", "2026-09-15", "order_count", 5, "daily_gmv", 150.0);
+        // 用相对今天的日期，避免测试随时间推移失效
+        String yesterday = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        Map<String, Object> row = Map.of("order_date", yesterday, "order_count", 5, "daily_gmv", 150.0);
         when(orderMapper.selectDailySalesTrend(7)).thenReturn(List.of(row));
 
         List<SalesTrendItemVO> trend = adminOrderService.getSalesTrend(7);
 
         assertEquals(7, trend.size());
-        assertTrue(trend.stream().anyMatch(t -> "2026-09-15".equals(t.getDate()) && t.getOrderCount() == 5));
+        assertTrue(trend.stream().anyMatch(t -> yesterday.equals(t.getDate()) && t.getOrderCount() == 5));
     }
 
     @Test
