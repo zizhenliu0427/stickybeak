@@ -309,6 +309,12 @@
 - MySQL → ES 同步：商品变更发 RabbitMQ 事件做增量更新 + 每日全量对账
 - 验收：同一查询 MySQL `LIKE` 与 ES 的耗时实测对比写入 docs；后台改价 / 上下架后数秒内搜索结果可见
 
+> 实现说明（与原计划的差异）：
+> - 增量同步没有走 RabbitMQ：商品写入方只有 product 服务自己，后台改价 / 改库存 / 上下架在事务提交后发 Spring 事件（`ProductChangedEvent`），由 `ProductIndexer` 重建该商品文档；启动时 + 每天 03:30 全量对账，顺带清理已逻辑删除的文档。跨服务、或写入方变多时再换 MQ / Canal（binlog）。
+> - ES 只负责检索、相关度排序和高亮，返回商品 ID；详情、图片、实时库存仍从 MySQL 读。ES 不可用或关闭（`SEARCH_ES_ENABLED=false`）时自动回退 MySQL `LIKE`，商城不受影响。
+> - 下单引起的销量 / 库存变化只在全量对账时进入 ES，所以搜索结果按"销量"排序最多滞后一天；列表上展示的数字来自 MySQL，不受影响。
+> - 未完成：本地无 Docker 环境，IK 插件镜像构建与 `LIKE` / ES 耗时对比还没实测。
+
 ### Issue 11.3 — 退款流程
 `type:feature` `area:payment` `area:order` `p0`
 - 新增 `REFUNDED` 状态及状态机转移

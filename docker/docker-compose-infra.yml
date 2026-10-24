@@ -40,7 +40,9 @@ services:
       - "15672:15672"
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    # 官方镜像 + IK 中文分词插件（docker/elasticsearch/Dockerfile）
+    build: ./elasticsearch
+    image: stickybeak/elasticsearch-ik:8.14.3
     container_name: sb-elasticsearch
     environment:
       - discovery.type=single-node

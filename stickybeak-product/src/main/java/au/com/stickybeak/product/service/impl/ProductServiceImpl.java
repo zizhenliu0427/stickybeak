@@ -5,6 +5,7 @@ import au.com.stickybeak.common.result.ResultCode;
 import au.com.stickybeak.product.dto.ProductQuery;
 import au.com.stickybeak.product.entity.*;
 import au.com.stickybeak.product.mapper.*;
+import au.com.stickybeak.product.search.ProductSearchService;
 import au.com.stickybeak.product.service.ProductService;
 import au.com.stickybeak.product.vo.*;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -12,9 +13,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -29,6 +32,8 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryMapper categoryMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
+    /** 关闭 ES（stickybeak.search.elasticsearch.enabled=false）时为空，搜索只走 MySQL */
+    private final Optional<ProductSearchService> productSearchService;
 
     private static final String CACHE_PREFIX = "product:";
     private static final long CACHE_TTL = 60; // seconds
@@ -39,7 +44,8 @@ public class ProductServiceImpl implements ProductService {
                               ProductTagRelMapper productTagRelMapper,
                               CategoryMapper categoryMapper,
                               StringRedisTemplate stringRedisTemplate,
-                              ObjectMapper objectMapper) {
+                              ObjectMapper objectMapper,
+                              Optional<ProductSearchService> productSearchService) {
         this.productMapper = productMapper;
         this.productImageMapper = productImageMapper;
         this.tagMapper = tagMapper;
@@ -47,18 +53,28 @@ public class ProductServiceImpl implements ProductService {
         this.categoryMapper = categoryMapper;
         this.stringRedisTemplate = stringRedisTemplate;
         this.objectMapper = objectMapper;
+        this.productSearchService = productSearchService;
     }
 
     @Override
     public ProductListVO listProducts(ProductQuery query) {
+        String cacheKey = listCacheKey(query);
         try {
-            String cacheKey = CACHE_PREFIX + "list:" + query.hashCode();
             String cachedData = stringRedisTemplate.opsForValue().get(cacheKey);
             if (StringUtils.hasText(cachedData)) {
                 return objectMapper.readValue(cachedData, ProductListVO.class);
             }
         } catch (Exception e) {
             // Redis error or JSON error, ignore cache
+        }
+
+        // 关键词搜索优先走 ES（IK 分词 + 相关度排序 + 高亮）；ES 不可用时继续走下面的 MySQL LIKE
+        if (StringUtils.hasText(query.getQ()) && productSearchService.isPresent()) {
+            ProductListVO searched = searchWithElasticsearch(query, productSearchService.get());
+            if (searched != null) {
+                cacheList(cacheKey, searched);
+                return searched;
+            }
         }
 
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
@@ -132,6 +148,7 @@ public class ProductServiceImpl implements ProductService {
                 wrapper.orderByDesc(Product::getPrice);
                 break;
             case "new":
+            case "relevance": // MySQL 回退路径没有相关度评分，按最新排序
             default:
                 wrapper.orderByDesc(Product::getCreateTime);
                 break;
@@ -148,16 +165,78 @@ public class ProductServiceImpl implements ProductService {
                 .collect(Collectors.toList());
 
         ProductListVO result = ProductListVO.of(items, page.getTotal(), pageNum, pageSize);
+        cacheList(cacheKey, result);
+        return result;
+    }
 
+    /**
+     * 列表缓存 key 由全部查询参数决定。ProductQuery 没有重写 hashCode，原先的 query.hashCode()
+     * 是对象身份哈希，导致缓存永远不命中、每次请求都写一个新 key。取摘要是为了限制关键词带来的 key 长度。
+     */
+    public static String listCacheKey(ProductQuery query) {
+        String canonical = String.join("|",
+                String.valueOf(query.getCategory()), String.valueOf(query.getTags()),
+                query.getMinPrice() == null ? "null" : query.getMinPrice().stripTrailingZeros().toPlainString(),
+                query.getMaxPrice() == null ? "null" : query.getMaxPrice().stripTrailingZeros().toPlainString(),
+                String.valueOf(query.getSort()), String.valueOf(query.getQ()),
+                String.valueOf(query.getPage()), String.valueOf(query.getSize()));
+        return CACHE_PREFIX + "list:" + DigestUtils.md5DigestAsHex(canonical.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void cacheList(String cacheKey, ProductListVO result) {
         try {
-            String cacheKey = CACHE_PREFIX + "list:" + query.hashCode();
             String json = objectMapper.writeValueAsString(result);
             stringRedisTemplate.opsForValue().set(cacheKey, json, CACHE_TTL, TimeUnit.SECONDS);
         } catch (Exception e) {
             // Ignore cache error
         }
+    }
 
-        return result;
+    /**
+     * ES 只负责检索与排序，返回商品 ID；详情（图片、实时库存）仍从 MySQL 读取，保持与列表页一致。
+     * ES 不可用时返回 null，由调用方回退。
+     */
+    private ProductListVO searchWithElasticsearch(ProductQuery query, ProductSearchService searchService) {
+        int pageNum = query.getPage() != null && query.getPage() > 0 ? query.getPage() : 1;
+        int pageSize = query.getSize() != null && query.getSize() > 0 ? query.getSize() : 12;
+
+        Long categoryId = null;
+        if (StringUtils.hasText(query.getCategory())) {
+            Category category = categoryMapper.selectOne(
+                    new LambdaQueryWrapper<Category>().eq(Category::getSlug, query.getCategory()));
+            if (category == null) {
+                return ProductListVO.of(new ArrayList<>(), 0L, pageNum, pageSize);
+            }
+            categoryId = category.getId();
+        }
+        List<String> tags = StringUtils.hasText(query.getTags())
+                ? Arrays.stream(query.getTags().split(",")).map(String::trim).filter(StringUtils::hasText).toList()
+                : List.of();
+
+        Optional<ProductSearchService.Result> found = searchService.search(new ProductSearchService.Criteria(
+                query.getQ().trim(), categoryId, tags, query.getMinPrice(), query.getMaxPrice(),
+                query.getSort(), pageNum, pageSize));
+        if (found.isEmpty()) {
+            return null;
+        }
+
+        ProductSearchService.Result result = found.get();
+        if (result.ids().isEmpty()) {
+            return ProductListVO.of(new ArrayList<>(), result.total(), pageNum, pageSize);
+        }
+        Map<Long, Product> productsById = productMapper.selectBatchIds(result.ids()).stream()
+                .collect(Collectors.toMap(Product::getId, p -> p, (a, b) -> a));
+        // 按 ES 的排序输出；索引可能比数据库略旧，已下架的商品在这里过滤掉
+        List<ProductVO> items = result.ids().stream()
+                .map(productsById::get)
+                .filter(p -> p != null && Integer.valueOf(0).equals(p.getStatus()))
+                .map(p -> {
+                    ProductVO vo = enrichProduct(p);
+                    vo.setHighlightedName(result.highlightedNames().get(p.getId()));
+                    return vo;
+                })
+                .collect(Collectors.toList());
+        return ProductListVO.of(items, result.total(), pageNum, pageSize);
     }
 
     private ProductVO enrichProduct(Product p) {

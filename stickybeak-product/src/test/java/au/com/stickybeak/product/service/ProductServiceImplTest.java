@@ -2,13 +2,13 @@ package au.com.stickybeak.product.service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -58,12 +58,14 @@ class ProductServiceImplTest {
     @Mock
     private ObjectMapper objectMapper;
 
-    @InjectMocks
     private ProductServiceImpl productService;
 
     @BeforeEach
     void setUp() {
         lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
+        // 这里只测 MySQL 路径；ES 路径见 ProductServiceSearchTest
+        productService = new ProductServiceImpl(productMapper, productImageMapper, tagMapper,
+                productTagRelMapper, categoryMapper, stringRedisTemplate, objectMapper, Optional.empty());
     }
 
     private Product createSampleProduct(Long id, String slug, String name) {

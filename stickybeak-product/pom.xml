@@ -12,7 +12,7 @@
     <name>stickybeak-product</name>
     <properties>
         <!-- 覆盖率门禁底线（Sprint 11 实测后向下取整） -->
-        <jacoco.line.minimum>0.50</jacoco.line.minimum>
+        <jacoco.line.minimum>0.55</jacoco.line.minimum>
     </properties>
     <dependencies>
         <dependency>
@@ -60,6 +60,11 @@
         <dependency>
             <groupId>org.redisson</groupId>
             <artifactId>redisson</artifactId>
+        </dependency>
+        <!-- 商品全文检索（Sprint 11.2）；ES 不可用时搜索回退到 MySQL -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

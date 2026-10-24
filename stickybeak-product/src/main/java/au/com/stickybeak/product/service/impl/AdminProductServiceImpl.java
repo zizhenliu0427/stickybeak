@@ -13,6 +13,7 @@ import au.com.stickybeak.product.entity.ProductImage;
 import au.com.stickybeak.product.mapper.CategoryMapper;
 import au.com.stickybeak.product.mapper.ProductImageMapper;
 import au.com.stickybeak.product.mapper.ProductMapper;
+import au.com.stickybeak.product.search.ProductChangedEvent;
 import au.com.stickybeak.product.service.AdminProductService;
 import au.com.stickybeak.product.vo.AdminProductVO;
 import au.com.stickybeak.product.vo.StockAlertSummaryVO;
@@ -20,6 +21,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,15 +40,19 @@ public class AdminProductServiceImpl implements AdminProductService {
     private final CategoryMapper categoryMapper;
     private final ProductImageMapper productImageMapper;
     private final StringRedisTemplate stringRedisTemplate;
+    /** 商品变更后通知 ES 索引同步（事务提交后执行，见 ProductIndexer） */
+    private final ApplicationEventPublisher eventPublisher;
 
     public AdminProductServiceImpl(ProductMapper productMapper,
                                    CategoryMapper categoryMapper,
                                    ProductImageMapper productImageMapper,
-                                   StringRedisTemplate stringRedisTemplate) {
+                                   StringRedisTemplate stringRedisTemplate,
+                                   ApplicationEventPublisher eventPublisher) {
         this.productMapper = productMapper;
         this.categoryMapper = categoryMapper;
         this.productImageMapper = productImageMapper;
         this.stringRedisTemplate = stringRedisTemplate;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -155,6 +161,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setStatus(req.getStatus());
         productMapper.updateById(product);
         clearProductCaches(product);
+        eventPublisher.publishEvent(new ProductChangedEvent(id));
         log.info("Admin updated product {} status to {}", id, req.getStatus());
     }
 
@@ -186,6 +193,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         });
 
         clearProductCaches(product);
+        eventPublisher.publishEvent(new ProductChangedEvent(id));
         log.info("Admin updated product {} stock (set={}, delta={})", id, req.getStock(), req.getDelta());
     }
 
@@ -199,6 +207,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setPrice(req.getPrice());
         productMapper.updateById(product);
         clearProductCaches(product);
+        eventPublisher.publishEvent(new ProductChangedEvent(id));
         log.info("Admin updated product {} price to {}", id, req.getPrice());
     }
 

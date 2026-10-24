@@ -21,9 +21,17 @@ export default function ProductCard({ product }: { product: Product }) {
         />
       </div>
       <div className="p-3">
-        <h3 className="line-clamp-2 min-h-10 text-sm font-medium text-gray-800 group-hover:text-brand-700 dark:text-stone-200 dark:group-hover:text-brand-300">
-          {product.name}
-        </h3>
+        {product.highlightedName ? (
+          // ES 高亮使用 encoder=html：原文已转义，只有 <em> 是标签，可以安全渲染
+          <h3
+            className="search-highlight line-clamp-2 min-h-10 text-sm font-medium text-gray-800 group-hover:text-brand-700 dark:text-stone-200 dark:group-hover:text-brand-300"
+            dangerouslySetInnerHTML={{ __html: product.highlightedName }}
+          />
+        ) : (
+          <h3 className="line-clamp-2 min-h-10 text-sm font-medium text-gray-800 group-hover:text-brand-700 dark:text-stone-200 dark:group-hover:text-brand-300">
+            {product.name}
+          </h3>
+        )}
         <div className="mt-2 flex items-center justify-between">
           <Price cents={product.priceCents} className="text-base font-bold text-accent-600 dark:text-accent-400" />
           {product.stock === 0 ? (

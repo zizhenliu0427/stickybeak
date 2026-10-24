@@ -31,6 +31,7 @@ services:
       REDIS_HOST: redis
       RABBITMQ_HOST: rabbitmq
       MAIL_HOST: mailhog
+      ES_URIS: http://elasticsearch:9200
       # 本地 E2E 脚本使用模拟支付回调；生产 compose 不设置（默认关闭）
       PAYMENT_MOCK_WEBHOOK_ENABLED: "true"
     depends_on: &svc-deps
@@ -142,7 +143,9 @@ services:
       - "15672:15672"
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    # 官方镜像 + IK 中文分词插件（docker/elasticsearch/Dockerfile）
+    build: ./elasticsearch
+    image: stickybeak/elasticsearch-ik:8.14.3
     container_name: sb-elasticsearch
     environment:
       - discovery.type=single-node

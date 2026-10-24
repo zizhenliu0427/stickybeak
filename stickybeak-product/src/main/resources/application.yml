@@ -30,6 +30,11 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       timeout: 3s
+  elasticsearch:
+    # 默认对应 docker-compose-infra.yml 映射到宿主机的 19200；容器网络内通过 ES_URIS=http://elasticsearch:9200 覆盖
+    uris: ${ES_URIS:http://localhost:19200}
+    connection-timeout: 2s
+    socket-timeout: 5s
 
 mybatis-plus:
   configuration:
@@ -47,3 +52,15 @@ management:
     web:
       exposure:
         include: health,info
+  health:
+    # ES 只用于搜索且有 MySQL 回退，不可用时不应把整个商品服务标记为 DOWN
+    elasticsearch:
+      enabled: false
+
+stickybeak:
+  search:
+    elasticsearch:
+      # 关闭后关键词搜索只走 MySQL LIKE
+      enabled: ${SEARCH_ES_ENABLED:true}
+      # 全量对账（启动时也会执行一次）
+      reindex-cron: ${SEARCH_REINDEX_CRON:0 30 3 * * *}

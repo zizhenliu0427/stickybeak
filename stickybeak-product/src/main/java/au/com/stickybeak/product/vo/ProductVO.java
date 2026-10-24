@@ -16,9 +16,19 @@ public class ProductVO {
     private List<String> images;
     private String sourceNoteId;
     private Boolean featured;
+    /** 关键词搜索命中时的高亮名称：已 HTML 转义，命中词用 &lt;em&gt; 包裹；非搜索结果为 null */
+    private String highlightedName;
 
     public Long getId() {
         return id;
+    }
+
+    public String getHighlightedName() {
+        return highlightedName;
+    }
+
+    public void setHighlightedName(String highlightedName) {
+        this.highlightedName = highlightedName;
     }
 
     public void setId(Long id) {

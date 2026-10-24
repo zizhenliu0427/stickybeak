@@ -9,6 +9,7 @@ import au.com.stickybeak.product.entity.Product;
 import au.com.stickybeak.product.mapper.CategoryMapper;
 import au.com.stickybeak.product.mapper.ProductImageMapper;
 import au.com.stickybeak.product.mapper.ProductMapper;
+import au.com.stickybeak.product.search.ProductChangedEvent;
 import au.com.stickybeak.product.service.impl.AdminProductServiceImpl;
 import au.com.stickybeak.product.vo.AdminProductVO;
 import au.com.stickybeak.product.vo.StockAlertSummaryVO;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -42,6 +44,8 @@ class AdminProductServiceTest {
     private StringRedisTemplate stringRedisTemplate;
     @Mock
     private ValueOperations<String, String> valueOperations;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     private AdminProductServiceImpl adminProductService;
 
@@ -49,7 +53,7 @@ class AdminProductServiceTest {
     void setUp() {
         lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
         adminProductService = new AdminProductServiceImpl(
-                productMapper, categoryMapper, productImageMapper, stringRedisTemplate);
+                productMapper, categoryMapper, productImageMapper, stringRedisTemplate, eventPublisher);
     }
 
     @Test
@@ -67,6 +71,8 @@ class AdminProductServiceTest {
         assertEquals(1, p.getStatus());
         verify(productMapper).updateById(p);
         verify(stringRedisTemplate).delete("product:id:1001");
+        // 下架后通知搜索索引同步
+        verify(eventPublisher).publishEvent(new ProductChangedEvent(1001L));
     }
 
     @Test
