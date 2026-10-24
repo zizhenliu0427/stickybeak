@@ -60,6 +60,16 @@ management:
       exposure:
         include: health,info
 
+# OpenAPI 文档（网关 /doc.html 聚合）。生产环境 API_DOCS_ENABLED=false 关闭，避免暴露接口清单
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:true}
+knife4j:
+  enable: true
+  production: ${KNIFE4J_PRODUCTION:false}
+
 ---
 # 生产环境：不使用仓库内的开发密钥（缺少 JWT_SECRET 时启动失败），cookie 默认 Secure，不种开发管理员
 spring:

@@ -57,7 +57,9 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             "/doc.html",
             "/v3/api-docs",
             "/webjars",
-            "/swagger-resources"
+            "/swagger-resources",
+            // 各服务的 OpenAPI 文档，路由只转发 /v3/api-docs（见 application.yml）
+            "/api-docs/"
     );
 
     /** GET 公开前缀（商品浏览、公开汇率） */

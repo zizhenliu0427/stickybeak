@@ -89,3 +89,13 @@ seata:
   config:
     type: file
   data-source-proxy-mode: AT
+
+# OpenAPI 文档（网关 /doc.html 聚合）。生产环境 API_DOCS_ENABLED=false 关闭，避免暴露接口清单
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:true}
+knife4j:
+  enable: true
+  production: ${KNIFE4J_PRODUCTION:false}

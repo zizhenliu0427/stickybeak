@@ -30,7 +30,7 @@ class EmailServiceImplTest {
     void setUp() {
         mailSender = mock(JavaMailSender.class);
         templateEngine = mock(TemplateEngine.class);
-        emailService = new EmailServiceImpl(mailSender, templateEngine);
+        emailService = new EmailServiceImpl(mailSender, templateEngine, "orders@stickybeak.com.au");
 
         when(mailSender.createMimeMessage()).thenReturn(new MimeMessage((Session) null));
     }

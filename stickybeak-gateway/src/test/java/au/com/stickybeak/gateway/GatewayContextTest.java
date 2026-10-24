@@ -22,6 +22,20 @@ class GatewayContextTest {
     private WebTestClient webTestClient;
 
     @Test
+    void docsAggregationListsEveryServiceWithoutLogin() {
+        webTestClient.get().uri("/v3/api-docs/swagger-config")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.urls.length()").isEqualTo(5)
+                .jsonPath("$.urls[?(@.url == '/api-docs/product/v3/api-docs')]").exists();
+
+        webTestClient.get().uri("/doc.html")
+                .exchange()
+                .expectStatus().isOk();
+    }
+
+    @Test
     void protectedApiStillRequiresLogin() {
         webTestClient.get().uri("/api/orders/my")
                 .exchange()

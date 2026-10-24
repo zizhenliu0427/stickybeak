@@ -36,6 +36,17 @@ x-svc-defaults: &svc-defaults
     - STRIPE_API_KEY=${STRIPE_API_KEY}
     - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
     - JWT_SECRET=${JWT_SECRET}
+    # 邮件（notification 使用）：Amazon SES SMTP 接口
+    - MAIL_HOST=${MAIL_HOST:-email-smtp.ap-southeast-2.amazonaws.com}
+    - MAIL_PORT=${MAIL_PORT:-587}
+    - MAIL_USERNAME=${MAIL_USERNAME}
+    - MAIL_PASSWORD=${MAIL_PASSWORD}
+    - MAIL_SMTP_AUTH=true
+    - MAIL_SMTP_STARTTLS=true
+    - MAIL_FROM=${MAIL_FROM:-orders@stickybeak.com.au}
+    # 生产不暴露 OpenAPI 文档与 Knife4j 页面
+    - API_DOCS_ENABLED=false
+    - KNIFE4J_PRODUCTION=true
     - JAVA_OPTS=-Xms512m -Xmx1024m -XX:+UseG1GC -XX:MaxGCPauseMillis=200
 
 services:
@@ -62,6 +73,7 @@ services:
       - REDIS_HOST=${REDIS_HOST:-elasticache-redis.internal}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - API_DOCS_ENABLED=false
       - JAVA_OPTS=-Xms256m -Xmx512m -XX:+UseG1GC
     deploy:
       resources:
