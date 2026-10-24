@@ -3,7 +3,7 @@
 > 来源：对 `main`（v1.1.0）的一次全量代码审查，按优先级排列。
 > 修完在条目前打 ✅，并写明修法与对应测试。
 > 排期：P0–P2 → `docs/SPRINT_ISSUES.md` Sprint 10（**已完成**，分支 `feature/sprint-10-security-fixes`）；
-> P3 决定**补齐实现而不是删除**，见 Sprint 11。
+> P3 决定**补齐实现而不是删除**，见 Sprint 11（**已完成**，分支 `feature/sprint-11-readme-capabilities`）。
 
 ## 审查时的构建状态
 
@@ -74,10 +74,25 @@
 - 回滚时的 Redis 回补放到事务提交之后
 - 订单号改为 `SO + yyyyMMdd + 雪花 ID`（29 位）
 
-## P3 — 文档与代码不一致（面试/答辩风险，Sprint 11 处理）
+## ✅ P3 — 文档与代码不一致（Sprint 11 补齐实现，分支 `feature/sprint-11-readme-capabilities`）
 
-- README 宣称 Seata 分布式事务：代码无依赖、无 `@GlobalTransactional`
-- README 宣称 Elasticsearch 全文检索：无任何 Java 代码使用
-- README 宣称 JaCoCo "强制覆盖率门禁"：`pom.xml` 只有 `prepare-agent` + `report`，无 `check` 规则
-- "三层防超卖"中 Redisson 锁每次只持有一把，"排序防 AB-BA 死锁"不成立；真正兜底的是 MySQL 条件更新
-- 徽章：Spring Boot 写 3.3.1（实际 3.3.4）、Release 写 v1.0.0（实际 v1.1.0）；README 链接 `LICENSE` 但仓库无此文件；`HANDOFF.md` 停在 Sprint 5
+- ✅ README 宣称 Seata 分布式事务 → 结账"扣库存 + 写订单"接入 Seata AT（`CheckoutTransaction`），Redis 预扣按订单账本在回滚时归还，库存行的本地写加 `@GlobalLock`
+- ✅ README 宣称 Elasticsearch 全文检索 → IK 分词索引、多字段加权、高亮、排序、MySQL 回退、事务后增量 + 每日全量同步
+- ✅ README 宣称 JaCoCo 强制门禁 → `mvn verify` 增加 `check`，各模块按实测设底线，`OrderStateMachine` / `WebhookServiceImpl` ≥ 90%
+- ✅ "三层防超卖"排序防死锁：扣库存现在是一个本地事务（Seata 分支），各商品行锁持有到提交，按商品 ID 排序后两个结账不会互相等待对方的行锁，这条说法成立了
+- ✅ 徽章（Spring Boot 3.3.4 / Spring Cloud 2023.0.3 / v1.3.0）、补 `LICENSE`（Apache 2.0）、README 中英文措辞与实现逐项对齐（Redis 单节点、网关单实例、状态机真实状态、覆盖率表）；`HANDOFF.md` 更新到 Sprint 11
+- ✅ README 宣称 Knife4j 网关聚合 → 之前 knife4j 只以 `provided` 出现在 common，没有任何服务提供文档。现在 5 个业务服务接入 springdoc + Knife4j，网关 `/doc.html` 聚合（只转发 `/v3/api-docs`，不形成鉴权旁路），生产关闭
+- ✅ README 宣称 Playwright 桌面 + 移动端 E2E → 之前 `@playwright/test` 未安装、用例从未跑过。现在 CI 新增 e2e job（Desktop Chrome + Pixel 7，浏览器内模拟接口）
+- ✅ README 宣称 SES 邮件 → SMTP 认证、STARTTLS、发件地址改为可配置，生产 compose 按 SES SMTP 接口配置
+
+## Sprint 11 中额外发现并修复
+
+- ✅ **网关根本无法启动**（Sprint 9 引入）：`SentinelGatewayConfig` 重复声明了 `SentinelSCGAutoConfiguration` 已注册的同名 Bean，Spring Boot 默认禁止覆盖。单测从不加载 Spring 上下文，所以 CI 一直是绿的。修复后新增 `GatewayContextTest` 启动完整网关上下文
+- ✅ **管理后台直接打开 / 刷新一直转圈**：登录态探测只在商城布局里发起，`/admin/*` 不经过它，`RequireAdmin` 永远等不到结果。改为应用启动时探测一次（Playwright 管理端用例发现）
+- ✅ **商品列表缓存从不命中**：`ProductQuery` 没有重写 `hashCode`，缓存 key 用的是对象身份哈希，每个请求都写一个新的 Redis key。改为由全部查询参数生成摘要 key
+
+## 待处理（不影响 Sprint 11 合并）
+
+- 前端 `npm run lint` 是死脚本：没有安装 ESLint，也没有配置文件（CI 没有跑 lint）
+- "我的订单"里待支付订单的"立即支付"会跳到结账页重新下单，而不是复用原订单的支付会话；旧订单要等 30 分钟超时才释放库存
+- Seata 与 ES 只做了单元测试与本地启动验证，需要在完整 Docker 环境中跑一次"订单写库失败 → 库存回滚"与热点商品压测

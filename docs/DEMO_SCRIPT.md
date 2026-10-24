@@ -1,7 +1,7 @@
-# Stickybeak v1.0.0 Enterprise Product & Architecture Demo Script
+# Stickybeak v1.3.0 Enterprise Product & Architecture Demo Script
 # 3-5 分钟商业级中英演示讲解剧本
 
-> **Version**: v1.0.0 Production Release  
+> **Version**: v1.3.0  
 > **Target Audience**: Technical Interviewers, Architects, Investors, Stakeholders  
 > **Duration**: 3 - 5 Minutes  
 > **Presenter Roles**: Product Engineer & System Architect  
@@ -26,7 +26,7 @@
 - **讲解要点**:
   > “各位评委/面试官大家好，今天我为大家演示的是 **Stickybeak** —— 一个基于云原生分布式架构的澳大利亚特色跨境电商系统。系统采用 **Spring Cloud 2023 + Spring Boot 3.3 + Java 17** 作为后端微服务底座，前端采用 **Vue 3 + Pinia + TypeScript + TailwindCSS** 现代化技术栈。
   >
-  > 我们针对高并发、资金流安全和跨境场景做了深度工程优化，全链路实现了 **Seata 分布式事务**、**RabbitMQ 延迟队列与可靠事件发布**、**Stripe 国际化支付网关** 以及基于有限状态机（FSM）的严密订单履约闭环。”
+  > 我们针对高并发、资金流安全和跨境场景做了深度工程优化，结账链路实现了 **Seata AT 分布式事务**、**RabbitMQ 延迟队列与可靠事件发布**、**Stripe 国际化支付网关** 以及基于有限状态机（FSM）的严密订单履约闭环。”
 
 ---
 
@@ -72,13 +72,13 @@
 - **屏幕操作**: 切换到 Tab 3 (Knife4j 文档) 与终端展示。
 - **操作动作**:
   1. 展示 Knife4j 聚合的微服务 API 文档大盘，在线发起一次健康检查接口调试；
-  2. 简短展示单元测试与覆盖率（JaCoCo 报告：状态机 100%、Webhook 100%、Auth 90%+）；
+  2. 简短展示单元测试与覆盖率（JaCoCo 报告：订单状态机 100%、Stripe Webhook 处理 97%，`mvn verify` 带覆盖率门禁）；
   3. 展示 `docs/DEPLOYMENT_GUIDE.md` 与 `docker-compose.prod.yml` 生产就绪方案。
 - **讲解要点**:
   > “最后在工程交付层面：
   >
   > - **标准化文档体系**: 我们通过 Knife4j OpenAPI 3.0 聚合了全系统各微服务的 Swagger 接口定义；
-  > - **质量防线**: 后端采用 JaCoCo 进行覆盖率把关，核心业务模块覆盖率超 90%，并配套了 Playwright E2E 端到端回归套件；
+  > - **质量防线**: `mvn verify` 内置 JaCoCo 覆盖率门禁，订单状态机与 Stripe Webhook 处理强制 ≥ 90%；前端在 CI 中跑桌面端 + 移动端 Playwright 用户旅程，另有全链路接口 E2E 脚本；
   > - **生产就绪**: 提供了一键式 Docker Compose 生产编排及 AWS ECS Fargate + RDS + ElastiCache 架构指南，具备企业级的高可用与横向扩容能力。
   > 
   > 以上就是 Stickybeak 系统的完整演示，欢迎各位评委和老师提问！”

@@ -19,6 +19,7 @@
 - **v0.5.0**（main）：Sprint 5 订单状态机、防超卖三层防线（Redis Lua 预扣 → Redisson 排序互斥锁 → MySQL 条件更新）、RabbitMQ 原生 DLX 30m 延迟关单与库存原子回滚、前端订单管理中心
 - **v0.6.0 – v1.1.0**（main / 当前发布）：Sprint 6–9 管理后台、PWA、E2E 与云部署配置、Sentinel 限流与手动 ACK
 - **Sprint 10**（`feature/sprint-10-security-fixes`，待合并后打 `v1.2.0`）：修复 `docs/CODE_REVIEW_TODO.md` 中 P0–P2（支付回调、内部接口隔离、消息重试与死信、状态条件更新、生产配置）
+- **Sprint 11**（`feature/sprint-11-readme-capabilities`，基于 Sprint 10 分支，待合并后打 `v1.3.0`）：把 README 宣称的能力全部落地 —— Seata AT 结账事务、ES 商品搜索（IK + 高亮 + MySQL 回退）、退款全流程、JaCoCo 覆盖率门禁、网关 Knife4j 文档聚合、Playwright 桌面 + 移动端用户旅程、SES 邮件配置、`LICENSE`；顺带修复了"网关无法启动"（Sprint 9 引入）、"管理后台刷新一直转圈"、"商品列表缓存从不命中"
 - 开发分支：`develop`；功能分支：`feature/sprint-N-xxx`（Git Flow）
 
 ## Sprint 1 交付明细（均已 E2E 验证）
@@ -163,12 +164,20 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 25. **远程调用与 Redis 写入放到事务提交后**：用 `common` 的 `AfterCommit.run(...)`；没有事务时立即执行（单测里也是）。
 26. **`OrderMapper.updateIfStatus` 是 default 方法**：Mockito mock 默认返回 0（视为并发冲突并抛异常），单测里要显式 `when(...).thenReturn(1)`。
 27. **prod profile 没有默认 JWT 密钥**：`JWT_SECRET` 缺失 / 非 Base64 / 短于 256 bit 都会启动失败，生成：`openssl rand -base64 48`。
+28. **网关能否启动要靠 `GatewayContextTest` 守住**：Sprint 9 起网关因为重复定义 `sentinelGatewayFilter`（自动配置已注册同名 Bean）一直启动失败，而单测从不加载上下文，CI 是绿的。Sentinel 的 Filter / ExceptionHandler 交给 `SentinelSCGAutoConfiguration`，自定义 429 响应以 `BlockRequestHandler` Bean 提供。
+29. **Seata AT（Sprint 11）**：全局事务边界是 `CheckoutTransaction#placeOrder`，支付会话在全局提交之后创建（外部调用不要放进全局事务）。product / order 依赖 Seata Server（`SEATA_ADDR`，compose 里是 seata-server 2.0.0）；本地临时调试可 `SEATA_ENABLED=false`，但那样结账失败时商品库不会回滚。业务库要有 `undo_log` 表（`docker/mysql/init/07-seata-undo-log.sql`，老数据卷需手动执行一次）。
+30. **会改 `t_product` 库存行的本地写必须加 `@GlobalLock`**（关单释放、退款回补、后台改库存都已加）：否则与未完成的结账全局事务交错后，全局回滚做 after-image 校验失败，回滚会卡住需要人工处理。
+31. **Redis 预扣不受 undo_log 管理**：扣减 Lua 同时写订单账本 `stock:reservation:{orderNo}`；本地事务没提交由 `AfterCommit.onRollback` 归还，全局回滚由订单服务的 Seata `TransactionHook#afterRollback` 调 `/products/stock/redis-restore` 归还。归还脚本是原子"读 + 加回 + 删账本"，重复调用安全。Lua 里拼 key，只支持单节点 Redis。
+32. **网关剥离外部请求的 `TX_XID`**，否则外部请求可以把写操作挂进别人的全局事务。
+33. **商品搜索走 ES 失败会自动回退 MySQL**：`SEARCH_ES_ENABLED=false` 可整体关闭；索引需要 IK 插件（`docker/elasticsearch/Dockerfile` 构建镜像，插件下载地址在网络受限环境可能需要换成离线 zip）。ES 健康检查已关闭，ES 挂了商品服务仍是 UP。
+34. **Knife4j 文档只在网关 `/doc.html` 看**：网关路由只转发 `/api-docs/{svc}/v3/api-docs/**`，千万别改成 `/api-docs/{svc}/**`——这个前缀是公开的，会变成绕过鉴权的旁路。生产 `API_DOCS_ENABLED=false`。
+35. **Playwright 用例在浏览器里模拟接口**（`stickybeak-frontend/e2e/support/mockApi.ts`）：页面调用了没模拟的接口会让用例失败；PWA 的 Service Worker 会绕过 `page.route`，配置里已 `serviceWorkers: 'block'`。`@playwright/test` 版本固定，升级时 CI 会自动装对应的 Chromium。
 
 ## 下一步（第二阶段路线图，2026-10 制定）
 
 按 `docs/SPRINT_ISSUES.md` 第二阶段路线图依次推进：
 1. **Sprint 10**（v1.2.0）修复 `docs/CODE_REVIEW_TODO.md` 中 P0–P2
-2. **Sprint 11**（v1.3.0）补齐 README 宣称的能力：Seata、ES 商品搜索、退款、JaCoCo 门禁
+2. **Sprint 11**（v1.3.0）补齐 README 宣称的能力：Seata、ES 商品搜索、退款、JaCoCo 门禁、Knife4j、Playwright —— 代码已完成，待在完整 Docker 环境验收 Seata 回滚与 ES 搜索
 3. **Sprint 12**（v1.4.0）SkyWalking 全链路追踪
 4. **Sprint 13**（v2.0.0）Python AI Agent（FastAPI + LangGraph）+ RAG（向量库用 ES）
 5. **Sprint 14**（v2.1.0）MCP Server 与客户端接入

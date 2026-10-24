@@ -332,15 +332,21 @@
 - 覆盖 P0-6 场景：已取消订单收到支付成功时自动退款
 - 验收：Stripe 测试模式下完整走通，E2E 覆盖
 
+> 实现说明：状态机新增 `paid / processing → refunding → refunded`（已支付订单不再允许直接取消）；管理员退款调用 Stripe Refund API（幂等键 `refund-{orderNo}`），`charge.refunded` 回调确认后发 `order.refunded`，订单服务消费后置为 REFUNDED 并回补已确认库存；关单后才到账的支付自动退款。Mock 支付通道退款立即成功。未完成：Stripe 测试模式下的真实退款还没跑过；Playwright 管理端用例覆盖了前端退款与重试按钮。
+
 ### Issue 11.4 — JaCoCo 覆盖率门禁
 `type:test` `area:devops` `p1`
 - 先实测各模块覆盖率；pom 增加 `check` 规则，按包设阈值（状态机、webhook ≥ 90%，其余按实测设底线）
 - 验收：覆盖率低于阈值时 CI 失败；README 中的覆盖率数字与报告一致
 
+> 实现说明：父 pom 的 `check` 绑定在 `verify`，各模块用 `jacoco.line.minimum` 设底线（实测向下取整）；order / payment 额外对 `OrderStateMachine`、`WebhookServiceImpl` 设 90% 类级规则。README 覆盖率表取自 `mvn verify` 的报告。
+
 ### Issue 11.5 — 文档校准
 `type:docs` `p1`
 - 补 `LICENSE`（Apache 2.0）；修正徽章版本；README 措辞与实际一致（如 Redis 为单节点）；更新 HANDOFF 与架构图
 - 验收：README 中每一项能力都能在代码里找到对应实现
+
+> 实现说明：逐条对照后发现 README 还宣称了 Knife4j 网关聚合、Playwright 桌面 + 移动端 E2E、SES 邮件，三者都没有真正可用的实现，一并补齐；只有纯基础设施描述（Redis 集群、网关集群、状态机编号）改为与实际一致。核对过程中还发现网关自 Sprint 9 起无法启动、管理后台刷新卡住、商品列表缓存从不命中，均已修复，见 `docs/CODE_REVIEW_TODO.md`。
 
 ---
 

@@ -2,13 +2,14 @@
 
 <div align="center">
 
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.1-brightgreen.svg?logo=springboot)](https://spring.io/projects/spring-boot)
-[![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2023.0.2-blue.svg)](https://spring.io/projects/spring-cloud)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.4-brightgreen.svg?logo=springboot)](https://spring.io/projects/spring-boot)
+[![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2023.0.3-blue.svg)](https://spring.io/projects/spring-cloud)
+[![Spring Cloud Alibaba](https://img.shields.io/badge/Spring%20Cloud%20Alibaba-2023.0.1.2-orange.svg)](https://github.com/alibaba/spring-cloud-alibaba)
 [![Java](https://img.shields.io/badge/Java-17%2B-orange.svg?logo=openjdk)](https://openjdk.org/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg?logo=react)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/Release-v1.0.0-success.svg)](https://github.com/zizhenliu0427/stickybeak/releases)
+[![Version](https://img.shields.io/badge/Version-v1.3.0-success.svg)](docs/SPRINT_ISSUES.md)
 
 **基于 Spring Cloud Alibaba + React 18 的云原生澳大利亚风情文创跨境电商平台。**
 
@@ -22,13 +23,14 @@
 
 > **StickyBeak** 源自澳大利亚俚语，原意为“爱凑热闹/好奇的人”，同时巧妙融合了 **Sticky**（磁贴/冰箱贴）与 **Beak**（鹦鹉鸟喙，平台特色吉祥物），主打澳大利亚特色文创磁贴与本土手作好物的跨境直邮。
 
-**Stickybeak** 是一个按工业级标准打造的云原生分布式微服务系统。针对跨境出海业务中典型的高并发库存冲突、国际支付掉单与重复扣款、长链路履约状态不一致等痛点，进行了全链路深度架构设计与防线构筑：
-- **云原生微服务底座**: 基于 Spring Cloud Alibaba（Nacos 服务发现/配置中心、Sentinel 流量防护、Seata 分布式事务）构建高可用微服务治理体系；
-- **严格有限状态机（FSM）**: 订单全生命周期严格流转约束，杜绝逆向篡改、跨状态跳跃与并发竞争脏数据；
-- **Stripe 国际化支付与幂等闭环**: 深度集成 Stripe 支付收银台，具备 HMAC SHA-256 签名验签、防重放时间窗口与底层 `UK_stripe_event_id` 唯一防重约束；
-- **事件驱动最终一致性**: 基于 RabbitMQ 主题交换机与死信延迟队列，实现 30 分钟超时自动关单补库存，以及秒级异步订单确认邮件推送（MailHog / AWS SES）；
-- **现代化双模前端应用**: React 18 + TypeScript + Vite + Redux Toolkit，商城端采用 TailwindCSS 流畅自适应，管理端采用 Ant Design 5 打造高效率运营中台；
-- **工程级测试防线**: 集成 JaCoCo 单元测试覆盖率审计（核心模块覆盖率 > 90%），配备跨桌面端与移动端的 Playwright E2E 全链路回归套件。
+**Stickybeak** 是一个按工业级标准打造的云原生分布式微服务系统，针对跨境电商中的高并发超卖、支付通知重复或丢失、跨服务订单状态不一致等问题做了完整的设计：
+- **云原生微服务底座**：Spring Cloud Alibaba —— Nacos 服务发现 / 配置中心、Sentinel 网关限流、Seata AT 结账分布式事务；
+- **严格有限状态机（FSM）**：订单每次流转都经过校验，并以条件更新落库，支付、超时、取消并发到达也不会写乱订单；
+- **Stripe 跨境支付**：托管收银台支持银行卡、支付宝、微信支付；Webhook 验签、金额与币种校验、数据库唯一键幂等，并通过 Stripe Refund API 全额退款；
+- **事件驱动履约**：RabbitMQ 主题交换机 + 手动 ACK + 重试队列 + 死信队列；延迟队列与兜底扫描实现 30 分钟未支付自动关单；订单确认邮件走 SMTP（本地 MailHog，生产 Amazon SES）；
+- **商品全文检索**：Elasticsearch 8 + IK 中文分词，多字段加权匹配、高亮、相关度排序，ES 不可用时自动回退 MySQL；
+- **现代化双模前端**：React 18 + TypeScript + Vite + Redux Toolkit，商城端 TailwindCSS（PWA），管理端 Ant Design 5；
+- **工程化质量门禁**：`mvn verify` 内置 JaCoCo 覆盖率门禁（订单状态机与 Stripe Webhook 处理强制行覆盖率 ≥ 90%），CI 中运行桌面端 + 移动端 Playwright 用户旅程，另有全链路接口 E2E 脚本。
 
 ---
 
@@ -38,72 +40,75 @@
                                 [ 客户端浏览器 / 移动端 H5 ]
                                                │
                                                ▼
-                              [ Nginx 生产反向代理网关 (:80 / :443) ]
-                                (SSL/TLS, Gzip 压缩, SPA 路由兜底, 静态缓存)
+                              [ Nginx 生产反向代理 (:80 / :443) ]
+                                (SSL/TLS, Gzip, SPA 路由兜底, 静态缓存)
                                                │
                                                ▼
-                         [ Spring Cloud Gateway 集群 (:8080) ]
-                           ├── JWT 令牌鉴权与全局用户上下文解析
-                           ├── Redis Token 黑名单即时吊销过滤器
-                           ├── Knife4j OpenAPI 3.0 全局接口聚合
-                           └── Sentinel 限流、熔断降级防御
+                              [ Spring Cloud Gateway (:8080) ]
+                           ├── JWT 鉴权，解析后注入 X-User-* 头
+                           ├── Redis Token 黑名单即时吊销
+                           ├── 剥离内部调用标识与 TX_XID 事务头
+                           ├── Knife4j OpenAPI 3.0 文档聚合 (/doc.html)
+                           └── Sentinel 限流（HTTP 429 JSON）
                                                │
             ┌──────────────────┬───────────────┴───────────────┬──────────────────┐
             ▼                  ▼                               ▼                  ▼
      ┌──────────────┐   ┌──────────────┐                ┌──────────────┐   ┌──────────────┐
      │  Auth Svc    │   │ Product Svc  │                │  Cart Svc    │   │  Order Svc   │
      │   (:8081)    │   │   (:8082)    │                │   (:8083)    │   │   (:8084)    │
-     └──────┬───────┘   └──────┬───────┘                └──────┬───────┘   └──────┬───────┘
-            │                  │                               │                  │
-            │                  ├──────────────────────┐        │                  │
-            │                  ▼                      ▼        ▼                  │
-            │            [ Elasticsearch 8 ]    [ Redis 7 集群 ]                  │
-            │            (海量商品全文检索)     (热点缓存 & 分布式购物车)         │
-            │                                                                     │
-            └───────────────────────────┬─────────────────────────────────────────┘
-                                        │
-                                        ▼
-                                 [ MySQL 8.0 ]
-                           (各微服务独立分库设计)
-                                        ▲
-                                        │ (Saga / AT 分布式事务协调器)
-                               [ Seata Server (:8091) ]
-                                        ▲
-                                        │
-            ┌───────────────────────────┴───────────────────────────┐
-            ▼                                                       ▼
-     ┌──────────────┐                                        ┌──────────────┐
-     │ Payment Svc  │                                        │Notification  │
-     │   (:8085)    │                                        │   (:8086)    │
-     └──────┬───────┘                                        └──────▲───────┘
-            │                                                       │
-            ├──────────────► [ RabbitMQ 消息总线 ] ─────────────────┘
-            │                (order.paid / order.cancel / 死信延迟队列)
-            ▼
-     [ Stripe API & Webhook ]
+     └──────┬───────┘   └──┬────────┬──┘                └──────┬───────┘   └──┬───────┬───┘
+            │              │        │                          │              │       │
+            │              │        ▼                          │              │       │
+            │              │  [ Elasticsearch 8 + IK ]         │              │       │
+            │              │  (商品搜索，故障回退 MySQL)       │              │       │
+            │              │                                   │              │       │
+            │              └──────── Seata AT（结账）──────────┼──────────────┘       │
+            │                 [ Seata Server 2.0 (:8091) ]     │                      │
+            ▼                       ▼                          ▼                      │
+     [ MySQL 8.0 —— 各服务独立分库 ]            [ Redis 7（单节点）：库存、购物车、   │
+                                                  缓存、Token 黑名单 ]                │
+                                                                                      │
+     ┌──────────────┐   order.paid / order.refunded   ┌─────────────────────────────┐ │
+     │ Payment Svc  │────────────────────────────────►│ RabbitMQ（主题交换机、      │ │
+     │   (:8085)    │                                 │ 延迟队列、重试、死信）      │ │
+     └──────┬───────┘                                 └──────┬───────────────┬──────┘ │
+            │                     order.paid（发邮件）       │               │        │
+            ▼                  ┌─────────────────────────────┘               └────────┘
+     [ Stripe API & Webhook ]  ▼                          支付成功 / 超时关单 / 退款
+                        ┌──────────────┐
+                        │ Notification │
+                        │   (:8086)    │
+                        └──────────────┘
 ```
 
 ---
 
 ## 💎 核心架构与技术亮点
 
-### 1. 国际化跨境支付与强幂等性保障
-- 严格校验 Stripe HMAC SHA-256 Webhook 签名，设置 300 秒时间戳重放攻击防御；
-- 数据库底层建立 `UK_stripe_event_id` 唯一索引硬隔离，即使在高并发重试下也能毫秒级拦截重复通知，返回 200 幂等响应；
-- 解耦异步履约链路，支付成功后通过 RabbitMQ 广播 `order.paid` 事件，下游服务并行执行履约与通知。
+### 1. 跨境支付与强幂等
+- 校验 Stripe Webhook 签名（HMAC SHA-256，SDK 默认 300 秒防重放窗口），并在履约前核对实付金额、币种与支付记录一致；
+- Stripe 事件 ID 唯一键（`uk_event_id`）让同一通知的并发重试只生效一次；
+- 支付会话只能由订单服务创建，金额始终取自订单，不信任浏览器传值；
+- 全额退款：管理员发起后调用 Stripe Refund API（带幂等键），由 `charge.refunded` Webhook 确认；订单已取消后才到账的支付会自动退款。
 
 ### 2. 严密的有限状态机（FSM）
-- 订单状态全周期闭环：`待支付 (1) -> 已支付 (2) -> 已发货 (3) -> 已完成 (4) / 已取消 (5) / 已退款 (6)`；
-- 状态机严格阻断逆向流转与非法跨态跃迁，非法操作抛出受检 `BusinessException`，保护资金安全与数据一致性。
+- 订单生命周期：`pending → paid → processing → shipped → completed`、`pending → cancelled`、`paid / processing → refunding → refunded`；
+- 非法或跳跃的流转抛出 `BusinessException`；每次流转都以 `UPDATE … WHERE status = <期望状态>` 落库，并发更新会失败而不是覆盖。
 
-### 3. 分布式事务与防超卖机制
-- 结算时利用 Redis Lua 脚本原子预扣减库存，杜绝高并发穿透与秒杀超卖；
-- 接入 Seata 分布式事务协调器，超时关单或异常退单时自动发起跨库库存补偿。
+### 3. 分布式事务与防超卖
+- 三层防超卖：Redis Lua 原子预扣 → 按商品的 Redisson 分布式锁 → MySQL 条件更新（`stock >= qty`）；
+- 结账在 **Seata AT 全局事务**（`CheckoutTransaction`）中完成：商品库扣库存与订单库写订单要么一起提交、要么一起回滚；
+- Redis 预扣按订单记账，事务没有提交（含 Seata 全局回滚 hook）时原子归还；
+- 改到同一库存行的本地写（关单释放、退款回补、后台改库存）加 `@GlobalLock`；调用 Stripe 放在全局提交之后，外部 I/O 期间不占热门商品的全局锁。
 
-### 4. 工业级可观测性与文档中台
-- **Knife4j / OpenAPI 3.0**: 微服务聚合式接口文档大盘，网关统一路由 `/doc.html`；
-- **JaCoCo 质量把关**: Maven 构建链条强制集成覆盖率门禁（状态机与支付 Webhook 覆盖率超 90%）；
-- **全链路 Playwright E2E**: 覆盖正向买家购买闭环、Stripe 拒付负向流转及管理端审核履约。
+### 4. 商品搜索
+- Elasticsearch 8 + IK：名称 / 分类 / 标签 / 描述多字段加权匹配，名称高亮，相关度或列表排序；
+- 后台修改在事务提交后增量重建索引，启动时与每日全量对账；ES 宕机或关闭时自动回退 MySQL。
+
+### 5. 可观测性、接口文档与质量门禁
+- **Knife4j / OpenAPI 3.0**：各服务通过 springdoc 输出接口文档，网关 `/doc.html` 统一聚合；服务间内部接口单独标注；生产环境关闭；
+- **JaCoCo 门禁**：模块行覆盖率低于底线时 `mvn verify` 直接失败；
+- **Playwright 用户旅程**：搜索、游客结账、订单列表、后台退款，CI 中在 Desktop Chrome 与 Pixel 7 上运行。
 
 ---
 
@@ -111,18 +116,18 @@
 
 ```
 stickybeak/
-├── stickybeak-gateway/        # Spring Cloud Gateway 微服务网关、JWT 过滤器、Knife4j 聚合
+├── stickybeak-gateway/        # Spring Cloud Gateway、JWT 过滤器、Sentinel、Knife4j 聚合
 ├── stickybeak-auth/           # 用户认证中心、RBAC 角色权限、地址簿管理
 ├── stickybeak-product/        # 商品中心、品类分类、库存流转、ES 搜索
 ├── stickybeak-cart/           # 分布式购物车（游客状态 + 登录合并）、心愿单
-├── stickybeak-order/          # 订单状态机引擎、Seata 事务、库存预扣与延迟关单
-├── stickybeak-payment/        # 跨境支付抽象、Stripe 收银台对接、Webhook 强幂等防重
-├── stickybeak-notification/   # 邮件通知中心（基于 RabbitMQ 消费与 MailHog 发送）
-├── stickybeak-common/         # 全局通用返回体 Result、统一错误码、OpenAPI 全局元数据
-├── stickybeak-frontend/       # React 18 + Vite + Redux Toolkit + Tailwind + Ant Design
-├── docker/                    # Docker Compose 编排（本地开发 & 生产就绪）、Nginx、MySQL 初始化
-├── docs/                      # 架构全景文档、数据库 ER 图、云上部署手册、演示剧本
-└── scripts/                   # 自动化 E2E 验证脚本、数据初始化辅助脚本
+├── stickybeak-order/          # 订单状态机、Seata AT 结账、超时关单与退款
+├── stickybeak-payment/        # 跨境支付抽象、Stripe 收银台、Webhook 与退款
+├── stickybeak-notification/   # 邮件通知（RabbitMQ 消费 + SMTP：MailHog / SES）
+├── stickybeak-common/         # 统一返回体、错误码、内部接口守卫、OpenAPI 配置
+├── stickybeak-frontend/       # React 18 + Vite + Redux Toolkit + Tailwind + Ant Design，Playwright e2e
+├── docker/                    # Docker Compose 编排（本地开发 & 生产）、Nginx、MySQL 初始化
+├── docs/                      # 架构文档、数据库 ER 图、云上部署手册、演示剧本
+└── scripts/                   # 全链路 E2E 验证脚本、数据初始化辅助脚本
 ```
 
 ---
@@ -137,7 +142,7 @@ stickybeak/
 ### 方式一：本地开发调试模式
 
 ```bash
-# 1. 启动基础设施中间件（MySQL、Redis、RabbitMQ、Nacos、Seata、MinIO、MailHog）
+# 1. 启动基础设施中间件（MySQL、Redis、RabbitMQ、Nacos、Seata、Elasticsearch、MinIO、MailHog）
 docker compose -f docker/docker-compose-infra.yml up -d
 
 # 2. 编译并启动后端微服务
@@ -162,6 +167,8 @@ docker compose -f docker/docker-compose.yml up -d --build
 ```
 打开浏览器访问 **http://localhost** 即可畅享完整商城。
 
+> 已有 MySQL 数据卷不会重新执行初始化脚本。升级后需手动执行一次 `docker/mysql/init/07-seata-undo-log.sql`（Seata `undo_log` 表）。
+
 ---
 
 ## 🎛️ 控制台与端口全景表
@@ -170,39 +177,51 @@ docker compose -f docker/docker-compose.yml up -d --build
 | :--- | :--- | :--- | :--- |
 | **前端商城 & 管理端** | 80 | `http://localhost/` | 前端 SPA |
 | **微服务网关 (Gateway)** | 8080 | `http://localhost:8080` | 微服务统一入口 |
-| **Knife4j API 聚合文档** | 8080 | `http://localhost:8080/doc.html` | 公开接口调试 |
+| **Knife4j API 聚合文档** | 8080 | `http://localhost:8080/doc.html` | 生产环境关闭 |
 | **Nacos 注册与配置中心** | 8848 | `http://localhost:8848/nacos` | `nacos / nacos` |
+| **Seata 控制台** | 7091 | `http://localhost:7091` | `seata / seata` |
 | **RabbitMQ 消息中台** | 15672 | `http://localhost:15672` | `guest / guest` |
 | **MailHog 邮件测试控制台** | 8025 | `http://localhost:8025` | 邮件实时查看 |
 | **MinIO 对象存储中台** | 9001 | `http://localhost:9001` | `minioadmin / minioadmin` |
-| **Elasticsearch 搜索引擎** | 9200 | `http://localhost:9200` | 单节点检索 |
+| **Elasticsearch 搜索引擎** | 9200（全栈）/ 19200（仅基础设施） | `http://localhost:9200` | 单节点，未开启安全认证 |
 
 ---
 
 ## 🧪 自动化测试与覆盖率把关
 
-### 1. 后端单元测试与 JaCoCo 覆盖率
+### 1. 后端单元测试与 JaCoCo 覆盖率门禁
 ```bash
-# 在 Docker 环境中执行测试并生成 JaCoCo 报告
+# 运行全部测试、生成 JaCoCo 报告并校验覆盖率底线
 docker run --rm \
   -v "$(pwd):/workspace" \
   -v "stickybeak-m2:/root/.m2" \
   -w /workspace \
-  maven:3.9-eclipse-temurin-17 mvn test
+  maven:3.9-eclipse-temurin-17 mvn verify
 ```
-测试报告生成于各模块路径：`stickybeak-<module>/target/site/jacoco/index.html`。
+测试报告生成于各模块路径：`stickybeak-<module>/target/site/jacoco/index.html`。当前行覆盖率（括号内为门禁底线）：
 
-### 2. 前端单元测试与类型安全校验
+| 模块 | 行覆盖率 | 底线 |
+| :--- | :--- | :--- |
+| gateway | 73.0% | 65% |
+| product | 61.7% | 55% |
+| notification | 54.0% | 50% |
+| cart | 53.9% | 50% |
+| order | 49.3% | 45%（`OrderStateMachine` 100%，底线 90%） |
+| payment | 45.2% | 35%（`WebhookServiceImpl` 97.2%，底线 90%） |
+| auth | 30.5% | 30% |
+
+### 2. 前端单元测试、类型检查与用户旅程
 ```bash
 cd stickybeak-frontend
-npm run typecheck    # TypeScript 类型全面静态检查
+npm run typecheck    # TypeScript 类型检查（应用 + e2e）
 npm run test         # Vitest 单元测试套件
 npm run build        # 生产包编译验证
+npm run e2e          # Playwright 用户旅程，Desktop Chrome + Pixel 7（接口在浏览器内模拟）
 ```
 
 ### 3. 全链路 E2E 自动化回归验证
 ```bash
-# 运行全链路端到端自动化业务与安全拦截测试
+# 针对已启动的 Docker Compose 全栈：买家流程、Webhook 幂等、管理端操作、RBAC
 node scripts/test-sprint8-e2e.js
 ```
 
@@ -229,5 +248,5 @@ docker compose -f docker/docker-compose.prod.yml --env-file docker/.env.prod up 
 
 ## 📄 开源许可 (License)
 
-本项目采用 **Apache License 2.0** 许可证。
+本项目采用 **[Apache License 2.0](LICENSE)** 许可证。
 由 Stickybeak 研发团队匠心设计与构建。
