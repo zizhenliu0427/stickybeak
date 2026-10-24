@@ -125,7 +125,9 @@ class OrderServiceImplTest {
 
         assertNotNull(result);
         assertNotNull(result.getOrderNo());
-        assertTrue(result.getOrderNo().startsWith("SO"));
+        // SO + yyyyMMdd + 雪花 ID，需放得进 VARCHAR(32)
+        assertTrue(result.getOrderNo().matches("SO\\d{8}\\d{15,19}"), result.getOrderNo());
+        assertTrue(result.getOrderNo().length() <= 32);
         assertEquals("https://checkout.stripe.com/test", result.getCheckoutUrl());
         assertEquals("mock_cs_1", result.getSessionId());
 

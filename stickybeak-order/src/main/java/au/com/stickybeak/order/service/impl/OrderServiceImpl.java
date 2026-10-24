@@ -25,6 +25,7 @@ import au.com.stickybeak.order.vo.CheckoutResponseVO;
 import au.com.stickybeak.order.vo.OrderItemVO;
 import au.com.stickybeak.order.vo.OrderVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +41,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -129,9 +129,10 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // 4. Generate orderNo
+        // 日期 + 雪花 ID（"SO" + 8 + 19 位 = 29 位，列宽 32）。原先的 8 位随机后缀在日均几千单时就可能撞号，
+        // 撞号会让两张订单共用库存预占记录
         String datePrefix = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String suffix = String.format("%08d", Math.abs(UUID.randomUUID().hashCode() % 100000000));
-        String orderNo = "SO" + datePrefix + suffix;
+        String orderNo = "SO" + datePrefix + IdWorker.getId();
 
         // 5. Deduct stock using 3-layer anti-overselling defense in product service
         List<ProductClient.StockItemParam> stockItems = cart.getItems().stream()
