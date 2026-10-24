@@ -35,6 +35,8 @@
         <stripe-java.version>26.1.0</stripe-java.version>
         <redisson.version>3.34.1</redisson.version>
         <knife4j.version>4.5.0</knife4j.version>
+        <!-- SkyWalking 工具包版本必须与运行时挂载的 Java agent 版本一致（docker/Dockerfile.backend） -->
+        <skywalking.version>9.7.0</skywalking.version>
         <jacoco.version>0.8.12</jacoco.version>
         <!-- 覆盖率门禁：各模块按 Sprint 11 实测值设置底线（只升不降），见各模块 pom -->
         <jacoco.line.minimum>0.30</jacoco.line.minimum>
@@ -109,6 +111,21 @@
                 <groupId>com.github.xiaoymin</groupId>
                 <artifactId>knife4j-gateway-spring-boot-starter</artifactId>
                 <version>${knife4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.skywalking</groupId>
+                <artifactId>apm-toolkit-logback-1.x</artifactId>
+                <version>${skywalking.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.skywalking</groupId>
+                <artifactId>apm-toolkit-trace</artifactId>
+                <version>${skywalking.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.skywalking</groupId>
+                <artifactId>apm-toolkit-meter</artifactId>
+                <version>${skywalking.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
