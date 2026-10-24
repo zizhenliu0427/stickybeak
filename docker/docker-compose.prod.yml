@@ -199,7 +199,31 @@ services:
     networks:
       - stickybeak-network
 
-  # AI 助手（Python）：与 Java 服务共用 Nacos / MySQL / Redis / ES，变量名一致
+  # MCP Server（Python）：商城只读能力，外部 AI 客户端经网关 /api/mcp 访问（需在个人中心生成 MCP 令牌）
+  mcp:
+    build:
+      context: ../stickybeak-agent
+    image: stickybeak/agent:${TAG:-v1.0.0}
+    container_name: sb-prod-mcp
+    command: ["python", "-m", "stickybeak_agent.mcp_server"]
+    restart: always
+    logging: *default-logging
+    environment:
+      - NACOS_ADDR=${NACOS_ADDR:-nacos:8848}
+      - NACOS_USERNAME=${NACOS_USERNAME:-nacos}
+      - NACOS_PASSWORD=${NACOS_PASSWORD:-nacos}
+      - ES_URIS=${ES_URIS:-http://elasticsearch.internal:9200}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=${SW_AGENT_COLLECTOR_BACKEND_SERVICES:-}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 384M
+    networks:
+      - stickybeak-network
+
+  # AI 助手（Python）：与 Java 服务共用 Nacos / MySQL / Redis，变量名一致；只读工具来自上面的 MCP Server
   agent:
     build:
       context: ../stickybeak-agent
@@ -218,7 +242,6 @@ services:
       - REDIS_HOST=${REDIS_HOST:-elasticache-redis.internal}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - ES_URIS=${ES_URIS:-http://elasticsearch.internal:9200}
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=${SW_AGENT_COLLECTOR_BACKEND_SERVICES:-}

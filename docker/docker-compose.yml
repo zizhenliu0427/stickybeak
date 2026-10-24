@@ -108,6 +108,22 @@ services:
       - rabbitmq
       - mailhog
 
+  # MCP Server（Sprint 14）：商城的只读能力（商品、订单查询、售后检索）。外部 AI 客户端经网关 /api/mcp 访问，agent 也通过它调用
+  mcp:
+    build:
+      context: ../stickybeak-agent
+    container_name: sb-mcp
+    command: ["python", "-m", "stickybeak_agent.mcp_server"]
+    environment:
+      NACOS_ADDR: nacos:8848
+      ES_URIS: http://elasticsearch:9200
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: oap:11800
+      # 知识库向量化与重排用通义（DashScope）；不配置时售后检索只用关键词
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+    depends_on:
+      - nacos
+      - elasticsearch
+
   # AI 助手（Python / FastAPI + LangGraph）。没有配置模型 key 时助手返回"暂不可用"，商城其他功能不受影响
   agent:
     build:
@@ -117,7 +133,6 @@ services:
       NACOS_ADDR: nacos:8848
       MYSQL_HOST: mysql
       REDIS_HOST: redis
-      ES_URIS: http://elasticsearch:9200
       SW_AGENT_COLLECTOR_BACKEND_SERVICES: oap:11800
       # 通义千问（主）与 DeepSeek（备用），在 docker/.env 或 shell 环境里提供
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
@@ -126,7 +141,7 @@ services:
       - nacos
       - mysql
       - redis
-      - elasticsearch
+      - mcp
 
   frontend:
     build:
