@@ -57,6 +57,13 @@ spring:
             - Path=/api/payments/**,/api/webhooks/**
           filters:
             - StripPrefix=1
+        # AI 助手（Python 服务，同样注册在 Nacos）。回答是 SSE 流，网关逐块转发，不做缓冲
+        - id: agent
+          uri: lb://stickybeak-agent
+          predicates:
+            - Path=/api/agent/**
+          filters:
+            - StripPrefix=1
         # OpenAPI 文档：只转发 /v3/api-docs，不能做成 /api-docs/{svc}/** 的通配转发，
         # 否则这个公开前缀会绕过网关鉴权直达任意业务接口
         - id: api-docs-auth

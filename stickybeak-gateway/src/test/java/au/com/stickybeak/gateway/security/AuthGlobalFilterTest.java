@@ -51,6 +51,17 @@ class AuthGlobalFilterTest {
     }
 
     @Test
+    void agentHealthIsPublicButChatRequiresLogin() {
+        run(MockServerHttpRequest.get("/api/agent/health").build());
+        assertNotNull(forwarded.get());
+
+        forwarded.set(null);
+        MockServerWebExchange exchange = run(MockServerHttpRequest.post("/api/agent/chat").build());
+        assertNull(forwarded.get());
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
+    }
+
+    @Test
     void mockWebhookRequiresLogin() {
         MockServerWebExchange exchange = run(MockServerHttpRequest.post("/api/webhooks/mock").build());
         assertNull(forwarded.get());

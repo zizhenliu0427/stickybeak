@@ -65,6 +65,12 @@ public class SentinelGatewayConfig {
                 .setCount(60)
                 .setIntervalSec(1));
 
+        // Rate limit for 'agent' route: max 20 QPS in total; each model call is slow and costs money.
+        // Per-user limits and daily quotas are enforced by the agent itself (Redis counters).
+        rules.add(new GatewayFlowRule("agent")
+                .setCount(20)
+                .setIntervalSec(1));
+
         GatewayRuleManager.loadRules(rules);
     }
 }

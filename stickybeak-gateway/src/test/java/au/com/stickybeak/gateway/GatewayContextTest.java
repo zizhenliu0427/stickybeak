@@ -1,8 +1,13 @@
 package au.com.stickybeak.gateway;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cloud.gateway.route.Route;
+import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 /**
@@ -21,6 +26,9 @@ class GatewayContextTest {
     @Autowired
     private WebTestClient webTestClient;
 
+    @Autowired
+    private RouteLocator routeLocator;
+
     @Test
     void docsAggregationListsEveryServiceWithoutLogin() {
         webTestClient.get().uri("/v3/api-docs/swagger-config")
@@ -33,6 +41,17 @@ class GatewayContextTest {
         webTestClient.get().uri("/doc.html")
                 .exchange()
                 .expectStatus().isOk();
+    }
+
+    @Test
+    void agentRouteForwardsToPythonService() {
+        Route agent = routeLocator.getRoutes().filter(r -> "agent".equals(r.getId())).blockFirst();
+        assertNotNull(agent);
+        assertEquals("lb://stickybeak-agent", agent.getUri().toString());
+
+        webTestClient.post().uri("/api/agent/chat")
+                .exchange()
+                .expectStatus().isUnauthorized();
     }
 
     @Test

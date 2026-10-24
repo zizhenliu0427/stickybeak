@@ -27,6 +27,7 @@ class SentinelGatewayConfigTest {
         Set<GatewayFlowRule> rules = GatewayRuleManager.getRules();
         assertTrue(rules.stream().anyMatch(r -> "order".equals(r.getResource()) && r.getCount() == 100));
         assertTrue(rules.stream().anyMatch(r -> "auth".equals(r.getResource()) && r.getCount() == 60));
+        assertTrue(rules.stream().anyMatch(r -> "agent".equals(r.getResource()) && r.getCount() == 20));
     }
 
     @Test
