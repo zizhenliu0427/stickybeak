@@ -36,6 +36,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -92,9 +95,10 @@ class ProductServiceImplTest {
         cat.setId(1L);
         cat.setSlug("bus-sign");
         cat.setName("大学公交路牌");
-        when(categoryMapper.selectById(1L)).thenReturn(cat);
+        when(categoryMapper.selectBatchIds(any())).thenReturn(List.of(cat));
 
         ProductImage img = new ProductImage();
+        img.setProductId(1001L);
         img.setUrl("/products/test/cover.jpg");
         when(productImageMapper.selectList(any())).thenReturn(List.of(img));
 
@@ -157,5 +161,75 @@ class ProductServiceImplTest {
         assertEquals(1, result.getTotal());
         assertEquals(1, result.getItems().size());
         assertEquals("prod-1", result.getItems().get(0).getSlug());
+    }
+
+    private static ProductImage image(Long productId, String url, int sortOrder) {
+        ProductImage img = new ProductImage();
+        img.setProductId(productId);
+        img.setUrl(url);
+        img.setSortOrder(sortOrder);
+        return img;
+    }
+
+    private static ProductTagRel rel(Long productId, Long tagId) {
+        ProductTagRel rel = new ProductTagRel();
+        rel.setProductId(productId);
+        rel.setTagId(tagId);
+        return rel;
+    }
+
+    private static Tag tag(Long id, String name) {
+        Tag tag = new Tag();
+        tag.setId(id);
+        tag.setName(name);
+        return tag;
+    }
+
+    @Test
+    void listProducts_enrichesAWholePageWithFourQueries() {
+        // 一页 12 个商品：分类 / 图片 / 标签关联 / 标签各查一次，而不是每个商品各查 4 次
+        List<Product> page = new java.util.ArrayList<>();
+        for (long id = 1; id <= 12; id++) {
+            Product p = createSampleProduct(id, "prod-" + id, "Product " + id);
+            p.setCategoryId(id % 2 == 0 ? 2L : 1L);
+            page.add(p);
+        }
+        when(productMapper.selectPage(any(), any())).thenAnswer(invocation -> {
+            Page<Product> p = invocation.getArgument(0);
+            p.setRecords(page);
+            p.setTotal(48);
+            return p;
+        });
+        Category odd = new Category();
+        odd.setId(1L);
+        odd.setSlug("bus-sign");
+        Category even = new Category();
+        even.setId(2L);
+        even.setSlug("train");
+        when(categoryMapper.selectBatchIds(any())).thenReturn(List.of(odd, even));
+        when(productImageMapper.selectList(any())).thenReturn(List.of(
+                image(1L, "/p1/cover.jpg", 0), image(1L, "/p1/2.jpg", 1), image(2L, "/p2/cover.jpg", 0)));
+        when(productTagRelMapper.selectList(any())).thenReturn(List.of(rel(1L, 10L), rel(1L, 11L), rel(3L, 10L), rel(4L, 99L)));
+        when(tagMapper.selectBatchIds(any())).thenReturn(List.of(tag(10L, "UNSW"), tag(11L, "Sydney")));
+
+        ProductListVO result = productService.listProducts(new ProductQuery());
+
+        assertEquals(12, result.getItems().size());
+        assertEquals("prod-1", result.getItems().get(0).getSlug());
+        assertEquals("prod-12", result.getItems().get(11).getSlug());
+        assertEquals("bus-sign", result.getItems().get(0).getCategory());
+        assertEquals("train", result.getItems().get(1).getCategory());
+        assertEquals(List.of("/p1/cover.jpg", "/p1/2.jpg"), result.getItems().get(0).getImages());
+        assertEquals(List.of("UNSW", "Sydney"), result.getItems().get(0).getTags());
+        assertEquals(List.of("UNSW"), result.getItems().get(2).getTags());
+        // 没有图片 / 标签、或标签已被删除的商品返回空列表
+        assertEquals(List.of(), result.getItems().get(3).getTags());
+        assertEquals(List.of(), result.getItems().get(4).getImages());
+
+        verify(categoryMapper, times(1)).selectBatchIds(any());
+        verify(productImageMapper, times(1)).selectList(any());
+        verify(productTagRelMapper, times(1)).selectList(any());
+        verify(tagMapper, times(1)).selectBatchIds(any());
+        verify(categoryMapper, never()).selectById(any());
     }
 }

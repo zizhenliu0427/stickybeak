@@ -160,9 +160,7 @@ public class ProductServiceImpl implements ProductService {
         Page<Product> page = new Page<>(pageNum, pageSize);
         productMapper.selectPage(page, wrapper);
 
-        List<ProductVO> items = page.getRecords().stream()
-                .map(this::enrichProduct)
-                .collect(Collectors.toList());
+        List<ProductVO> items = enrichProducts(page.getRecords());
 
         ProductListVO result = ProductListVO.of(items, page.getTotal(), pageNum, pageSize);
         cacheList(cacheKey, result);
@@ -227,19 +225,64 @@ public class ProductServiceImpl implements ProductService {
         Map<Long, Product> productsById = productMapper.selectBatchIds(result.ids()).stream()
                 .collect(Collectors.toMap(Product::getId, p -> p, (a, b) -> a));
         // 按 ES 的排序输出；索引可能比数据库略旧，已下架的商品在这里过滤掉
-        List<ProductVO> items = result.ids().stream()
+        List<Product> onSale = result.ids().stream()
                 .map(productsById::get)
                 .filter(p -> p != null && Integer.valueOf(0).equals(p.getStatus()))
-                .map(p -> {
-                    ProductVO vo = enrichProduct(p);
-                    vo.setHighlightedName(result.highlightedNames().get(p.getId()));
-                    return vo;
-                })
-                .collect(Collectors.toList());
+                .toList();
+        List<ProductVO> items = enrichProducts(onSale);
+        items.forEach(vo -> vo.setHighlightedName(result.highlightedNames().get(vo.getId())));
         return ProductListVO.of(items, result.total(), pageNum, pageSize);
     }
 
     private ProductVO enrichProduct(Product p) {
+        return enrichProducts(List.of(p)).get(0);
+    }
+
+    /**
+     * 批量补全分类、图片、标签：不管一页有多少个商品，都只发 4 条 SQL，输出顺序与输入一致。
+     * 之前按商品逐个查询（N+1），一页 12 个商品约 50 条 SQL、每条单独借还一次连接；
+     * SkyWalking 链路显示并发时大部分时间耗在等数据库连接上（优化前后数据见 docs/PERF_PRODUCT_LIST.md）。
+     */
+    private List<ProductVO> enrichProducts(List<Product> products) {
+        if (products == null || products.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Set<Long> productIds = products.stream().map(Product::getId).collect(Collectors.toSet());
+        Set<Long> categoryIds = products.stream().map(Product::getCategoryId)
+                .filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<Long, Category> categories = categoryIds.isEmpty() ? Map.of()
+                : categoryMapper.selectBatchIds(categoryIds).stream()
+                        .collect(Collectors.toMap(Category::getId, c -> c, (a, b) -> a));
+
+        Map<Long, List<String>> imagesByProduct = productImageMapper.selectList(new LambdaQueryWrapper<ProductImage>()
+                        .in(ProductImage::getProductId, productIds)
+                        .orderByAsc(ProductImage::getProductId)
+                        .orderByAsc(ProductImage::getSortOrder))
+                .stream()
+                .collect(Collectors.groupingBy(ProductImage::getProductId,
+                        Collectors.mapping(ProductImage::getUrl, Collectors.toList())));
+
+        List<ProductTagRel> rels = productTagRelMapper.selectList(new LambdaQueryWrapper<ProductTagRel>()
+                .in(ProductTagRel::getProductId, productIds)
+                .orderByAsc(ProductTagRel::getId));
+        Set<Long> tagIds = rels.stream().map(ProductTagRel::getTagId).collect(Collectors.toSet());
+        Map<Long, String> tagNames = tagIds.isEmpty() ? Map.of()
+                : tagMapper.selectBatchIds(tagIds).stream()
+                        .collect(Collectors.toMap(Tag::getId, Tag::getName, (a, b) -> a));
+        Map<Long, List<String>> tagsByProduct = rels.stream()
+                .filter(rel -> tagNames.containsKey(rel.getTagId()))
+                .collect(Collectors.groupingBy(ProductTagRel::getProductId,
+                        Collectors.mapping(rel -> tagNames.get(rel.getTagId()), Collectors.toList())));
+
+        return products.stream()
+                .map(p -> toVO(p, categories.get(p.getCategoryId()),
+                        imagesByProduct.getOrDefault(p.getId(), new ArrayList<>()),
+                        tagsByProduct.getOrDefault(p.getId(), new ArrayList<>())))
+                .collect(Collectors.toList());
+    }
+
+    private static ProductVO toVO(Product p, Category category, List<String> images, List<String> tags) {
         ProductVO vo = new ProductVO();
         vo.setId(p.getId());
         vo.setName(p.getName());
@@ -252,40 +295,12 @@ public class ProductServiceImpl implements ProductService {
         vo.setSales(p.getSales());
         vo.setFeatured(p.getFeatured() != null && p.getFeatured() == 1);
         vo.setSourceNoteId(p.getSourceNoteId());
-
-        Category category = categoryMapper.selectById(p.getCategoryId());
         if (category != null) {
             vo.setCategory(category.getSlug());
             vo.setCategoryName(category.getName());
         }
-
-        LambdaQueryWrapper<ProductImage> imgWrapper = new LambdaQueryWrapper<>();
-        imgWrapper.eq(ProductImage::getProductId, p.getId()).orderByAsc(ProductImage::getSortOrder);
-        List<ProductImage> images = productImageMapper.selectList(imgWrapper);
-        if (images != null && !images.isEmpty()) {
-            List<String> imageUrls = images.stream().map(ProductImage::getUrl).collect(Collectors.toList());
-            vo.setImages(imageUrls);
-        } else {
-            vo.setImages(new ArrayList<>());
-        }
-
-        LambdaQueryWrapper<ProductTagRel> relWrapper = new LambdaQueryWrapper<>();
-        relWrapper.eq(ProductTagRel::getProductId, p.getId());
-        List<ProductTagRel> rels = productTagRelMapper.selectList(relWrapper);
-        if (rels != null && !rels.isEmpty()) {
-            List<Long> tagIds = rels.stream().map(ProductTagRel::getTagId).collect(Collectors.toList());
-            if (!tagIds.isEmpty()) {
-                List<Tag> tags = tagMapper.selectBatchIds(tagIds);
-                if (tags != null) {
-                    List<String> tagNames = tags.stream().map(Tag::getName).collect(Collectors.toList());
-                    vo.setTags(tagNames);
-                }
-            }
-        }
-        if (vo.getTags() == null) {
-            vo.setTags(new ArrayList<>());
-        }
-
+        vo.setImages(new ArrayList<>(images));
+        vo.setTags(new ArrayList<>(tags));
         return vo;
     }
 
@@ -318,7 +333,7 @@ public class ProductServiceImpl implements ProductService {
         if (products == null) {
             return new ArrayList<>();
         }
-        return products.stream().map(this::enrichProduct).collect(Collectors.toList());
+        return enrichProducts(products);
     }
 
     @Override
@@ -327,8 +342,7 @@ public class ProductServiceImpl implements ProductService {
         wrapper.eq(Product::getFeatured, 1);
         wrapper.eq(Product::getStatus, 0);
         wrapper.last("LIMIT 8");
-        List<Product> products = productMapper.selectList(wrapper);
-        return products.stream().map(this::enrichProduct).collect(Collectors.toList());
+        return enrichProducts(productMapper.selectList(wrapper));
     }
 
     @Override
@@ -346,7 +360,6 @@ public class ProductServiceImpl implements ProductService {
         wrapper.eq(Product::getStatus, 0);
         wrapper.last("LIMIT " + limit);
 
-        List<Product> products = productMapper.selectList(wrapper);
-        return products.stream().map(this::enrichProduct).collect(Collectors.toList());
+        return enrichProducts(productMapper.selectList(wrapper));
     }
 }
