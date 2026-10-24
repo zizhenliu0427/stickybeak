@@ -33,10 +33,23 @@ spring:
     publisher-returns: true
     listener:
       simple:
+        # 手动 ACK；失败重试由 MessageRetrySupport 转发到延迟重试队列完成
+        # （容器自带的 retry 对 catch 住异常的监听器不生效，已移除）
         acknowledge-mode: manual
-        retry:
-          enabled: true
-          max-attempts: 3
+
+stickybeak:
+  order:
+    # 订单支付超时时间（毫秒），同时决定延迟队列 TTL
+    ttl-millis: ${ORDER_TTL_MILLIS:1800000}
+    mq:
+      max-retries: ${ORDER_MQ_MAX_RETRIES:5}
+      retry-delay-millis: ${ORDER_MQ_RETRY_DELAY_MILLIS:10000}
+    sweep:
+      # 兜底扫描：超时消息丢失时关闭超过 TTL + 宽限期仍未支付的订单
+      enabled: ${ORDER_SWEEP_ENABLED:true}
+      grace-millis: 300000
+      interval-millis: 300000
+      batch-size: 100
 
 mybatis-plus:
   configuration:

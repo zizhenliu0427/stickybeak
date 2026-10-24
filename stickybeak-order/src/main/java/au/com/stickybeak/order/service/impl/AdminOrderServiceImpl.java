@@ -3,7 +3,7 @@ package au.com.stickybeak.order.service.impl;
 import au.com.stickybeak.common.enums.OrderStatus;
 import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.common.result.ResultCode;
-import au.com.stickybeak.order.client.ProductClient;
+import au.com.stickybeak.common.tx.AfterCommit;
 import au.com.stickybeak.order.dto.AdminOrderPageQuery;
 import au.com.stickybeak.order.dto.AdminOrderStatusUpdateRequest;
 import au.com.stickybeak.order.entity.Order;
@@ -11,6 +11,7 @@ import au.com.stickybeak.order.entity.OrderItem;
 import au.com.stickybeak.order.mapper.OrderItemMapper;
 import au.com.stickybeak.order.mapper.OrderMapper;
 import au.com.stickybeak.order.service.AdminOrderService;
+import au.com.stickybeak.order.service.OrderResourceReleaser;
 import au.com.stickybeak.order.statemachine.OrderStateMachine;
 import au.com.stickybeak.order.vo.*;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -44,20 +45,20 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
     private final OrderStateMachine orderStateMachine;
-    private final ProductClient productClient;
+    private final OrderResourceReleaser orderResourceReleaser;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
 
     public AdminOrderServiceImpl(OrderMapper orderMapper,
                                  OrderItemMapper orderItemMapper,
                                  OrderStateMachine orderStateMachine,
-                                 ProductClient productClient,
+                                 OrderResourceReleaser orderResourceReleaser,
                                  StringRedisTemplate stringRedisTemplate,
                                  ObjectMapper objectMapper) {
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
         this.orderStateMachine = orderStateMachine;
-        this.productClient = productClient;
+        this.orderResourceReleaser = orderResourceReleaser;
         this.stringRedisTemplate = stringRedisTemplate;
         this.objectMapper = objectMapper;
     }
@@ -278,18 +279,6 @@ public class AdminOrderServiceImpl implements AdminOrderService {
 
         String currentStatus = order.getStatus();
 
-        // 如果管理员取消订单且该订单原状态是 paid 或 processing，需要通知商品微服务释放库存
-        if (targetStatus == OrderStatus.CANCELLED) {
-            if ("paid".equalsIgnoreCase(currentStatus) || "processing".equalsIgnoreCase(currentStatus) || "pending".equalsIgnoreCase(currentStatus)) {
-                log.info("Admin cancelling order {}, releasing stock", orderNo);
-                try {
-                    productClient.rollbackStock(orderNo);
-                } catch (Exception e) {
-                    log.error("Failed to release stock when admin cancelled order {}: {}", orderNo, e.getMessage());
-                }
-            }
-        }
-
         StringBuilder remarkBuilder = new StringBuilder();
         if (StringUtils.hasText(order.getRemark())) {
             remarkBuilder.append(order.getRemark().trim());
@@ -311,7 +300,15 @@ public class AdminOrderServiceImpl implements AdminOrderService {
         }
 
         orderStateMachine.transition(order, targetStatus, adminId, "admin");
-        orderMapper.updateById(order);
+        if (orderMapper.updateIfStatus(order, currentStatus) == 0) {
+            throw new BusinessException(ResultCode.CONFLICT, "Order " + orderNo + " was changed concurrently, please refresh");
+        }
+
+        // 取消落库之后再释放支付会话与库存（已支付订单的预占已确认，库存不会回补，退款见 Sprint 11）
+        if (targetStatus == OrderStatus.CANCELLED) {
+            log.info("Admin cancelled order {} (was {}), releasing resources after commit", orderNo, currentStatus);
+            AfterCommit.run(() -> orderResourceReleaser.releaseQuietly(orderNo));
+        }
 
         // 清理分析统计缓存
         evictAnalyticsCaches();

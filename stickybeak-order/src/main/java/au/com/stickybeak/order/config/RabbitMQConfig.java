@@ -31,8 +31,50 @@ public class RabbitMQConfig {
     public static final String ORDER_CLOSE_QUEUE = "order.close.queue";
     public static final String ORDER_CLOSE_ROUTING_KEY = "order.close.routing";
 
+    // -------------------------------------------------------------
+    // 消费失败的延迟重试与死信：失败消息发到 retry 队列，TTL 到期后经默认交换机
+    // 回到原队列；超过最大次数进入 DLQ 等待人工处理。
+    // 全部是新队列，不修改已有队列参数（RabbitMQ 不允许改已声明队列的 arguments）。
+    // -------------------------------------------------------------
+    public static final String ORDER_STATUS_RETRY_QUEUE = "order.status.retry.queue";
+    public static final String ORDER_STATUS_DLQ = "order.status.dlq";
+    public static final String ORDER_CLOSE_RETRY_QUEUE = "order.close.retry.queue";
+    public static final String ORDER_CLOSE_DLQ = "order.close.dlq";
+
     @Value("${stickybeak.order.ttl-millis:1800000}")
     private long orderTtlMillis;
+
+    @Value("${stickybeak.order.mq.retry-delay-millis:10000}")
+    private long retryDelayMillis;
+
+    @Bean
+    public Queue orderStatusRetryQueue() {
+        return retryQueue(ORDER_STATUS_RETRY_QUEUE, ORDER_STATUS_QUEUE);
+    }
+
+    @Bean
+    public Queue orderStatusDlq() {
+        return new Queue(ORDER_STATUS_DLQ, true);
+    }
+
+    @Bean
+    public Queue orderCloseRetryQueue() {
+        return retryQueue(ORDER_CLOSE_RETRY_QUEUE, ORDER_CLOSE_QUEUE);
+    }
+
+    @Bean
+    public Queue orderCloseDlq() {
+        return new Queue(ORDER_CLOSE_DLQ, true);
+    }
+
+    private Queue retryQueue(String name, String targetQueue) {
+        Map<String, Object> args = new HashMap<>();
+        args.put("x-message-ttl", retryDelayMillis);
+        // 默认交换机（""）按队列名路由，只回到目标队列，不会重复投递给通知服务
+        args.put("x-dead-letter-exchange", "");
+        args.put("x-dead-letter-routing-key", targetQueue);
+        return new Queue(name, true, false, false, args);
+    }
 
     @Bean
     public TopicExchange orderTopicExchange() {

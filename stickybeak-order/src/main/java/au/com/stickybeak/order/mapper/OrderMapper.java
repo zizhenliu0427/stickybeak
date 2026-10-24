@@ -1,6 +1,7 @@
 package au.com.stickybeak.order.mapper;
 
 import au.com.stickybeak.order.entity.Order;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 
@@ -13,6 +14,16 @@ import java.util.Map;
 
 @Mapper
 public interface OrderMapper extends BaseMapper<Order> {
+
+    /**
+     * 条件更新：仅当数据库中的状态仍为 expectedStatus 时才写入，返回影响行数。
+     * 并发流转（支付 / 超时 / 取消同时到达）时只有一个能成功，其余返回 0。
+     */
+    default int updateIfStatus(Order order, String expectedStatus) {
+        return update(order, new UpdateWrapper<Order>()
+                .eq("order_no", order.getOrderNo())
+                .eq("status", expectedStatus));
+    }
 
     @Select("SELECT COALESCE(SUM(pay_amount), 0) FROM t_order " +
             "WHERE status IN ('paid', 'processing', 'shipped', 'completed') AND is_deleted = 0")

@@ -16,6 +16,8 @@ import au.com.stickybeak.order.entity.OrderStatusHistory;
 import au.com.stickybeak.order.mapper.OrderItemMapper;
 import au.com.stickybeak.order.mapper.OrderMapper;
 import au.com.stickybeak.order.mapper.OrderStatusHistoryMapper;
+import au.com.stickybeak.order.service.OrderService.PaidOutcome;
+import au.com.stickybeak.order.service.OrderService.TimeoutOutcome;
 import au.com.stickybeak.order.service.impl.OrderServiceImpl;
 import au.com.stickybeak.order.statemachine.OrderStateMachine;
 import au.com.stickybeak.order.vo.CheckoutResponseVO;
@@ -42,6 +44,7 @@ class OrderServiceImplTest {
     private AuthClient authClient;
     private ProductClient productClient;
     private OrderStateMachine orderStateMachine;
+    private OrderResourceReleaser orderResourceReleaser;
     private RabbitTemplate rabbitTemplate;
     private ObjectMapper objectMapper;
     private OrderServiceImpl orderService;
@@ -56,6 +59,7 @@ class OrderServiceImplTest {
         authClient = mock(AuthClient.class);
         productClient = mock(ProductClient.class);
         orderStateMachine = new OrderStateMachine(orderStatusHistoryMapper);
+        orderResourceReleaser = mock(OrderResourceReleaser.class);
         rabbitTemplate = mock(RabbitTemplate.class);
         objectMapper = new ObjectMapper();
 
@@ -68,16 +72,13 @@ class OrderServiceImplTest {
                 authClient,
                 productClient,
                 orderStateMachine,
+                orderResourceReleaser,
                 rabbitTemplate,
                 objectMapper
         );
     }
 
-    @Test
-    void testCheckoutSuccess() {
-        Long userId = 100L;
-
-        // Mock cart
+    private CreateOrderRequest checkoutRequest(Long userId) {
         CartClient.CartData cart = new CartClient.CartData();
         cart.setTotalAmount(new BigDecimal("50.00"));
         CartClient.CartItemData item = new CartClient.CartItemData();
@@ -89,7 +90,6 @@ class OrderServiceImplTest {
         cart.setItems(List.of(item));
         when(cartClient.getCart(userId)).thenReturn(cart);
 
-        // Mock address
         AddressDTO address = new AddressDTO();
         address.setId(1L);
         address.setReceiverName("Jane Doe");
@@ -102,7 +102,22 @@ class OrderServiceImplTest {
         req.setAddress(address);
         req.setCurrency("AUD");
         req.setPaymentMethod("card");
+        return req;
+    }
 
+    private static Order order(String orderNo, OrderStatus status) {
+        Order order = new Order();
+        order.setId(1L);
+        order.setOrderNo(orderNo);
+        order.setUserId(200L);
+        order.setStatus(status.getCode());
+        return order;
+    }
+
+    @Test
+    void testCheckoutSuccess() {
+        Long userId = 100L;
+        CreateOrderRequest req = checkoutRequest(userId);
         when(paymentClient.createCheckoutSession(any(), eq(userId), any(), any(), eq("AUD"), eq("card"), any()))
                 .thenReturn(new PaymentClient.PaymentSessionResult("SO123", "mock_cs_1", "https://checkout.stripe.com/test", "mock"));
 
@@ -121,6 +136,32 @@ class OrderServiceImplTest {
         verify(orderMapper, times(1)).insert(any(Order.class));
         verify(orderItemMapper, times(1)).insert(any(OrderItem.class));
         verify(orderStatusHistoryMapper, times(1)).insert(any(OrderStatusHistory.class));
+        verify(orderResourceReleaser, never()).releaseQuietly(anyString());
+    }
+
+    @Test
+    void testCheckoutReleasesStockWhenPaymentSessionFails() {
+        Long userId = 100L;
+        CreateOrderRequest req = checkoutRequest(userId);
+        when(paymentClient.createCheckoutSession(any(), eq(userId), any(), any(), any(), any(), any()))
+                .thenThrow(new BusinessException(au.com.stickybeak.common.result.ResultCode.SYSTEM_ERROR, "payment down"));
+
+        assertThrows(BusinessException.class, () -> orderService.checkout(userId, req));
+
+        verify(productClient).deductStock(anyString(), anyList());
+        verify(orderResourceReleaser).releaseQuietly(anyString());
+    }
+
+    @Test
+    void testCheckoutReleasesStockWhenOrderInsertFails() {
+        Long userId = 100L;
+        CreateOrderRequest req = checkoutRequest(userId);
+        doThrow(new RuntimeException("db down")).when(orderMapper).insert(any(Order.class));
+
+        assertThrows(RuntimeException.class, () -> orderService.checkout(userId, req));
+
+        verify(orderResourceReleaser).releaseQuietly(anyString());
+        verify(paymentClient, never()).createCheckoutSession(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -135,75 +176,126 @@ class OrderServiceImplTest {
 
     @Test
     void testCancelOrderSuccess() {
-        Order order = new Order();
-        order.setId(10L);
-        order.setOrderNo("SO202609160010");
+        Order order = order("SO202609160010", OrderStatus.PENDING);
         order.setUserId(100L);
-        order.setStatus(OrderStatus.PENDING.getCode());
-
         when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, OrderStatus.PENDING.getCode())).thenReturn(1);
 
         orderService.cancelOrder("SO202609160010", 100L);
 
         assertEquals(OrderStatus.CANCELLED.getCode(), order.getStatus());
-        verify(orderMapper, times(1)).updateById(order);
-        verify(productClient, times(1)).rollbackStock("SO202609160010");
+        verify(orderMapper, times(1)).updateIfStatus(order, OrderStatus.PENDING.getCode());
+        verify(orderResourceReleaser, times(1)).releaseQuietly("SO202609160010");
         verify(orderStatusHistoryMapper, times(1)).insert(any(OrderStatusHistory.class));
     }
 
     @Test
-    void testHandleOrderPaidUpdatesStatusAndConfirmsStock() {
-        Order order = new Order();
-        order.setId(1L);
-        order.setOrderNo("SO202609160001");
-        order.setUserId(200L);
-        order.setStatus(OrderStatus.PENDING.getCode());
-
+    void testCancelPaidOrderRejected() {
+        Order order = order("SO202609160011", OrderStatus.PAID);
+        order.setUserId(100L);
         when(orderMapper.selectOne(any())).thenReturn(order);
+
+        assertThrows(BusinessException.class, () -> orderService.cancelOrder("SO202609160011", 100L));
+        verify(orderMapper, never()).updateIfStatus(any(), anyString());
+        verify(orderResourceReleaser, never()).releaseQuietly(anyString());
+    }
+
+    @Test
+    void testCancelOrderLosesRaceToPayment() {
+        Order order = order("SO202609160012", OrderStatus.PENDING);
+        order.setUserId(100L);
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, OrderStatus.PENDING.getCode())).thenReturn(0);
+
+        assertThrows(BusinessException.class, () -> orderService.cancelOrder("SO202609160012", 100L));
+        verify(orderResourceReleaser, never()).releaseQuietly(anyString());
+    }
+
+    @Test
+    void testMarkPaidUpdatesStatusWithoutRemoteCalls() {
+        Order order = order("SO202609160001", OrderStatus.PENDING);
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, OrderStatus.PENDING.getCode())).thenReturn(1);
 
         OrderPaidEvent event = new OrderPaidEvent();
         event.setOrderNo("SO202609160001");
         event.setPayTime(LocalDateTime.now());
 
-        orderService.handleOrderPaid(event);
-
+        assertEquals(PaidOutcome.PAID_NOW, orderService.markPaid(event));
         assertEquals(OrderStatus.PAID.getCode(), order.getStatus());
-        verify(orderMapper, times(1)).updateById(order);
+        verify(orderMapper, times(1)).updateIfStatus(order, OrderStatus.PENDING.getCode());
+        verifyNoInteractions(productClient, cartClient);
+    }
+
+    @Test
+    void testMarkPaidOutcomes() {
+        OrderPaidEvent event = new OrderPaidEvent();
+        event.setOrderNo("SO1");
+
+        when(orderMapper.selectOne(any())).thenReturn(null);
+        assertEquals(PaidOutcome.NOT_FOUND, orderService.markPaid(event));
+
+        when(orderMapper.selectOne(any())).thenReturn(order("SO1", OrderStatus.SHIPPED));
+        assertEquals(PaidOutcome.ALREADY_PAID, orderService.markPaid(event));
+
+        when(orderMapper.selectOne(any())).thenReturn(order("SO1", OrderStatus.CANCELLED));
+        assertEquals(PaidOutcome.NOT_PAYABLE, orderService.markPaid(event));
+
+        verify(orderMapper, never()).updateIfStatus(any(), anyString());
+    }
+
+    @Test
+    void testMarkPaidConflictThrowsSoTransactionRollsBack() {
+        Order order = order("SO2", OrderStatus.PENDING);
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, OrderStatus.PENDING.getCode())).thenReturn(0);
+
+        OrderPaidEvent event = new OrderPaidEvent();
+        event.setOrderNo("SO2");
+        assertThrows(BusinessException.class, () -> orderService.markPaid(event));
+    }
+
+    @Test
+    void testCompletePaidOrderConfirmsStockAndClearsCart() {
+        when(orderMapper.selectOne(any())).thenReturn(order("SO202609160001", OrderStatus.PAID));
+
+        orderService.completePaidOrder("SO202609160001");
+
         verify(productClient, times(1)).confirmStock("SO202609160001");
         verify(cartClient, times(1)).clearCart(200L);
     }
 
     @Test
-    void testHandleOrderTimeoutAutoCancelsAndRollsBack() {
-        Order order = new Order();
-        order.setId(2L);
-        order.setOrderNo("SO202609160002");
-        order.setUserId(200L);
-        order.setStatus(OrderStatus.PENDING.getCode());
-
+    void testCloseIfUnpaidCancelsPendingOrder() {
+        Order order = order("SO202609160002", OrderStatus.PENDING);
         when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, OrderStatus.PENDING.getCode())).thenReturn(1);
 
-        orderService.handleOrderTimeout("SO202609160002");
-
+        assertEquals(TimeoutOutcome.CLOSED_NOW, orderService.closeIfUnpaid("SO202609160002"));
         assertEquals(OrderStatus.CANCELLED.getCode(), order.getStatus());
-        verify(orderMapper, times(1)).updateById(order);
-        verify(productClient, times(1)).rollbackStock("SO202609160002");
+        // 释放由监听器在事务提交后调用
+        verifyNoInteractions(orderResourceReleaser, productClient);
     }
 
     @Test
-    void testHandleOrderTimeoutSkipsIfAlreadyPaid() {
-        Order order = new Order();
-        order.setId(3L);
-        order.setOrderNo("SO202609160003");
-        order.setUserId(200L);
-        order.setStatus(OrderStatus.PAID.getCode());
+    void testCloseIfUnpaidSkipsPaidAndReportsCancelled() {
+        Order paid = order("SO202609160003", OrderStatus.PAID);
+        when(orderMapper.selectOne(any())).thenReturn(paid);
+        assertEquals(TimeoutOutcome.NOT_PENDING, orderService.closeIfUnpaid("SO202609160003"));
+        assertEquals(OrderStatus.PAID.getCode(), paid.getStatus());
 
-        when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.selectOne(any())).thenReturn(order("SO202609160004", OrderStatus.CANCELLED));
+        assertEquals(TimeoutOutcome.ALREADY_CLOSED, orderService.closeIfUnpaid("SO202609160004"));
 
-        orderService.handleOrderTimeout("SO202609160003");
+        when(orderMapper.selectOne(any())).thenReturn(null);
+        assertEquals(TimeoutOutcome.NOT_FOUND, orderService.closeIfUnpaid("SO_NONE"));
 
-        assertEquals(OrderStatus.PAID.getCode(), order.getStatus());
-        verify(orderMapper, never()).updateById(order);
-        verify(productClient, never()).rollbackStock(anyString());
+        verify(orderMapper, never()).updateIfStatus(any(), anyString());
+    }
+
+    @Test
+    void testReleaseOrderResourcesDelegates() {
+        orderService.releaseOrderResources("SO9");
+        verify(orderResourceReleaser).release("SO9");
     }
 }

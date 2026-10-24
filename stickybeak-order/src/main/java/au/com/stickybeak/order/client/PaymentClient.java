@@ -1,5 +1,7 @@
 package au.com.stickybeak.order.client;
 
+import au.com.stickybeak.common.exception.BusinessException;
+import au.com.stickybeak.common.result.ResultCode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -132,6 +134,23 @@ public class PaymentClient {
         } catch (Exception e) {
             log.error("Failed to create checkout session for order {}: {}", orderNo, e.getMessage(), e);
         }
-        return new PaymentSessionResult(orderNo, null, null, "unknown");
+        // 拿不到支付链接时必须失败，让结账回滚库存；否则订单无法支付却占着库存 30 分钟
+        throw new BusinessException(ResultCode.SYSTEM_ERROR, "Payment service unavailable, please retry");
+    }
+
+    /** 关单后让支付会话失效；失败时抛出，由调用方决定是否重试 */
+    public void expireSession(String orderNo) {
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    PAYMENT_SERVICE_URL + "/" + orderNo + "/expire-session", null, String.class);
+            int code = response.getBody() == null ? -1 : objectMapper.readTree(response.getBody()).path("code").asInt(-1);
+            if (code != 0) {
+                throw new BusinessException(ResultCode.SYSTEM_ERROR, "Expire session returned code " + code);
+            }
+        } catch (BusinessException be) {
+            throw be;
+        } catch (Exception e) {
+            throw new BusinessException(ResultCode.SYSTEM_ERROR, "Expire session failed: " + e.getMessage());
+        }
     }
 }

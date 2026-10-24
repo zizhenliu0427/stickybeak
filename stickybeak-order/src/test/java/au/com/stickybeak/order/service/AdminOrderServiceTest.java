@@ -1,11 +1,11 @@
 package au.com.stickybeak.order.service;
 
 import au.com.stickybeak.common.enums.OrderStatus;
-import au.com.stickybeak.order.client.ProductClient;
 import au.com.stickybeak.order.dto.AdminOrderStatusUpdateRequest;
 import au.com.stickybeak.order.entity.Order;
 import au.com.stickybeak.order.mapper.OrderItemMapper;
 import au.com.stickybeak.order.mapper.OrderMapper;
+import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.order.service.impl.AdminOrderServiceImpl;
 import au.com.stickybeak.order.statemachine.OrderStateMachine;
 import au.com.stickybeak.order.vo.AnalyticsSummaryVO;
@@ -40,7 +40,7 @@ class AdminOrderServiceTest {
     @Mock
     private OrderStateMachine orderStateMachine;
     @Mock
-    private ProductClient productClient;
+    private OrderResourceReleaser orderResourceReleaser;
     @Mock
     private StringRedisTemplate stringRedisTemplate;
     @Mock
@@ -53,7 +53,7 @@ class AdminOrderServiceTest {
     void setUp() {
         lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
         adminOrderService = new AdminOrderServiceImpl(
-                orderMapper, orderItemMapper, orderStateMachine, productClient, stringRedisTemplate, objectMapper);
+                orderMapper, orderItemMapper, orderStateMachine, orderResourceReleaser, stringRedisTemplate, objectMapper);
     }
 
     @Test
@@ -109,6 +109,7 @@ class AdminOrderServiceTest {
         order.setOrderNo("SO20260916001");
         order.setStatus("processing");
         when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, "processing")).thenReturn(1);
 
         AdminOrderStatusUpdateRequest req = new AdminOrderStatusUpdateRequest();
         req.setStatus("shipped");
@@ -118,7 +119,8 @@ class AdminOrderServiceTest {
         adminOrderService.updateOrderStatus("SO20260916001", req, 1L);
 
         verify(orderStateMachine).transition(order, OrderStatus.SHIPPED, 1L, "admin");
-        verify(orderMapper).updateById(order);
+        verify(orderMapper).updateIfStatus(order, "processing");
+        verify(orderResourceReleaser, never()).releaseQuietly(anyString());
         assertTrue(order.getRemark().contains("Tracking: AUSPOST_998877"));
     }
 
@@ -129,6 +131,7 @@ class AdminOrderServiceTest {
         order.setOrderNo("SO20260916002");
         order.setStatus("paid");
         when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, "paid")).thenReturn(1);
 
         AdminOrderStatusUpdateRequest req = new AdminOrderStatusUpdateRequest();
         req.setStatus("cancelled");
@@ -136,8 +139,25 @@ class AdminOrderServiceTest {
 
         adminOrderService.updateOrderStatus("SO20260916002", req, 1L);
 
-        verify(productClient).rollbackStock("SO20260916002");
         verify(orderStateMachine).transition(order, OrderStatus.CANCELLED, 1L, "admin");
-        verify(orderMapper).updateById(order);
+        verify(orderMapper).updateIfStatus(order, "paid");
+        verify(orderResourceReleaser).releaseQuietly("SO20260916002");
+    }
+
+    @Test
+    void testUpdateOrderStatus_ConcurrentChangeRejected() {
+        Order order = new Order();
+        order.setId(12L);
+        order.setOrderNo("SO20260916003");
+        order.setStatus("pending");
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        // 管理员操作期间订单已被用户取消 / 超时关闭
+        when(orderMapper.updateIfStatus(order, "pending")).thenReturn(0);
+
+        AdminOrderStatusUpdateRequest req = new AdminOrderStatusUpdateRequest();
+        req.setStatus("cancelled");
+
+        assertThrows(BusinessException.class, () -> adminOrderService.updateOrderStatus("SO20260916003", req, 1L));
+        verify(orderResourceReleaser, never()).releaseQuietly(anyString());
     }
 }
