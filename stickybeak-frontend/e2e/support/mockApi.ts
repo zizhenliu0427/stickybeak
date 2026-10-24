@@ -120,8 +120,76 @@ export interface MockBackend {
   orders: MockOrder[];
   checkoutRequests: Record<string, unknown>[];
   refundRequests: string[];
+  /** AI 助手：用户发出的消息、确认 / 拒绝的记录、当前对话（刷新页面后恢复用） */
+  agentMessages: string[];
+  agentResumes: boolean[];
+  agentThread: AgentThread | null;
   /** 没有被模拟的接口，测试结束时断言为空，防止页面悄悄调用了新接口 */
   unmatched: string[];
+}
+
+export const AGENT_THREAD = `7-${'a'.repeat(32)}`;
+
+interface AgentThread {
+  messages: { role: 'user' | 'assistant'; text: string; sources?: unknown[] }[];
+  pendingConfirm: { type: 'confirm'; actions: Record<string, unknown>[] } | null;
+}
+
+/** 按服务端格式拼 SSE 响应体（一次性返回，前端按流解析） */
+function sseBody(events: [string, unknown][]) {
+  return events.map(([event, data]) => `event: ${event}\r\ndata: ${JSON.stringify(data)}\r\n\r\n`).join('');
+}
+
+/**
+ * 助手的替身：问到退款时给出带引用的售后回答；其他消息都当作"加购物车"请求，返回待确认的操作。
+ * 真实的意图识别、工具调用和检索由 stickybeak-agent 的 pytest 覆盖。
+ */
+function agentChat(backend: MockBackend, message: string) {
+  backend.agentMessages.push(message);
+  const thread: AgentThread = backend.agentThread ?? { messages: [], pendingConfirm: null };
+  backend.agentThread = thread;
+  thread.messages.push({ role: 'user', text: message });
+  thread.pendingConfirm = null;
+  if (/refund/i.test(message)) {
+    const text = 'Card refunds usually take 5-10 business days [1].';
+    const sources = [{ n: 1, title: 'Returns and Refunds', section: 'How long do refunds take', source: 'en/returns-refunds.md' }];
+    thread.messages.push({ role: 'assistant', text, sources });
+    return sseBody([
+      ['meta', { threadId: AGENT_THREAD }],
+      ['token', { text: 'Card refunds usually take ' }],
+      ['token', { text: '5-10 business days [1].' }],
+      ['sources', { items: sources }],
+      ['done', { firstTokenMs: 5 }],
+    ]);
+  }
+  const product = PRODUCTS[1];
+  thread.pendingConfirm = {
+    type: 'confirm',
+    actions: [{ id: 'call-1', tool: 'add_to_cart', productId: product.id, name: product.name, priceAud: (product.priceCents / 100).toFixed(2), qty: 1 }],
+  };
+  return sseBody([
+    ['meta', { threadId: AGENT_THREAD }],
+    ['tool', { name: 'add_to_cart' }],
+    ['confirm', thread.pendingConfirm],
+    ['done', {}],
+  ]);
+}
+
+function agentResume(backend: MockBackend, approved: boolean) {
+  backend.agentResumes.push(approved);
+  const thread = backend.agentThread!;
+  thread.pendingConfirm = null;
+  let text = "No problem, I didn't add it.";
+  if (approved) {
+    addToCart(backend, PRODUCTS[1].id, 1);
+    text = 'Added UNSW Bus Sign Magnet to your trolley.';
+  }
+  thread.messages.push({ role: 'assistant', text });
+  return sseBody([
+    ['meta', { threadId: AGENT_THREAD }],
+    ['token', { text }],
+    ['done', {}],
+  ]);
 }
 
 export function order(orderNo: string, status: string, product = PRODUCTS[0], qty = 1): MockOrder {
@@ -193,6 +261,9 @@ export async function mockBackend(page: Page, initial: Partial<MockBackend> = {}
     orders: [],
     checkoutRequests: [],
     refundRequests: [],
+    agentMessages: [],
+    agentResumes: [],
+    agentThread: null,
     unmatched: [],
     ...initial,
   };
@@ -329,6 +400,20 @@ export async function mockBackend(page: Page, initial: Partial<MockBackend> = {}
         const found = backend.orders.find((o) => o.orderNo === single[1]);
         // 支付成功页轮询订单状态：webhook 已经处理完
         return found ? json(ok({ ...found, status: 'paid' })) : json({ code: 404, message: 'Order not found', data: null }, 404);
+      }
+
+      // ---- AI assistant ----
+      const sse = (body: string) => route.fulfill({ status: 200, contentType: 'text/event-stream', body });
+      if (method === 'POST' && path === '/agent/chat') {
+        return backend.user ? sse(agentChat(backend, body.message)) : unauthorized();
+      }
+      if (method === 'POST' && path === `/agent/chat/${AGENT_THREAD}/resume`) {
+        return sse(agentResume(backend, body.approved));
+      }
+      if (method === 'GET' && path === `/agent/threads/${AGENT_THREAD}`) {
+        return backend.agentThread
+          ? json({ threadId: AGENT_THREAD, ...backend.agentThread })
+          : json({ code: 404, message: 'conversation not found', data: null }, 404);
       }
 
       backend.unmatched.push(`${method} ${url.pathname}`);

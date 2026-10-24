@@ -24,6 +24,7 @@ import { useI18n } from '../lib/i18n';
 import Price from '../components/Price';
 import OfflineBanner from '../components/OfflineBanner';
 import MobileBottomNav from '../components/MobileBottomNav';
+import AgentChat from '../components/AgentChat';
 
 export default function AppLayout() {
   const cartCount = useAppSelector(selectCartCount);
@@ -249,6 +250,9 @@ export default function AppLayout() {
             </ul>
           )}
         </Drawer>
+
+        {/* AI 购物助手（右下角浮动按钮 + 抽屉） */}
+        <AgentChat />
 
         {/* 沉浸式移动端底部导航栏 */}
         <MobileBottomNav />
