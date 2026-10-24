@@ -47,6 +47,8 @@ x-svc-defaults: &svc-defaults
     # 生产不暴露 OpenAPI 文档与 Knife4j 页面
     - API_DOCS_ENABLED=false
     - KNIFE4J_PRODUCTION=true
+    # SkyWalking OAP 的 gRPC 地址；留空则不挂 agent
+    - SW_AGENT_COLLECTOR_BACKEND_SERVICES=${SW_AGENT_COLLECTOR_BACKEND_SERVICES:-}
     - JAVA_OPTS=-Xms512m -Xmx1024m -XX:+UseG1GC -XX:MaxGCPauseMillis=200
 
 services:
@@ -74,6 +76,7 @@ services:
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - API_DOCS_ENABLED=false
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=${SW_AGENT_COLLECTOR_BACKEND_SERVICES:-}
       - JAVA_OPTS=-Xms256m -Xmx512m -XX:+UseG1GC
     deploy:
       resources:

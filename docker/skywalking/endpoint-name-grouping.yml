@@ -1,0 +1,33 @@
+# 网关端点名分组（挂载到 OAP 的 /skywalking/config/endpoint-name-grouping.yml）。
+# 网关（Spring Cloud Gateway）按真实 URL 命名端点，订单号、商品 slug 都会变成一个新端点，
+# 端点数无限增长、指标被打散。下游 Spring MVC 服务按路由模板命名（GET:/orders/{orderNo}），不需要配置。
+#
+# 匹配方式：按 "/" 切段，每一层按规则的书写顺序取第一个命中的节点，不回溯。
+# 所以同一层的字面量规则（如 /api/orders/my）必须写在 {var} 规则之前，否则会被 {var} 吞掉。
+# 没有命中任何完整规则的 URL 保持原样。
+grouping:
+  - service-name: stickybeak-gateway
+    rules:
+      - /api/orders/my
+      - /api/orders/checkout
+      - /api/orders/admin/page
+      - /api/orders/admin/{var}/status
+      - /api/orders/admin/{var}/refund
+      - /api/orders/{var}
+      - /api/orders/{var}/cancel
+      - /api/products/featured
+      - /api/products/batch
+      - /api/products/admin/page
+      - /api/products/admin/stock-alerts
+      - /api/products/admin/{var}/price
+      - /api/products/admin/{var}/status
+      - /api/products/admin/{var}/stock
+      - /api/products/id/{var}
+      - /api/products/stock/{var}
+      - /api/products/{var}
+      - /api/products/{var}/related
+      - /api/categories/{var}
+      - /api/cart/items/{var}
+      - /api/wishlist/toggle/{var}
+      - /api/wishlist/move-to-cart/{var}
+      - /api/users/me/addresses/{var}

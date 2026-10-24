@@ -35,3 +35,6 @@ logs/
 # --- Generated / imported data ---
 scripts/generated-*.sql
 stickybeak-frontend/public/products/
+
+# SkyWalking agent extracted by scripts/rebuild-services.ps1
+.skywalking/
