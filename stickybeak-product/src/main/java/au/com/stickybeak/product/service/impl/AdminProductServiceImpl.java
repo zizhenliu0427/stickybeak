@@ -19,6 +19,7 @@ import au.com.stickybeak.product.vo.AdminProductVO;
 import au.com.stickybeak.product.vo.StockAlertSummaryVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.seata.spring.annotation.GlobalLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -165,7 +166,9 @@ public class AdminProductServiceImpl implements AdminProductService {
         log.info("Admin updated product {} status to {}", id, req.getStatus());
     }
 
+    /** 与 InventoryServiceImpl#rollbackStock 同理：改库存行要先确认它不在未完成的结账全局事务里 */
     @Override
+    @GlobalLock
     @Transactional(rollbackFor = Exception.class)
     public void updateStock(Long id, ProductStockUpdateRequest req) {
         Product product = productMapper.selectById(id);

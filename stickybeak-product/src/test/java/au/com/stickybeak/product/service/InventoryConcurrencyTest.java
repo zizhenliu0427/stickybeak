@@ -53,6 +53,9 @@ class InventoryConcurrencyTest {
     @Mock
     private DefaultRedisScript<Long> incrementIfExistsScript;
 
+    @Mock
+    private DefaultRedisScript<Long> restoreReservationScript;
+
     private InventoryServiceImpl inventoryService;
 
     @BeforeEach
@@ -68,7 +71,8 @@ class InventoryConcurrencyTest {
                 stringRedisTemplate,
                 redissonClient,
                 deductStockScript,
-                incrementIfExistsScript
+                incrementIfExistsScript,
+                restoreReservationScript
         );
     }
 
@@ -79,7 +83,8 @@ class InventoryConcurrencyTest {
         final AtomicInteger remainingStock = new AtomicInteger(initialStock);
 
         // Simulate atomic Redis Lua script deduction
-        when(stringRedisTemplate.execute(any(DefaultRedisScript.class), anyList(), any())).thenAnswer(invocation -> {
+        // 扣减脚本参数：数量、商品 ID、账本 TTL
+        when(stringRedisTemplate.execute(eq(deductStockScript), anyList(), any(), any(), any())).thenAnswer(invocation -> {
             int current = remainingStock.get();
             while (current > 0) {
                 if (remainingStock.compareAndSet(current, current - 1)) {

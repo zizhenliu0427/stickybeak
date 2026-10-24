@@ -41,6 +41,13 @@ public class InventoryController {
         return Result.ok();
     }
 
+    /** 结账全局事务回滚后，订单服务调用此接口归还该订单的 Redis 预扣（MySQL 部分已由 Seata 撤销） */
+    @InternalApi
+    @PostMapping("/redis-restore")
+    public Result<Integer> restoreRedisReservation(@Valid @RequestBody StockRollbackRequest req) {
+        return Result.ok(inventoryService.restoreRedisReservation(req.getOrderNo()));
+    }
+
     @InternalApi
     @PostMapping("/confirm")
     public Result<Void> confirmStock(@Valid @RequestBody StockRollbackRequest req) {

@@ -41,6 +41,8 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
 
     public static final String HEADER_USER_ID = "X-User-Id";
     public static final String HEADER_USER_ROLES = "X-User-Roles";
+    /** Seata 全局事务 ID 的传播头（RootContext.KEY_XID）。外部请求带上它就能把写操作挂进别人的全局事务 */
+    public static final String HEADER_SEATA_XID = "TX_XID";
     public static final String COOKIE_ACCESS = "sb_access";
     private static final String BLACKLIST_PREFIX = "auth:blacklist:";
 
@@ -94,12 +96,13 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
-        // 1. 无论是否登录，先剥离可伪造的身份头与内部调用标识
+        // 1. 无论是否登录，先剥离可伪造的身份头、内部调用标识与分布式事务上下文
         ServerHttpRequest sanitized = request.mutate()
                 .headers(h -> {
                     h.remove(HEADER_USER_ID);
                     h.remove(HEADER_USER_ROLES);
                     h.remove(InternalCall.HEADER);
+                    h.remove(HEADER_SEATA_XID);
                 })
                 .build();
 

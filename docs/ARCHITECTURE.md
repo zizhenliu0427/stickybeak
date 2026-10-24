@@ -86,7 +86,7 @@ flowchart TB
 | Redis | 7 | 缓存 + Redisson 分布式锁 + token 黑名单 |
 | RabbitMQ | 3.x | 订单事件、邮件异步任务 |
 | Elasticsearch | 8.x | 商品全文检索 + 多条件筛选 |
-| Seata | 1.7.x AT | 下单跨库分布式事务（订单库 + 库存库） |
+| Seata | 2.0 AT | 下单跨库分布式事务（订单库 + 库存库），Redis 预扣由回滚 hook 按订单账本归还 |
 | Spring Security + JWT | — | 认证授权，access 15min + refresh 7d |
 | Knife4j | — | Swagger 增强版 API 文档 |
 | JUnit 5 + Mockito | — | 单元/集成测试 |

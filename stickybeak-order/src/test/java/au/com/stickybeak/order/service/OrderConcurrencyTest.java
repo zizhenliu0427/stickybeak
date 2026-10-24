@@ -58,9 +58,9 @@ class OrderConcurrencyTest {
         });
 
         OrderStatusHistoryMapper historyMapper = mock(OrderStatusHistoryMapper.class);
-        OrderServiceImpl service = new OrderServiceImpl(orderMapper, mock(OrderItemMapper.class), historyMapper,
+        OrderServiceImpl service = new OrderServiceImpl(orderMapper, mock(OrderItemMapper.class),
                 mock(CartClient.class), mock(PaymentClient.class), mock(AuthClient.class), mock(ProductClient.class),
-                new OrderStateMachine(historyMapper), mock(OrderResourceReleaser.class),
+                new OrderStateMachine(historyMapper), mock(OrderResourceReleaser.class), mock(CheckoutTransaction.class),
                 mock(RabbitTemplate.class), new ObjectMapper());
 
         OrderPaidEvent event = new OrderPaidEvent();

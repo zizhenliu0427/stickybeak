@@ -112,12 +112,14 @@ class AuthGlobalFilterTest {
                 .header(AuthGlobalFilter.HEADER_USER_ID, "1")
                 .header(AuthGlobalFilter.HEADER_USER_ROLES, "ROLE_ADMIN")
                 .header(InternalCall.HEADER, InternalCall.VALUE)
+                .header(AuthGlobalFilter.HEADER_SEATA_XID, "10.0.0.1:8091:123456")
                 .build());
 
         var headers = forwarded.get().getRequest().getHeaders();
         assertFalse(headers.containsKey(AuthGlobalFilter.HEADER_USER_ID));
         assertFalse(headers.containsKey(AuthGlobalFilter.HEADER_USER_ROLES));
         assertFalse(headers.containsKey(InternalCall.HEADER));
+        assertFalse(headers.containsKey(AuthGlobalFilter.HEADER_SEATA_XID));
     }
 
     @Test

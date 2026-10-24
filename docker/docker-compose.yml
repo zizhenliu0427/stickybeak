@@ -32,6 +32,7 @@ services:
       RABBITMQ_HOST: rabbitmq
       MAIL_HOST: mailhog
       ES_URIS: http://elasticsearch:9200
+      SEATA_ADDR: seata:8091
       # 本地 E2E 脚本使用模拟支付回调；生产 compose 不设置（默认关闭）
       PAYMENT_MOCK_WEBHOOK_ENABLED: "true"
     depends_on: &svc-deps
@@ -47,7 +48,11 @@ services:
         MODULE: stickybeak-product
     container_name: sb-product
     environment: *svc-env
-    depends_on: *svc-deps
+    depends_on:
+      - nacos
+      - mysql
+      - redis
+      - seata
 
   cart:
     build:
@@ -167,15 +172,15 @@ services:
       - "9848:9848"
 
   seata:
-    image: seataio/seata-server:1.8.0
+    # 与 Spring Cloud Alibaba 2023.0.1.x 自带的 Seata 2.0 客户端对齐；file 存储，单机演示用
+    image: seataio/seata-server:2.0.0
     container_name: sb-seata
     environment:
       SEATA_PORT: "8091"
-      store.mode: file
+      STORE_MODE: file
     ports:
       - "8091:8091"
-    depends_on:
-      - mysql
+      - "7091:7091"   # 控制台
 
   minio:
     # MinIO 社区版已停止向 Docker Hub 发布镜像，改用 quay.io 历史版本

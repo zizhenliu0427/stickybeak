@@ -64,16 +64,20 @@ class OrderServiceImplTest {
         rabbitTemplate = mock(RabbitTemplate.class);
         objectMapper = new ObjectMapper();
 
+        // 真实的事务边界对象（单测里没有 Seata / Spring 事务，只验证调用编排）
+        CheckoutTransaction checkoutTransaction = new CheckoutTransaction(orderMapper, orderItemMapper,
+                orderStatusHistoryMapper, productClient, orderStateMachine, orderResourceReleaser);
+
         orderService = new OrderServiceImpl(
                 orderMapper,
                 orderItemMapper,
-                orderStatusHistoryMapper,
                 cartClient,
                 paymentClient,
                 authClient,
                 productClient,
                 orderStateMachine,
                 orderResourceReleaser,
+                checkoutTransaction,
                 rabbitTemplate,
                 objectMapper
         );
@@ -143,28 +147,53 @@ class OrderServiceImplTest {
     }
 
     @Test
-    void testCheckoutReleasesStockWhenPaymentSessionFails() {
+    void testCheckoutClosesOrderWhenPaymentSessionFails() {
         Long userId = 100L;
         CreateOrderRequest req = checkoutRequest(userId);
         when(paymentClient.createCheckoutSession(any(), eq(userId), any(), any(), any(), any(), any()))
                 .thenThrow(new BusinessException(au.com.stickybeak.common.result.ResultCode.SYSTEM_ERROR, "payment down"));
+        // 全局事务已提交，订单已落库；关单时按订单号查回来
+        Order[] saved = new Order[1];
+        doAnswer(inv -> {
+            saved[0] = inv.getArgument(0);
+            return 1;
+        }).when(orderMapper).insert(any(Order.class));
+        when(orderMapper.selectOne(any())).thenAnswer(inv -> saved[0]);
+        when(orderMapper.updateIfStatus(any(Order.class), eq(OrderStatus.PENDING.getCode()))).thenReturn(1);
 
         assertThrows(BusinessException.class, () -> orderService.checkout(userId, req));
 
         verify(productClient).deductStock(anyString(), anyList());
-        verify(orderResourceReleaser).releaseQuietly(anyString());
+        assertEquals(OrderStatus.CANCELLED.getCode(), saved[0].getStatus());
+        verify(orderResourceReleaser).releaseQuietly(saved[0].getOrderNo());
     }
 
     @Test
-    void testCheckoutReleasesStockWhenOrderInsertFails() {
+    void testCheckoutStillThrowsPaymentErrorWhenClosingFails() {
+        Long userId = 100L;
+        CreateOrderRequest req = checkoutRequest(userId);
+        when(paymentClient.createCheckoutSession(any(), any(), any(), any(), any(), any(), any()))
+                .thenThrow(new BusinessException(au.com.stickybeak.common.result.ResultCode.SYSTEM_ERROR, "payment down"));
+        when(orderMapper.selectOne(any())).thenThrow(new RuntimeException("db down"));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> orderService.checkout(userId, req));
+
+        assertEquals("payment down", ex.getMessage());
+        verify(orderResourceReleaser, never()).releaseQuietly(anyString());
+    }
+
+    @Test
+    void testCheckoutOrderInsertFailureIsLeftToGlobalRollback() {
         Long userId = 100L;
         CreateOrderRequest req = checkoutRequest(userId);
         doThrow(new RuntimeException("db down")).when(orderMapper).insert(any(Order.class));
 
         assertThrows(RuntimeException.class, () -> orderService.checkout(userId, req));
 
-        verify(orderResourceReleaser).releaseQuietly(anyString());
+        // 库存扣减由 Seata 全局回滚撤销，不再手工调用库存回滚；也不会去建支付会话、发超时消息
+        verify(orderResourceReleaser, never()).releaseQuietly(anyString());
         verify(paymentClient, never()).createCheckoutSession(any(), any(), any(), any(), any(), any(), any());
+        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
     }
 
     @Test

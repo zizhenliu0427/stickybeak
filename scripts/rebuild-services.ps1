@@ -18,9 +18,9 @@ if ($LASTEXITCODE -ne 0) { throw "maven build failed" }
 # 容器网络 docker_default 内的服务环境变量
 $envMap = @{
     "auth"         = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis")
-    "product"      = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis", "ES_URIS=http://sb-elasticsearch:9200")
+    "product"      = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis", "ES_URIS=http://sb-elasticsearch:9200", "SEATA_ADDR=sb-seata:8091")
     "cart"         = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis")
-    "order"        = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis", "RABBITMQ_HOST=sb-rabbitmq")
+    "order"        = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis", "RABBITMQ_HOST=sb-rabbitmq", "SEATA_ADDR=sb-seata:8091")
     "payment"      = @("MYSQL_HOST=sb-mysql", "REDIS_HOST=sb-redis", "RABBITMQ_HOST=sb-rabbitmq", "PAYMENT_MOCK_WEBHOOK_ENABLED=true")
     "notification" = @("RABBITMQ_HOST=sb-rabbitmq", "MAIL_HOST=sb-mailhog")
     "gateway"      = @("REDIS_HOST=sb-redis")

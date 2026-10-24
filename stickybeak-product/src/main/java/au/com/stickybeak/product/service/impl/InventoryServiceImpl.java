@@ -11,6 +11,7 @@ import au.com.stickybeak.product.mapper.ProductMapper;
 import au.com.stickybeak.product.mapper.StockHoldMapper;
 import au.com.stickybeak.product.service.InventoryService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.seata.spring.annotation.GlobalLock;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
@@ -22,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -35,6 +35,10 @@ public class InventoryServiceImpl implements InventoryService {
     private static final Logger log = LoggerFactory.getLogger(InventoryServiceImpl.class);
     private static final String STOCK_KEY_PREFIX = "product:stock:";
     private static final String LOCK_KEY_PREFIX = "lock:product:stock:";
+    /** 订单预扣账本，记录该订单在 Redis 里扣过哪些商品、各多少 */
+    private static final String RESERVATION_KEY_PREFIX = "stock:reservation:";
+    /** 远大于结账全局事务超时（15s），过期后账本已无用 */
+    private static final long RESERVATION_TTL_SECONDS = 3600;
 
     private final ProductMapper productMapper;
     private final StockHoldMapper stockHoldMapper;
@@ -42,47 +46,54 @@ public class InventoryServiceImpl implements InventoryService {
     private final RedissonClient redissonClient;
     private final DefaultRedisScript<Long> deductStockScript;
     private final DefaultRedisScript<Long> incrementIfExistsScript;
+    private final DefaultRedisScript<Long> restoreReservationScript;
 
     public InventoryServiceImpl(ProductMapper productMapper,
                                 StockHoldMapper stockHoldMapper,
                                 StringRedisTemplate stringRedisTemplate,
                                 RedissonClient redissonClient,
                                 DefaultRedisScript<Long> deductStockScript,
-                                DefaultRedisScript<Long> incrementIfExistsScript) {
+                                DefaultRedisScript<Long> incrementIfExistsScript,
+                                DefaultRedisScript<Long> restoreReservationScript) {
         this.productMapper = productMapper;
         this.stockHoldMapper = stockHoldMapper;
         this.stringRedisTemplate = stringRedisTemplate;
         this.redissonClient = redissonClient;
         this.deductStockScript = deductStockScript;
         this.incrementIfExistsScript = incrementIfExistsScript;
+        this.restoreReservationScript = restoreReservationScript;
     }
 
+    /**
+     * 结账扣库存。整个方法是一个本地事务，在 Seata 全局事务中就是一个 AT 分支：
+     * MySQL 扣减与预占记录由本地事务 / 全局回滚撤销；Redis 预扣不受数据库事务管理，
+     * 按订单记在预扣账本里，事务没有提交就按账本归还（全局回滚时由订单服务调用 {@link #restoreRedisReservation}）。
+     */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deductStock(StockDeductRequest req) {
         if (req == null || req.getItems() == null || req.getItems().isEmpty()) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "Items cannot be empty");
         }
+        String orderNo = req.getOrderNo();
+        AfterCommit.onRollback(() -> restoreRedisReservation(orderNo));
 
         // Sort items by productId in ascending order to prevent deadlocks across concurrent threads
         List<StockItemDTO> sortedItems = req.getItems().stream()
                 .sorted(Comparator.comparing(StockItemDTO::getProductId))
                 .collect(Collectors.toList());
 
-        List<StockItemDTO> successfullyDeductedItems = new ArrayList<>();
-
         for (StockItemDTO item : sortedItems) {
             Long productId = item.getProductId();
             Integer qty = item.getQty();
-            String stockKey = STOCK_KEY_PREFIX + productId;
 
             // -------------------------------------------------------------
-            // 防线 1: Redis Lua 脚本原子预扣减 (抗超高并发冲击)
+            // 防线 1: Redis Lua 脚本原子预扣减 (抗超高并发冲击)，同时记入订单预扣账本
             // -------------------------------------------------------------
-            Long luaResult = executeLuaDeduct(stockKey, productId, qty);
+            Long luaResult = executeLuaDeduct(orderNo, productId, qty);
             // 1 = 扣减成功；0 = 库存不足；-1 = 预热后仍无 key（商品不存在）
             if (luaResult == null || luaResult != 1) {
                 log.warn("Stock pre-deduction failed in Redis for product: {}, requested: {}", productId, qty);
-                compensate(req.getOrderNo(), successfullyDeductedItems);
                 throw new BusinessException(ResultCode.INSUFFICIENT_STOCK, "Product " + productId + " is out of stock");
             }
 
@@ -101,9 +112,6 @@ public class InventoryServiceImpl implements InventoryService {
 
             if (!acquired) {
                 log.warn("Failed to acquire Redisson lock for product: {}", productId);
-                // Revert this item in Redis
-                incrementCachedStock(productId, qty);
-                compensate(req.getOrderNo(), successfullyDeductedItems);
                 throw new BusinessException(ResultCode.CONFLICT, "Server is busy, please retry");
             }
 
@@ -114,23 +122,19 @@ public class InventoryServiceImpl implements InventoryService {
                 int affectedRows = productMapper.deductStockOptimistic(productId, qty);
                 if (affectedRows <= 0) {
                     log.error("MySQL optimistic stock deduction failed for product {}, insufficient DB stock", productId);
-                    // Revert this item in Redis
-                    incrementCachedStock(productId, qty);
-                    compensate(req.getOrderNo(), successfullyDeductedItems);
                     throw new BusinessException(ResultCode.INSUFFICIENT_STOCK, "Insufficient stock for product " + productId);
                 }
 
                 // Record stock hold
                 StockHold hold = new StockHold(
                         productId,
-                        req.getOrderNo(),
+                        orderNo,
                         qty,
                         StockHold.STATUS_HELD,
                         LocalDateTime.now().plusMinutes(30)
                 );
                 stockHoldMapper.insert(hold);
-                successfullyDeductedItems.add(item);
-                log.info("Successfully deducted stock for order {}, product {}, qty {}", req.getOrderNo(), productId, qty);
+                log.info("Successfully deducted stock for order {}, product {}, qty {}", orderNo, productId, qty);
             } finally {
                 if (lock.isHeldByCurrentThread()) {
                     lock.unlock();
@@ -139,45 +143,40 @@ public class InventoryServiceImpl implements InventoryService {
         }
     }
 
-    private Long executeLuaDeduct(String stockKey, Long productId, Integer qty) {
-        Long result = stringRedisTemplate.execute(
-                deductStockScript,
-                Collections.singletonList(stockKey),
-                String.valueOf(qty)
-        );
+    private Long executeLuaDeduct(String orderNo, Long productId, Integer qty) {
+        List<String> keys = List.of(STOCK_KEY_PREFIX + productId, RESERVATION_KEY_PREFIX + orderNo);
+        String[] args = {String.valueOf(qty), String.valueOf(productId), String.valueOf(RESERVATION_TTL_SECONDS)};
+        Long result = stringRedisTemplate.execute(deductStockScript, keys, (Object[]) args);
 
         if (result != null && result == -1) {
             // Redis key does not exist yet; warm it up from MySQL and retry
             getOrInitStock(productId);
-            result = stringRedisTemplate.execute(
-                    deductStockScript,
-                    Collections.singletonList(stockKey),
-                    String.valueOf(qty)
-            );
+            result = stringRedisTemplate.execute(deductStockScript, keys, (Object[]) args);
         }
         return result;
     }
 
-    private void compensate(String orderNo, List<StockItemDTO> items) {
-        if (items.isEmpty()) {
-            return;
+    @Override
+    public int restoreRedisReservation(String orderNo) {
+        Long restored = stringRedisTemplate.execute(
+                restoreReservationScript,
+                Collections.singletonList(RESERVATION_KEY_PREFIX + orderNo),
+                STOCK_KEY_PREFIX
+        );
+        int count = restored == null ? 0 : restored.intValue();
+        if (count > 0) {
+            log.warn("Restored Redis pre-deduction of {} product(s) for order {} whose stock transaction did not commit",
+                    count, orderNo);
         }
-        log.warn("Compensating previously deducted items for order: {}", orderNo);
-        for (StockItemDTO item : items) {
-            Long productId = item.getProductId();
-            Integer qty = item.getQty();
-            try {
-                productMapper.rollbackStockOptimistic(productId, qty);
-                incrementCachedStock(productId, qty);
-            } catch (Exception e) {
-                log.error("Error compensating product {} for order {}: {}", productId, orderNo, e.getMessage());
-            }
-        }
-        // Remove any holds created for this order
-        stockHoldMapper.delete(new LambdaQueryWrapper<StockHold>().eq(StockHold::getOrderNo, orderNo));
+        return count;
     }
 
+    /**
+     * 关单释放与退款回补都会改 t_product.stock，而这一行可能正被一个未完成的结账全局事务持有全局锁。
+     * 不加 @GlobalLock 的本地写会绕过全局锁，那个全局事务回滚时 after-image 校验失败，回滚卡住需要人工处理。
+     */
     @Override
+    @GlobalLock
     @Transactional(rollbackFor = Exception.class)
     public void rollbackStock(String orderNo) {
         log.info("Executing stock rollback for order: {}", orderNo);
@@ -185,6 +184,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
+    @GlobalLock
     @Transactional(rollbackFor = Exception.class)
     public void restockConfirmed(String orderNo) {
         log.info("Restocking refunded order: {}", orderNo);

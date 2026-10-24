@@ -72,3 +72,20 @@ management:
     web:
       exposure:
         include: health,info
+
+# Seata AT：结账"扣库存（product 库）+ 写订单（order 库）"的分布式事务。
+# 不经注册中心，直连 TC（docker-compose 中的 seata-server 2.0，与 Spring Cloud Alibaba 2023.0.1.x 的客户端版本一致）
+seata:
+  enabled: ${SEATA_ENABLED:true}
+  application-id: ${spring.application.name}
+  tx-service-group: stickybeak-tx-group
+  service:
+    vgroup-mapping:
+      stickybeak-tx-group: default
+    grouplist:
+      default: ${SEATA_ADDR:localhost:8091}
+  registry:
+    type: file
+  config:
+    type: file
+  data-source-proxy-mode: AT

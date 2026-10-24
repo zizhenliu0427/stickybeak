@@ -14,10 +14,9 @@ import au.com.stickybeak.order.dto.AddressDTO;
 import au.com.stickybeak.order.dto.CreateOrderRequest;
 import au.com.stickybeak.order.entity.Order;
 import au.com.stickybeak.order.entity.OrderItem;
-import au.com.stickybeak.order.entity.OrderStatusHistory;
 import au.com.stickybeak.order.mapper.OrderItemMapper;
 import au.com.stickybeak.order.mapper.OrderMapper;
-import au.com.stickybeak.order.mapper.OrderStatusHistoryMapper;
+import au.com.stickybeak.order.service.CheckoutTransaction;
 import au.com.stickybeak.order.service.OrderResourceReleaser;
 import au.com.stickybeak.order.service.OrderService;
 import au.com.stickybeak.order.statemachine.OrderStateMachine;
@@ -50,42 +49,45 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
-    private final OrderStatusHistoryMapper orderStatusHistoryMapper;
     private final CartClient cartClient;
     private final PaymentClient paymentClient;
     private final AuthClient authClient;
     private final ProductClient productClient;
     private final OrderStateMachine orderStateMachine;
     private final OrderResourceReleaser orderResourceReleaser;
+    private final CheckoutTransaction checkoutTransaction;
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
 
     public OrderServiceImpl(OrderMapper orderMapper,
                             OrderItemMapper orderItemMapper,
-                            OrderStatusHistoryMapper orderStatusHistoryMapper,
                             CartClient cartClient,
                             PaymentClient paymentClient,
                             AuthClient authClient,
                             ProductClient productClient,
                             OrderStateMachine orderStateMachine,
                             OrderResourceReleaser orderResourceReleaser,
+                            CheckoutTransaction checkoutTransaction,
                             RabbitTemplate rabbitTemplate,
                             ObjectMapper objectMapper) {
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
-        this.orderStatusHistoryMapper = orderStatusHistoryMapper;
         this.cartClient = cartClient;
         this.paymentClient = paymentClient;
         this.authClient = authClient;
         this.productClient = productClient;
         this.orderStateMachine = orderStateMachine;
         this.orderResourceReleaser = orderResourceReleaser;
+        this.checkoutTransaction = checkoutTransaction;
         this.rabbitTemplate = rabbitTemplate;
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 不加 @Transactional：分布式事务边界在 {@link CheckoutTransaction#placeOrder}，
+     * 前面的读购物车、地址、汇率与后面的支付会话都不应占着全局锁。
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public CheckoutResponseVO checkout(Long userId, CreateOrderRequest req) {
         if (userId == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED);
@@ -134,58 +136,12 @@ public class OrderServiceImpl implements OrderService {
         String datePrefix = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String orderNo = "SO" + datePrefix + IdWorker.getId();
 
-        // 5. Deduct stock using 3-layer anti-overselling defense in product service
-        List<ProductClient.StockItemParam> stockItems = cart.getItems().stream()
-                .map(item -> new ProductClient.StockItemParam(item.getProductId(), item.getQty()))
-                .collect(Collectors.toList());
-        productClient.deductStock(orderNo, stockItems);
+        // 5. 扣库存 + 写订单：Seata 全局事务，失败时商品库与订单库一起回滚
+        checkoutTransaction.placeOrder(new CheckoutTransaction.PlaceOrderCommand(
+                userId, orderNo, cart.getItems(), addressSnapshotJson,
+                currency, totalAmount, payAmount, rate, req.getRemark()));
 
-        // 库存已在商品服务预占：之后任何一步失败都要归还，否则本地事务回滚后预占成为孤儿
-        try {
-            return createOrderAfterStockHeld(userId, req, cart, address, addressSnapshotJson,
-                    orderNo, currency, totalAmount, payAmount, rate);
-        } catch (RuntimeException e) {
-            log.error("Checkout failed after stock was held for order {}, releasing: {}", orderNo, e.getMessage());
-            orderResourceReleaser.releaseQuietly(orderNo);
-            throw e;
-        }
-    }
-
-    private CheckoutResponseVO createOrderAfterStockHeld(Long userId, CreateOrderRequest req,
-                                                         CartClient.CartData cart, AddressDTO address,
-                                                         String addressSnapshotJson, String orderNo,
-                                                         String currency, BigDecimal totalAmount,
-                                                         BigDecimal payAmount, BigDecimal rate) {
-        // 6. Create Order record
-        Order order = new Order();
-        order.setOrderNo(orderNo);
-        order.setUserId(userId);
-        order.setAddressSnapshot(addressSnapshotJson);
-        order.setTotalAmount(totalAmount);
-        order.setPayAmount(payAmount);
-        order.setCurrency(currency);
-        order.setExchangeRateAtPay(rate);
-        order.setStatus(OrderStatus.PENDING.getCode());
-        order.setRemark(req.getRemark());
-        orderMapper.insert(order);
-
-        // 7. Create OrderItem snapshots
-        for (CartClient.CartItemData item : cart.getItems()) {
-            OrderItem orderItem = new OrderItem();
-            orderItem.setOrderId(order.getId());
-            orderItem.setProductId(item.getProductId());
-            orderItem.setProductName(item.getName());
-            orderItem.setProductImage(item.getImageUrl());
-            orderItem.setPrice(item.getPrice());
-            orderItem.setQty(item.getQty());
-            orderItemMapper.insert(orderItem);
-        }
-
-        // 8. Record initial status history
-        OrderStatusHistory history = new OrderStatusHistory(order.getId(), "none", OrderStatus.PENDING.getCode(), userId, "user");
-        orderStatusHistoryMapper.insert(history);
-
-        // 9. Send delay message to RabbitMQ for 30-minute timeout auto-cancel (DLX)
+        // 6. 全局事务已提交。30 分钟未支付自动关单（DLX 延迟消息；丢失时由 OrderTimeoutSweeper 兜底）
         try {
             rabbitTemplate.convertAndSend(RabbitMQConfig.ORDER_DELAY_EXCHANGE, RabbitMQConfig.ORDER_DELAY_ROUTING_KEY, orderNo);
             log.info("Sent order delay message for order: {}", orderNo);
@@ -193,16 +149,23 @@ public class OrderServiceImpl implements OrderService {
             log.error("Failed to send delay message to RabbitMQ for order {}: {}", orderNo, e.getMessage());
         }
 
-        // 10. Call payment service to create checkout session
-        PaymentClient.PaymentSessionResult sessionResult = paymentClient.createCheckoutSession(
-                orderNo,
-                userId,
-                address.getEmail(),
-                payAmount,
-                currency,
-                req.getPaymentMethod(),
-                "StickyBeak Order " + orderNo
-        );
+        // 7. 创建支付会话（外部调用，不放进全局事务）；失败时订单无法支付，立即关闭并归还库存
+        PaymentClient.PaymentSessionResult sessionResult;
+        try {
+            sessionResult = paymentClient.createCheckoutSession(
+                    orderNo,
+                    userId,
+                    address.getEmail(),
+                    payAmount,
+                    currency,
+                    req.getPaymentMethod(),
+                    "StickyBeak Order " + orderNo
+            );
+        } catch (RuntimeException e) {
+            log.error("Payment session creation failed for order {}, closing it: {}", orderNo, e.getMessage());
+            closeUnpayableQuietly(orderNo);
+            throw e;
+        }
 
         return new CheckoutResponseVO(
                 orderNo,
@@ -212,6 +175,15 @@ public class OrderServiceImpl implements OrderService {
                 sessionResult.getCheckoutUrl(),
                 sessionResult.getSessionId()
         );
+    }
+
+    private void closeUnpayableQuietly(String orderNo) {
+        try {
+            checkoutTransaction.cancelUnpayable(orderNo);
+        } catch (Exception e) {
+            // 关单失败时订单保持待支付，30 分钟超时消息 / 扫描任务会再关一次
+            log.error("Failed to close unpayable order {}, the timeout will close it: {}", orderNo, e.getMessage());
+        }
     }
 
     @Override

@@ -127,6 +127,18 @@ public class ProductClient {
         postOrThrow(PRODUCT_SERVICE_URL + "/restock", request, "restock", orderNo);
     }
 
+    /** 结账全局事务回滚后归还该订单的 Redis 预扣（幂等） */
+    public void restoreRedisReservation(String orderNo) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("orderNo", orderNo);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        postOrThrow(PRODUCT_SERVICE_URL + "/redis-restore", request, "redis-restore", orderNo);
+    }
+
     public void confirmStock(String orderNo) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

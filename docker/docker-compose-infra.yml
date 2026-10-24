@@ -66,15 +66,15 @@ services:
       - "19848:9848"
 
   seata:
-    image: seataio/seata-server:1.8.0
+    # 与 Spring Cloud Alibaba 2023.0.1.x 自带的 Seata 2.0 客户端对齐；file 存储，单机演示用
+    image: seataio/seata-server:2.0.0
     container_name: sb-seata
     environment:
       SEATA_PORT: "8091"
-      store.mode: file
+      STORE_MODE: file
     ports:
       - "8091:8091"
-    depends_on:
-      - mysql
+      - "7091:7091"   # 控制台
 
   minio:
     # MinIO 社区版已停止向 Docker Hub 发布镜像，改用 quay.io 最后发布的历史版本

@@ -9,8 +9,17 @@ public interface InventoryService {
      * Layer 1: Redis Lua atomic script
      * Layer 2: Redisson distributed lock (ordered by productId)
      * Layer 3: MySQL optimistic conditional update & t_stock_hold logging
+     * Runs as one local transaction (one Seata AT branch when called inside the checkout global transaction).
      */
     void deductStock(StockDeductRequest req);
+
+    /**
+     * Return the order's Redis pre-deductions recorded in its reservation ledger, then drop the ledger.
+     * Called when the stock transaction did not commit, locally or via a Seata global rollback. Idempotent.
+     *
+     * @return number of products whose Redis stock was restored
+     */
+    int restoreRedisReservation(String orderNo);
 
     /**
      * Idempotent stock rollback for an order (e.g. timeout or cancellation).

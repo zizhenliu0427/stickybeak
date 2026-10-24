@@ -302,6 +302,16 @@
 - Redis 预扣不在全局事务内，全局回滚时补偿 Redis
 - 验收：故意让订单写库失败 → MySQL 库存自动回滚；压测热点商品，记录 AT 全局锁对吞吐的影响（面试素材：AT 与 TCC 的取舍）
 
+> 实现说明：
+> - 全局事务边界是 `CheckoutTransaction#placeOrder`（`@GlobalTransactional`）：product 的 `deductStock`（一个本地事务 = 一个 AT 分支，XID 由 RestTemplate 拦截器透传）+ order 写订单 / 明细 / 状态历史。原来的手工 `compensate` 与"失败后调 rollback 接口"都删掉了。
+> - 支付会话（Stripe）不在全局事务里：AT 分支提交后商品行的全局锁要到全局提交才释放，外部 HTTP 调用会让同一热门商品的结账在全局锁上排队。支付会话建失败时订单已提交，改为立即关单并释放库存（`cancelUnpayable`）。
+> - Redis 预扣不受 undo_log 管理：Lua 扣减时按订单记账（`stock:reservation:{orderNo}`），本地事务没提交时由 `AfterCommit.onRollback` 归还；全局回滚时由订单服务注册的 Seata `TransactionHook#afterRollback` 调 `/products/stock/redis-restore` 归还。归还脚本"读账本 + 加回 + 删账本"是原子的，重复调用只生效一次。hook 在扣库存之前注册，覆盖"扣库存请求超时但商品服务其实扣了"的情况。
+> - AT 写隔离：关单释放、退款回补、后台改库存这些不在全局事务里的本地写，会改到可能被未完成全局事务锁住的 `t_product` 行，已加 `@GlobalLock`，否则全局回滚时 after-image 校验失败、回滚卡住。
+> - 网关剥离外部请求的 `TX_XID` 头，防止外部请求把写操作挂进别人的全局事务。
+> - Seata Server 升级到 2.0.0（与 SCA 2023.0.1.2 的客户端一致），file 存储、直连（不走注册中心）；`undo_log` 见 `docker/mysql/init/07-seata-undo-log.sql`。
+> - 已知取舍：热点商品的结账在行级全局锁上串行（持锁时间 = 扣库存分支提交到全局提交，约几十毫秒），这是选 AT 而不是 TCC 的代价；全局回滚后若归还 Redis 的调用失败，Redis 库存只会偏少（不会超卖），后台改库存或 key 过期后从 MySQL 重新预热。
+> - 未完成：本地无 Docker 环境，"订单写库失败 → 库存自动回滚"与热点压测还没在真实 Seata Server 上跑过。
+
 ### Issue 11.2 — Elasticsearch 商品搜索（即 9.2）
 `type:feature` `area:product` `p0`
 - ES 镜像安装 IK 中文分词插件（版本与 ES 8.14.3 一致）；商品索引包含中英文名、描述、分类、标签、价格、销量
