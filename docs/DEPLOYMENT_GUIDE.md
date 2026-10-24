@@ -116,11 +116,12 @@ nano docker/.env.prod
 
 Critical parameters to review:
 - `NACOS_ADDR`: Internal address of your Nacos server/cluster.
-- `DB_HOST`, `DB_USER`, `DB_PASSWORD`: RDS MySQL connection credentials.
-- `REDIS_HOST`, `REDIS_PASSWORD`: ElastiCache credentials.
+- `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_PASSWORD`: RDS MySQL connection credentials (same names as the ECS task definitions).
+- `REDIS_HOST`, `REDIS_PASSWORD`: ElastiCache credentials (also passed to the gateway for the token blacklist).
 - `RABBITMQ_HOST`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`: Amazon MQ credentials.
 - `STRIPE_API_KEY`, `STRIPE_WEBHOOK_SECRET`: Live keys from the Stripe Dashboard.
-- `JWT_SECRET`: High-entropy 256-bit secret key.
+- `JWT_SECRET`: Base64-encoded key of at least 256 bits, shared by auth and the gateway (`openssl rand -base64 48`). With the `prod` profile there is no fallback: services refuse to start if it is missing or invalid.
+- `PAYMENT_MOCK_WEBHOOK_ENABLED` must stay unset/false in production; the `prod` profile forces the unsigned mock webhook off.
 
 ### 4.2 Step 2: SSL Certificate Installation
 Mount official TLS certificates into `/etc/ssl/stickybeak/`:

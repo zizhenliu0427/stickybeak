@@ -11,8 +11,12 @@ spring:
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:localhost:8848}
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
       config:
         server-addr: ${NACOS_ADDR:localhost:8848}
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
         file-extension: yml
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/stickybeak_auth?useSSL=false&serverTimezone=Australia/Sydney&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
@@ -24,6 +28,7 @@ spring:
       # 本机 Docker 映射在 16379（Windows 保留段），容器网络内用 sb-redis:6379
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
       timeout: 3s
 
 mybatis-plus:
@@ -54,3 +59,16 @@ management:
     web:
       exposure:
         include: health,info
+
+---
+# 生产环境：不使用仓库内的开发密钥（缺少 JWT_SECRET 时启动失败），cookie 默认 Secure，不种开发管理员
+spring:
+  config:
+    activate:
+      on-profile: prod
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+  cookie:
+    secure: ${COOKIE_SECURE:true}
+  seed-dev-admin: ${SEED_DEV_ADMIN:false}

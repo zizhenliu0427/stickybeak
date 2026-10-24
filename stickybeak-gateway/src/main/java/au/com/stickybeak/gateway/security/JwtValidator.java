@@ -5,10 +5,11 @@ import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import au.com.stickybeak.common.security.JwtSecrets;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 
 /**
@@ -20,7 +21,7 @@ public class JwtValidator {
     private final SecretKey key;
 
     public JwtValidator(@Value("${app.jwt.secret}") String secret) {
-        this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+        this.key = Keys.hmacShaKeyFor(JwtSecrets.decode(secret));
     }
 
     /** 验签 + 过期校验，失败抛 JwtException */

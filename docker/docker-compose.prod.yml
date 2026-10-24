@@ -17,10 +17,11 @@ x-svc-defaults: &svc-defaults
     - NACOS_ADDR=${NACOS_ADDR:-nacos:8848}
     - NACOS_USERNAME=${NACOS_USERNAME:-nacos}
     - NACOS_PASSWORD=${NACOS_PASSWORD:-nacos}
-    - DB_HOST=${DB_HOST:-rds-mysql.internal}
-    - DB_PORT=${DB_PORT:-3306}
-    - DB_USER=${DB_USER:-stickybeak_prod}
-    - DB_PASSWORD=${DB_PASSWORD}
+    # 变量名与各服务 application.yml / ECS task definition 保持一致（MYSQL_*）
+    - MYSQL_HOST=${MYSQL_HOST:-rds-mysql.internal}
+    - MYSQL_PORT=${MYSQL_PORT:-3306}
+    - MYSQL_USER=${MYSQL_USER:-stickybeak_prod}
+    - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     - REDIS_HOST=${REDIS_HOST:-elasticache-redis.internal}
     - REDIS_PORT=${REDIS_PORT:-6379}
     - REDIS_PASSWORD=${REDIS_PASSWORD}
@@ -51,6 +52,13 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - NACOS_ADDR=${NACOS_ADDR:-nacos:8848}
+      - NACOS_USERNAME=${NACOS_USERNAME:-nacos}
+      - NACOS_PASSWORD=${NACOS_PASSWORD:-nacos}
+      # 网关要校验 auth 签发的 JWT 并查询 Redis 黑名单，必须与业务服务使用同一密钥和 Redis
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=${REDIS_HOST:-elasticache-redis.internal}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - JAVA_OPTS=-Xms256m -Xmx512m -XX:+UseG1GC
     deploy:
       resources:

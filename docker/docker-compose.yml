@@ -11,6 +11,7 @@ services:
     container_name: sb-gateway
     environment:
       NACOS_ADDR: nacos:8848
+      REDIS_HOST: redis
     ports:
       - "8080:8080"
     depends_on:
@@ -23,8 +24,15 @@ services:
       args:
         MODULE: stickybeak-auth
     container_name: sb-auth
+    # 容器网络内按服务名访问中间件；不设置时各服务会回落到 localhost 而连不上
     environment: &svc-env
       NACOS_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      REDIS_HOST: redis
+      RABBITMQ_HOST: rabbitmq
+      MAIL_HOST: mailhog
+      # 本地 E2E 脚本使用模拟支付回调；生产 compose 不设置（默认关闭）
+      PAYMENT_MOCK_WEBHOOK_ENABLED: "true"
     depends_on: &svc-deps
       - nacos
       - mysql

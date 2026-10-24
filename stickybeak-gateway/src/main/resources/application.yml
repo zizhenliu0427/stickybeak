@@ -11,8 +11,12 @@ spring:
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:localhost:8848}
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
       config:
         server-addr: ${NACOS_ADDR:localhost:8848}
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
         file-extension: yml
     gateway:
       globalcors:
@@ -58,6 +62,7 @@ spring:
       # 黑名单查询；本机 Docker 映射在 16379，容器网络内用 sb-redis:6379
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
       timeout: 3s
 
 app:
@@ -69,4 +74,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        # 不暴露 gateway 端点：它支持在运行时增删路由，且网关全局过滤器不保护 actuator
+        include: health,info
+
+---
+# 生产环境不使用仓库内的开发密钥：缺少 JWT_SECRET 时启动失败
+spring:
+  config:
+    activate:
+      on-profile: prod
+app:
+  jwt:
+    secret: ${JWT_SECRET}
