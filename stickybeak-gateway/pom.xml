@@ -10,6 +10,10 @@
     </parent>
     <artifactId>stickybeak-gateway</artifactId>
     <name>stickybeak-gateway</name>
+    <properties>
+        <!-- 覆盖率门禁底线（Sprint 11 实测后向下取整） -->
+        <jacoco.line.minimum>0.65</jacoco.line.minimum>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>au.com.stickybeak</groupId>

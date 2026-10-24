@@ -10,6 +10,10 @@
     </parent>
     <artifactId>stickybeak-cart</artifactId>
     <name>stickybeak-cart</name>
+    <properties>
+        <!-- 覆盖率门禁底线（Sprint 11 实测后向下取整） -->
+        <jacoco.line.minimum>0.50</jacoco.line.minimum>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>au.com.stickybeak</groupId>
