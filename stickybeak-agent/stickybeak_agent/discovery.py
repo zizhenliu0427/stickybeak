@@ -10,6 +10,8 @@ import logging
 import random
 import socket
 
+import httpx
+
 from .config import Settings
 
 log = logging.getLogger(__name__)
@@ -26,11 +28,14 @@ def local_ip() -> str:
 
 
 class ServiceResolver:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, service_name: str | None = None, port: int | None = None):
+        """service_name / port：注册到 Nacos 的名字和端口（agent 与 MCP 服务各自不同）。"""
         self._settings = settings
         self._static = settings.static_service_urls()
         self._naming = None
         self._ip = settings.advertise_ip or local_ip()
+        self._service = service_name or settings.service_name
+        self._port = port or settings.app_port
 
     @property
     def nacos_enabled(self) -> bool:
@@ -48,13 +53,13 @@ class ServiceResolver:
         self._naming = await NacosNamingService.create_naming_service(builder.build())
         await self._naming.register_instance(
             RegisterInstanceParam(
-                service_name=self._settings.service_name,
+                service_name=self._service,
                 ip=self._ip,
-                port=self._settings.app_port,
+                port=self._port,
                 metadata={"lang": "python"},
             )
         )
-        log.info("registered %s at %s:%s in Nacos", self._settings.service_name, self._ip, self._settings.app_port)
+        log.info("registered %s at %s:%s in Nacos", self._service, self._ip, self._port)
 
     async def stop(self) -> None:
         if self._naming is None:
@@ -63,9 +68,7 @@ class ServiceResolver:
 
         try:
             await self._naming.deregister_instance(
-                DeregisterInstanceParam(
-                    service_name=self._settings.service_name, ip=self._ip, port=self._settings.app_port
-                )
+                DeregisterInstanceParam(service_name=self._service, ip=self._ip, port=self._port)
             )
         finally:
             await self._naming.shutdown()
@@ -84,3 +87,21 @@ class ServiceResolver:
         if not url:
             raise LookupError(f"no instance of {service}")
         return url
+
+
+class DiscoveryTransport(httpx.AsyncBaseTransport):
+    """类似 Spring 的 lb://：URL 里的主机名是服务名（stickybeak-*）时，每次请求按服务名解析成实例地址。"""
+
+    def __init__(self, resolver: ServiceResolver, inner: httpx.AsyncBaseTransport | None = None):
+        self._resolver = resolver
+        self._inner = inner or httpx.AsyncHTTPTransport()
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        if request.url.host.startswith("stickybeak-"):
+            target = httpx.URL(await self._resolver.base_url(request.url.host))
+            request.url = request.url.copy_with(scheme=target.scheme, host=target.host, port=target.port)
+            request.headers["Host"] = request.url.netloc.decode("ascii")
+        return await self._inner.handle_async_request(request)
+
+    async def aclose(self) -> None:
+        await self._inner.aclose()

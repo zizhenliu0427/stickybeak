@@ -20,9 +20,16 @@ class Settings(BaseSettings):
     service_urls: str = (
         "stickybeak-product=http://localhost:8082,"
         "stickybeak-cart=http://localhost:8083,"
-        "stickybeak-order=http://localhost:8084"
+        "stickybeak-order=http://localhost:8084,"
+        "stickybeak-mcp=http://localhost:8089"
     )
     downstream_timeout_seconds: float = 5.0
+
+    # MCP 服务（Sprint 14）：商城的只读能力（商品、订单查询、售后检索）由它提供，agent 与外部 AI 客户端共用。
+    # MCP_URL 的主机名是服务名时按 Nacos / SERVICE_URLS 解析（见 discovery.DiscoveryTransport）
+    mcp_service_name: str = "stickybeak-mcp"
+    mcp_port: int = 8089
+    mcp_url: str = "http://stickybeak-mcp/mcp"
 
     # 模型：主用通义千问，DeepSeek 备用；都走 OpenAI 兼容接口
     llm_primary: str = "qwen"
