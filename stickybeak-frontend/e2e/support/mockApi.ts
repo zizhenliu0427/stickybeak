@@ -124,6 +124,8 @@ export interface MockBackend {
   agentMessages: string[];
   agentResumes: boolean[];
   agentThread: AgentThread | null;
+  /** 当前有效的 MCP 令牌（个人中心生成 / 撤销） */
+  mcpToken: { token: string; expiresAt: string } | null;
   /** 没有被模拟的接口，测试结束时断言为空，防止页面悄悄调用了新接口 */
   unmatched: string[];
 }
@@ -264,6 +266,7 @@ export async function mockBackend(page: Page, initial: Partial<MockBackend> = {}
     agentMessages: [],
     agentResumes: [],
     agentThread: null,
+    mcpToken: null,
     unmatched: [],
     ...initial,
   };
@@ -309,6 +312,26 @@ export async function mockBackend(page: Page, initial: Partial<MockBackend> = {}
       if (method === 'POST' && path === '/auth/logout') {
         backend.user = null;
         return json(ok(null));
+      }
+      if (path === '/users/me/mcp-token') {
+        if (!backend.user) {
+          return unauthorized();
+        }
+        if (method === 'POST') {
+          backend.mcpToken = { token: `mcp-token-${Date.now()}`, expiresAt: '2026-11-23T00:00:00Z' };
+          return json(ok({ active: true, ...backend.mcpToken }));
+        }
+        if (method === 'DELETE') {
+          backend.mcpToken = null;
+          return json(ok(null));
+        }
+        return json(
+          ok(
+            backend.mcpToken
+              ? { active: true, token: null, expiresAt: backend.mcpToken.expiresAt }
+              : { active: false, token: null, expiresAt: null },
+          ),
+        );
       }
       if (method === 'GET' && path === '/users/me/addresses') {
         return backend.user ? json(ok([ADDRESS])) : unauthorized();

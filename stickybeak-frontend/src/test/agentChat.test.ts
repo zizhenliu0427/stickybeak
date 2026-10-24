@@ -98,3 +98,15 @@ describe('chatReducer', () => {
     expect(s.messages.map((m) => m.role)).toEqual(['user']);
   });
 });
+
+describe('mcpClientConfig', () => {
+  it('points MCP clients at the gateway endpoint with the bearer token', async () => {
+    const { mcpClientConfig } = await import('../lib/mcp');
+    const config = JSON.parse(mcpClientConfig('tok123', 'https://shop.example'));
+    expect(config.mcpServers.stickybeak).toEqual({
+      type: 'streamableHttp',
+      url: 'https://shop.example/api/mcp',
+      headers: { Authorization: 'Bearer tok123' },
+    });
+  });
+});

@@ -24,6 +24,7 @@ import {
   updateProfile,
 } from '../features/auth/authSlice';
 import type { Address, AddressPayload } from '../features/auth/authSlice';
+import McpTokenCard from '../components/McpTokenCard';
 
 const AU_STATES = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'];
 
@@ -172,6 +173,8 @@ export default function ProfilePage() {
           </ul>
         )}
       </Card>
+
+      <McpTokenCard />
 
       {/* 编辑资料 */}
       <Modal

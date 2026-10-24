@@ -213,6 +213,23 @@ export const translations = {
     'agent.rateLimited': "You're sending messages too quickly. Please wait a moment.",
     'agent.quotaExceeded': "You've reached today's assistant limit. Please come back tomorrow.",
     'agent.failed': 'Something went wrong. Please try again.',
+
+    // MCP access for external AI clients
+    'mcp.title': 'AI client access (MCP)',
+    'mcp.description': 'Connect Cherry Studio, Cursor or another MCP client to search the catalogue, read our help articles and check your own orders. The token is read-only, only works with the MCP endpoint and lasts 30 days.',
+    'mcp.endpoint': 'Endpoint',
+    'mcp.activeUntil': 'A token is active until {date}.',
+    'mcp.none': 'No active token.',
+    'mcp.generate': 'Generate token',
+    'mcp.regenerate': 'Generate a new token',
+    'mcp.revoke': 'Revoke',
+    'mcp.revokeConfirm': 'Revoke the token? Connected AI clients will stop working.',
+    'mcp.revoked': 'Token revoked',
+    'mcp.showOnce': 'Copy it now: the token is shown only once. Generating a new one disables this one.',
+    'mcp.config': 'MCP client configuration',
+    'mcp.copyConfig': 'Copy configuration',
+    'mcp.copyToken': 'Copy token',
+    'mcp.copied': 'Copied',
   },
   'zh-CN': {
     // Nav
@@ -426,6 +443,23 @@ export const translations = {
     'agent.rateLimited': '发送太快了，请稍等一下再试。',
     'agent.quotaExceeded': '今天的助手使用次数已用完，明天再来吧。',
     'agent.failed': '出错了，请重试。',
+
+    // MCP：外部 AI 客户端接入
+    'mcp.title': 'AI 客户端接入（MCP）',
+    'mcp.description': '在 Cherry Studio、Cursor 等 MCP 客户端里连接商城，就能搜索商品、查阅售后说明、查看自己的订单。令牌只读、只能访问 MCP 端点，30 天有效。',
+    'mcp.endpoint': '接入地址',
+    'mcp.activeUntil': '当前令牌有效期至 {date}。',
+    'mcp.none': '还没有有效的令牌。',
+    'mcp.generate': '生成令牌',
+    'mcp.regenerate': '重新生成令牌',
+    'mcp.revoke': '撤销',
+    'mcp.revokeConfirm': '确定撤销令牌？已连接的 AI 客户端将无法继续使用。',
+    'mcp.revoked': '令牌已撤销',
+    'mcp.showOnce': '请现在复制：令牌只显示这一次。重新生成后，这个令牌立即失效。',
+    'mcp.config': 'MCP 客户端配置',
+    'mcp.copyConfig': '复制配置',
+    'mcp.copyToken': '复制令牌',
+    'mcp.copied': '已复制',
   },
 } as const;
 
