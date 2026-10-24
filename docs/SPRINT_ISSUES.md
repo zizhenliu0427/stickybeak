@@ -268,8 +268,9 @@
 
 ### Issue 10.3 — 内部接口隔离
 `type:bug` `area:gateway` `area:product` `p0`
-- P0-3 网关拦截 `/api/products/stock/**` 写接口；新增过期 HELD 预占的清理任务
-- 验收：登录用户经网关调用 deduct / rollback 被拒；过期预占自动释放
+- P0-3 网关拦截 `/api/products/stock/**` 写接口；内部接口统一 `@InternalApi` + `X-Internal-Call`
+- 孤儿预占：结账在扣减后任一步失败都归还；订单服务兜底扫描超时消息丢失的待支付订单（不在商品服务按时间释放，避免误放已付款订单的库存）
+- 验收：登录用户经网关调用 deduct / rollback 被拒；超时未支付且消息丢失的订单会被关闭并归还库存
 
 ### Issue 10.4 — 消息可靠性与状态并发
 `type:bug` `area:order` `p0`

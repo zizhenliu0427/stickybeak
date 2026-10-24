@@ -16,7 +16,9 @@
 - **v0.2.0**（main）：Sprint 2 商品目录 + 真实数据导入完成，全栈 E2E 联通
 - **v0.3.0**（main）：Sprint 3 购物车与心愿单全栈完成，E2E 验证全通
 - **v0.4.0**（main）：Sprint 4 结账与 Stripe、Webhook 幂等、多币种、多支付方式、邮件通知（达成简历可用下限！）
-- **v0.5.0**（main / 当前发布）：Sprint 5 订单状态机、防超卖三层防线（Redis Lua 预扣 → Redisson 排序互斥锁 → MySQL 条件更新）、RabbitMQ 原生 DLX 30m 延迟关单与库存原子回滚、前端订单管理中心
+- **v0.5.0**（main）：Sprint 5 订单状态机、防超卖三层防线（Redis Lua 预扣 → Redisson 排序互斥锁 → MySQL 条件更新）、RabbitMQ 原生 DLX 30m 延迟关单与库存原子回滚、前端订单管理中心
+- **v0.6.0 – v1.1.0**（main / 当前发布）：Sprint 6–9 管理后台、PWA、E2E 与云部署配置、Sentinel 限流与手动 ACK
+- **Sprint 10**（`feature/sprint-10-security-fixes`，待合并后打 `v1.2.0`）：修复 `docs/CODE_REVIEW_TODO.md` 中 P0–P2（支付回调、内部接口隔离、消息重试与死信、状态条件更新、生产配置）
 - 开发分支：`develop`；功能分支：`feature/sprint-N-xxx`（Git Flow）
 
 ## Sprint 1 交付明细（均已 E2E 验证）
@@ -155,6 +157,12 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 19. **Windows 火绒杀毒拦截本地 `.ps1` 并发/自动化脚本**：严禁创建复杂的新 `.ps1` 脚本进行自动化测试或压测；应统一使用 Node.js 脚本驱动（如 `scripts/test-sprint5-e2e.js`）或 Docker 容器内执行。
 20. **MySQL 逻辑删除与唯一键冲突**：当数据表有 `UNIQUE KEY (a, b)` 同时开启 MyBatis-Plus `@TableLogic` 软删除时，删除行仍占用物理唯一键索引，再次添加相同键会报 `Duplicate entry`。购物车等临时表应采用物理删除 `DELETE FROM ...`。
 21. **RabbitMQ 原生 DLX 延迟队列配置**：队列设置 `x-message-ttl` + `x-dead-letter-exchange` + `x-dead-letter-routing-key` 即可实现原生延迟，无需安装第三方延迟插件；消费者只监听 DLX 死信目标队列，确保消息到期后精确触发。
+22. **内部接口（Sprint 10）**：只供服务间调用的接口标 `@InternalApi`，调用方 RestTemplate 必须挂 `InternalCallRequestInterceptor`（订单服务已挂），否则返回 403。网关会剥离外部请求的 `X-Internal-Call`，并对 `/api/products/stock/**` 写接口、`/api/payments/checkout-session|records`、`*/expire-session` 直接拒绝。网关的路径判断都基于**解码 + 规范化后**的路径。
+23. **mock 支付回调默认关闭**：本地 E2E 需 `PAYMENT_MOCK_WEBHOOK_ENABLED=true`（`rebuild-services.ps1` 与 `docker-compose.yml` 已设置）；mock 回调需要登录 cookie，且 `amount` 必须等于订单 `payAmount`，否则返回 `REJECTED`。
+24. **RabbitMQ 已声明队列的 arguments 不能改**（再次声明会 `PRECONDITION_FAILED`）：Sprint 10 的重试 / 死信全部用新队列（`order.*.retry.queue`、`order.*.dlq`），没有动 `order.status.queue` / `order.close.queue`。以后要改已有队列参数，需先在管理台删除旧队列或改名。
+25. **远程调用与 Redis 写入放到事务提交后**：用 `common` 的 `AfterCommit.run(...)`；没有事务时立即执行（单测里也是）。
+26. **`OrderMapper.updateIfStatus` 是 default 方法**：Mockito mock 默认返回 0（视为并发冲突并抛异常），单测里要显式 `when(...).thenReturn(1)`。
+27. **prod profile 没有默认 JWT 密钥**：`JWT_SECRET` 缺失 / 非 Base64 / 短于 256 bit 都会启动失败，生成：`openssl rand -base64 48`。
 
 ## 下一步（第二阶段路线图，2026-10 制定）
 
