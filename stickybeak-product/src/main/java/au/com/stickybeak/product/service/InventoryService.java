@@ -25,6 +25,12 @@ public interface InventoryService {
     void confirmStock(String orderNo);
 
     /**
+     * Idempotent restock after a paid order is refunded.
+     * Moves CONFIRMED holds to RELEASED and returns their quantity to MySQL and Redis.
+     */
+    void restockConfirmed(String orderNo);
+
+    /**
      * Warm up or query stock in Redis for a product.
      */
     Integer getOrInitStock(Long productId);

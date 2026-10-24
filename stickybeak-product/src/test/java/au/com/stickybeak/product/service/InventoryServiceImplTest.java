@@ -165,4 +165,28 @@ class InventoryServiceImplTest {
         verify(stockHoldMapper, times(1)).transitStatus(3L, StockHold.STATUS_HELD, StockHold.STATUS_CONFIRMED);
         verify(stockHoldMapper, never()).updateById(any(StockHold.class));
     }
+
+    @Test
+    void restockConfirmed_releasesConfirmedHoldsOnly() {
+        StockHold hold = new StockHold(1001L, "SO20260916008", 2, StockHold.STATUS_CONFIRMED, null);
+        hold.setId(4L);
+        when(stockHoldMapper.selectList(any())).thenReturn(List.of(hold));
+        when(stockHoldMapper.transitStatus(4L, StockHold.STATUS_CONFIRMED, StockHold.STATUS_RELEASED)).thenReturn(1);
+        when(rLock.isHeldByCurrentThread()).thenReturn(true);
+
+        inventoryService.restockConfirmed("SO20260916008");
+
+        verify(stockHoldMapper).transitStatus(4L, StockHold.STATUS_CONFIRMED, StockHold.STATUS_RELEASED);
+        verify(productMapper).rollbackStockOptimistic(1001L, 2);
+        verify(stringRedisTemplate).execute(incrementIfExistsScript, List.of("product:stock:1001"), "2");
+    }
+
+    @Test
+    void restockConfirmed_duplicateMessageDoesNothing() {
+        when(stockHoldMapper.selectList(any())).thenReturn(List.of());
+
+        inventoryService.restockConfirmed("SO20260916009");
+
+        verify(productMapper, never()).rollbackStockOptimistic(anyLong(), anyInt());
+    }
 }

@@ -33,6 +33,14 @@ public class InventoryController {
         return Result.ok();
     }
 
+    /** 已支付订单退款后回补库存 */
+    @InternalApi
+    @PostMapping("/restock")
+    public Result<Void> restockStock(@Valid @RequestBody StockRollbackRequest req) {
+        inventoryService.restockConfirmed(req.getOrderNo());
+        return Result.ok();
+    }
+
     @InternalApi
     @PostMapping("/confirm")
     public Result<Void> confirmStock(@Valid @RequestBody StockRollbackRequest req) {

@@ -17,6 +17,7 @@ import au.com.stickybeak.order.mapper.OrderItemMapper;
 import au.com.stickybeak.order.mapper.OrderMapper;
 import au.com.stickybeak.order.mapper.OrderStatusHistoryMapper;
 import au.com.stickybeak.order.service.OrderService.PaidOutcome;
+import au.com.stickybeak.order.service.OrderService.RefundOutcome;
 import au.com.stickybeak.order.service.OrderService.TimeoutOutcome;
 import au.com.stickybeak.order.service.impl.OrderServiceImpl;
 import au.com.stickybeak.order.statemachine.OrderStateMachine;
@@ -240,6 +241,9 @@ class OrderServiceImplTest {
         when(orderMapper.selectOne(any())).thenReturn(order("SO1", OrderStatus.SHIPPED));
         assertEquals(PaidOutcome.ALREADY_PAID, orderService.markPaid(event));
 
+        when(orderMapper.selectOne(any())).thenReturn(order("SO1", OrderStatus.REFUNDING));
+        assertEquals(PaidOutcome.ALREADY_PAID, orderService.markPaid(event));
+
         when(orderMapper.selectOne(any())).thenReturn(order("SO1", OrderStatus.CANCELLED));
         assertEquals(PaidOutcome.NOT_PAYABLE, orderService.markPaid(event));
 
@@ -299,5 +303,39 @@ class OrderServiceImplTest {
     void testReleaseOrderResourcesDelegates() {
         orderService.releaseOrderResources("SO9");
         verify(orderResourceReleaser).release("SO9");
+    }
+
+    @Test
+    void testMarkRefundedMovesRefundingToRefunded() {
+        Order order = order("SO_R1", OrderStatus.REFUNDING);
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, OrderStatus.REFUNDING.getCode())).thenReturn(1);
+
+        assertEquals(RefundOutcome.REFUNDED_NOW, orderService.markRefunded("SO_R1"));
+        assertEquals(OrderStatus.REFUNDED.getCode(), order.getStatus());
+        verify(orderStatusHistoryMapper).insert(any(OrderStatusHistory.class));
+    }
+
+    @Test
+    void testMarkRefundedOutcomes() {
+        when(orderMapper.selectOne(any())).thenReturn(order("SO_R2", OrderStatus.REFUNDED));
+        assertEquals(RefundOutcome.ALREADY_REFUNDED, orderService.markRefunded("SO_R2"));
+
+        when(orderMapper.selectOne(any())).thenReturn(order("SO_R3", OrderStatus.CANCELLED));
+        assertEquals(RefundOutcome.NOT_REFUNDING, orderService.markRefunded("SO_R3"));
+
+        when(orderMapper.selectOne(any())).thenReturn(null);
+        assertEquals(RefundOutcome.NOT_FOUND, orderService.markRefunded("SO_NONE"));
+
+        verify(orderMapper, never()).updateIfStatus(any(), anyString());
+    }
+
+    @Test
+    void testRefundHelpersDelegate() {
+        orderService.restockRefundedOrder("SO_R4");
+        verify(productClient).restockStock("SO_R4");
+
+        orderService.refundPaidAfterCancel("SO_R5");
+        verify(paymentClient).refund(eq("SO_R5"), anyString());
     }
 }

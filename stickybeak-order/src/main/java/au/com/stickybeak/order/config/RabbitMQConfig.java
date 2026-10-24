@@ -1,6 +1,7 @@
 package au.com.stickybeak.order.config;
 
 import au.com.stickybeak.common.event.OrderPaidEvent;
+import au.com.stickybeak.common.event.OrderRefundedEvent;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.DirectExchange;
@@ -40,6 +41,10 @@ public class RabbitMQConfig {
     public static final String ORDER_STATUS_DLQ = "order.status.dlq";
     public static final String ORDER_CLOSE_RETRY_QUEUE = "order.close.retry.queue";
     public static final String ORDER_CLOSE_DLQ = "order.close.dlq";
+
+    public static final String ORDER_REFUND_QUEUE = "order.refund.queue";
+    public static final String ORDER_REFUND_RETRY_QUEUE = "order.refund.retry.queue";
+    public static final String ORDER_REFUND_DLQ = "order.refund.dlq";
 
     @Value("${stickybeak.order.ttl-millis:1800000}")
     private long orderTtlMillis;
@@ -89,6 +94,29 @@ public class RabbitMQConfig {
     @Bean
     public Binding orderStatusBinding(Queue orderStatusQueue, TopicExchange orderTopicExchange) {
         return BindingBuilder.bind(orderStatusQueue).to(orderTopicExchange).with(OrderPaidEvent.ROUTING_KEY);
+    }
+
+    // -------------------------------------------------------------
+    // 退款到账事件（支付服务发布 order.refunded）
+    // -------------------------------------------------------------
+    @Bean
+    public Queue orderRefundQueue() {
+        return new Queue(ORDER_REFUND_QUEUE, true);
+    }
+
+    @Bean
+    public Binding orderRefundBinding(Queue orderRefundQueue, TopicExchange orderTopicExchange) {
+        return BindingBuilder.bind(orderRefundQueue).to(orderTopicExchange).with(OrderRefundedEvent.ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue orderRefundRetryQueue() {
+        return retryQueue(ORDER_REFUND_RETRY_QUEUE, ORDER_REFUND_QUEUE);
+    }
+
+    @Bean
+    public Queue orderRefundDlq() {
+        return new Queue(ORDER_REFUND_DLQ, true);
     }
 
     @Bean

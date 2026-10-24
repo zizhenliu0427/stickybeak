@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS t_order (
     pay_amount           DECIMAL(10,2) NOT NULL COMMENT '实际支付金额',
     currency             VARCHAR(8)    NOT NULL DEFAULT 'AUD' COMMENT '支付币种 AUD/CNY',
     exchange_rate_at_pay DECIMAL(12,6) NOT NULL DEFAULT 1.000000 COMMENT '支付时汇率快照',
-    status               VARCHAR(16)   NOT NULL DEFAULT 'pending' COMMENT 'pending/paid/processing/shipped/completed/cancelled',
+    status               VARCHAR(16)   NOT NULL DEFAULT 'pending' COMMENT 'pending/paid/processing/shipped/completed/cancelled/refunding/refunded',
     pay_time             DATETIME      NULL     COMMENT '支付成功时间',
     ship_time            DATETIME      NULL     COMMENT '发货时间',
     complete_time        DATETIME      NULL     COMMENT '完成时间',

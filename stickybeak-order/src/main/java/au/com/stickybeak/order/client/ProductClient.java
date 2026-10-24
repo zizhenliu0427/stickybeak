@@ -115,6 +115,18 @@ public class ProductClient {
         postOrThrow(PRODUCT_SERVICE_URL + "/rollback", request, "rollback", orderNo);
     }
 
+    /** 退款后回补已确认的库存 */
+    public void restockStock(String orderNo) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("orderNo", orderNo);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        postOrThrow(PRODUCT_SERVICE_URL + "/restock", request, "restock", orderNo);
+    }
+
     public void confirmStock(String orderNo) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
@@ -136,6 +137,34 @@ public class PaymentClient {
         }
         // 拿不到支付链接时必须失败，让结账回滚库存；否则订单无法支付却占着库存 30 分钟
         throw new BusinessException(ResultCode.SYSTEM_ERROR, "Payment service unavailable, please retry");
+    }
+
+    /**
+     * 请求全额退款，返回 refunded（已到账）或 refunding（等待渠道确认）。
+     * 支付侧幂等（Stripe 幂等键按订单号），重试不会重复退款；失败时抛出。
+     */
+    public String refund(String orderNo, String reason) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        Map<String, Object> reqBody = new HashMap<>();
+        reqBody.put("reason", reason);
+        try {
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                    PAYMENT_SERVICE_URL + "/" + orderNo + "/refund", new HttpEntity<>(reqBody, headers), String.class);
+            JsonNode root = response.getBody() == null ? null : objectMapper.readTree(response.getBody());
+            int code = root == null ? -1 : root.path("code").asInt(-1);
+            if (code != 0) {
+                String msg = root == null ? "empty response" : root.path("message").asText("code " + code);
+                throw new BusinessException(ResultCode.SYSTEM_ERROR, "Refund failed: " + msg);
+            }
+            return root.path("data").asText();
+        } catch (BusinessException be) {
+            throw be;
+        } catch (HttpStatusCodeException e) {
+            throw new BusinessException(ResultCode.SYSTEM_ERROR, "Refund failed: " + e.getResponseBodyAsString());
+        } catch (Exception e) {
+            throw new BusinessException(ResultCode.SYSTEM_ERROR, "Refund failed: " + e.getMessage());
+        }
     }
 
     /** 关单后让支付会话失效；失败时抛出，由调用方决定是否重试 */

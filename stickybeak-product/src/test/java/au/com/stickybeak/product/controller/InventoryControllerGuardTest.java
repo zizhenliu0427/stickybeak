@@ -25,7 +25,8 @@ class InventoryControllerGuardTest {
         HandlerMethod[] writes = {
                 new HandlerMethod(controller, InventoryController.class.getMethod("deductStock", StockDeductRequest.class)),
                 new HandlerMethod(controller, InventoryController.class.getMethod("rollbackStock", StockRollbackRequest.class)),
-                new HandlerMethod(controller, InventoryController.class.getMethod("confirmStock", StockRollbackRequest.class))
+                new HandlerMethod(controller, InventoryController.class.getMethod("confirmStock", StockRollbackRequest.class)),
+                new HandlerMethod(controller, InventoryController.class.getMethod("restockStock", StockRollbackRequest.class))
         };
         for (HandlerMethod handler : writes) {
             assertThrows(BusinessException.class,

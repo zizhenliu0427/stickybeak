@@ -23,8 +23,6 @@ public class OrderPaidListener {
 
     private static final Logger log = LoggerFactory.getLogger(OrderPaidListener.class);
 
-    static final String REASON_PAID_AFTER_CANCEL = "PAID_AFTER_CANCEL: order already cancelled, refund required";
-
     private final OrderService orderService;
     private final MessageRetrySupport retrySupport;
 
@@ -48,10 +46,8 @@ public class OrderPaidListener {
                         orderService.completePaidOrder(orderNo);
                     }
                 }
-                case NOT_PAYABLE -> {
-                    retrySupport.deadLetter(message, channel, RabbitMQConfig.ORDER_STATUS_DLQ, REASON_PAID_AFTER_CANCEL);
-                    return;
-                }
+                // 订单已取消后才到账：原路退回；失败走重试，用完进入死信队列人工处理
+                case NOT_PAYABLE -> orderService.refundPaidAfterCancel(orderNo);
                 case NOT_FOUND -> {
                     // 可能是结账事务尚未提交，稍后重试
                     retrySupport.retryOrDeadLetter(message, channel, RabbitMQConfig.ORDER_STATUS_RETRY_QUEUE,

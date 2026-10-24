@@ -146,6 +146,18 @@ export default function OrdersPage() {
             {t('orders.tabCancelled')}
           </Tag>
         );
+      case 'refunding':
+        return (
+          <Tag color="orange" icon={<SyncOutlined spin />}>
+            {t('orders.statusRefunding')}
+          </Tag>
+        );
+      case 'refunded':
+        return (
+          <Tag color="magenta" icon={<CheckCircleOutlined />}>
+            {t('orders.statusRefunded')}
+          </Tag>
+        );
       default:
         return <Tag>{status}</Tag>;
     }

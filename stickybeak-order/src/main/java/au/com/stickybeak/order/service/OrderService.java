@@ -20,6 +20,16 @@ public interface OrderService {
         NOT_FOUND
     }
 
+    /** 退款到账事件的处理结果 */
+    enum RefundOutcome {
+        /** 本次把 refunding 推进为 refunded */
+        REFUNDED_NOW,
+        ALREADY_REFUNDED,
+        /** 订单不在退款中（例如关单后到账、已原路退回的订单仍保持 cancelled） */
+        NOT_REFUNDING,
+        NOT_FOUND
+    }
+
     /** 超时关单的处理结果 */
     enum TimeoutOutcome {
         /** 本次把 pending 关闭为 cancelled */
@@ -50,4 +60,13 @@ public interface OrderService {
 
     /** 关单后释放支付会话与库存，幂等，失败抛出以便重试 */
     void releaseOrderResources(String orderNo);
+
+    /** 事务内把 refunding 推进为 refunded（条件更新），不做远程调用 */
+    RefundOutcome markRefunded(String orderNo);
+
+    /** 退款后回补已确认的库存，幂等，失败抛出以便重试 */
+    void restockRefundedOrder(String orderNo);
+
+    /** 订单已取消后才到账的付款：原路退回（支付侧幂等），失败抛出以便重试 */
+    void refundPaidAfterCancel(String orderNo);
 }

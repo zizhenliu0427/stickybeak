@@ -1,9 +1,11 @@
 package au.com.stickybeak.order.listener;
 
 import au.com.stickybeak.common.event.OrderPaidEvent;
+import au.com.stickybeak.common.event.OrderRefundedEvent;
 import au.com.stickybeak.order.config.RabbitMQConfig;
 import au.com.stickybeak.order.service.OrderService;
 import au.com.stickybeak.order.service.OrderService.PaidOutcome;
+import au.com.stickybeak.order.service.OrderService.RefundOutcome;
 import au.com.stickybeak.order.service.OrderService.TimeoutOutcome;
 import com.rabbitmq.client.Channel;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +32,7 @@ class OrderListenersRetryTest {
     private Channel channel;
     private OrderPaidListener paidListener;
     private OrderTimeoutCloseListener timeoutListener;
+    private OrderRefundedListener refundedListener;
 
     @BeforeEach
     void setUp() {
@@ -39,6 +42,7 @@ class OrderListenersRetryTest {
         MessageRetrySupport retrySupport = new MessageRetrySupport(rabbitTemplate, 3);
         paidListener = new OrderPaidListener(orderService, retrySupport);
         timeoutListener = new OrderTimeoutCloseListener(orderService, retrySupport);
+        refundedListener = new OrderRefundedListener(orderService, retrySupport);
     }
 
     private static Message message(Integer retryCount, boolean redelivered) {
@@ -112,15 +116,25 @@ class OrderListenersRetryTest {
     }
 
     @Test
-    void paidAfterCancelGoesStraightToDlq() throws Exception {
+    void paidAfterCancelIsRefundedAutomatically() throws Exception {
         when(orderService.markPaid(any())).thenReturn(PaidOutcome.NOT_PAYABLE);
 
         paidListener.onOrderPaid(event(), message(null, false), channel);
 
-        Message parked = forwardedTo(RabbitMQConfig.ORDER_STATUS_DLQ);
-        assertTrue(parked.getMessageProperties().<String>getHeader(MessageRetrySupport.FAILURE_REASON_HEADER)
-                .startsWith("PAID_AFTER_CANCEL"));
+        verify(orderService).refundPaidAfterCancel("SO1");
         verify(orderService, never()).completePaidOrder(anyString());
+        verify(channel).basicAck(TAG, false);
+        verifyNoInteractions(rabbitTemplate);
+    }
+
+    @Test
+    void paidAfterCancelRefundFailureIsRetried() throws Exception {
+        when(orderService.markPaid(any())).thenReturn(PaidOutcome.NOT_PAYABLE);
+        doThrow(new RuntimeException("payment down")).when(orderService).refundPaidAfterCancel("SO1");
+
+        paidListener.onOrderPaid(event(), message(null, false), channel);
+
+        forwardedTo(RabbitMQConfig.ORDER_STATUS_RETRY_QUEUE);
         verify(channel).basicAck(TAG, false);
     }
 
@@ -184,5 +198,62 @@ class OrderListenersRetryTest {
 
         forwardedTo(RabbitMQConfig.ORDER_CLOSE_RETRY_QUEUE);
         verify(channel).basicAck(TAG, false);
+    }
+
+    private static OrderRefundedEvent refundEvent() {
+        OrderRefundedEvent event = new OrderRefundedEvent();
+        event.setOrderNo("SO1");
+        return event;
+    }
+
+    @Test
+    void refundMarksOrderAndRestocks() throws Exception {
+        when(orderService.markRefunded("SO1")).thenReturn(RefundOutcome.REFUNDED_NOW);
+
+        refundedListener.onOrderRefunded(refundEvent(), message(null, false), channel);
+
+        verify(orderService).restockRefundedOrder("SO1");
+        verify(channel).basicAck(TAG, false);
+    }
+
+    @Test
+    void duplicateRefundEventRestocksIdempotently() throws Exception {
+        when(orderService.markRefunded("SO1")).thenReturn(RefundOutcome.ALREADY_REFUNDED);
+
+        refundedListener.onOrderRefunded(refundEvent(), message(null, false), channel);
+
+        verify(orderService).restockRefundedOrder("SO1");
+        verify(channel).basicAck(TAG, false);
+    }
+
+    @Test
+    void refundOfCancelledOrderDoesNotRestock() throws Exception {
+        // 关单后到账被自动退回：库存在关单时已释放
+        when(orderService.markRefunded("SO1")).thenReturn(RefundOutcome.NOT_REFUNDING);
+
+        refundedListener.onOrderRefunded(refundEvent(), message(null, false), channel);
+
+        verify(orderService, never()).restockRefundedOrder(anyString());
+        verify(channel).basicAck(TAG, false);
+    }
+
+    @Test
+    void restockFailureIsRetried() throws Exception {
+        when(orderService.markRefunded("SO1")).thenReturn(RefundOutcome.REFUNDED_NOW);
+        doThrow(new RuntimeException("product down")).when(orderService).restockRefundedOrder("SO1");
+
+        refundedListener.onOrderRefunded(refundEvent(), message(null, false), channel);
+
+        forwardedTo(RabbitMQConfig.ORDER_REFUND_RETRY_QUEUE);
+        verify(channel).basicAck(TAG, false);
+    }
+
+    @Test
+    void refundForUnknownOrderIsRetried() throws Exception {
+        when(orderService.markRefunded("SO1")).thenReturn(RefundOutcome.NOT_FOUND);
+
+        refundedListener.onOrderRefunded(refundEvent(), message(null, false), channel);
+
+        forwardedTo(RabbitMQConfig.ORDER_REFUND_RETRY_QUEUE);
     }
 }

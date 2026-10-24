@@ -1,6 +1,7 @@
 package au.com.stickybeak.order.service;
 
 import au.com.stickybeak.common.enums.OrderStatus;
+import au.com.stickybeak.order.client.PaymentClient;
 import au.com.stickybeak.order.dto.AdminOrderStatusUpdateRequest;
 import au.com.stickybeak.order.entity.Order;
 import au.com.stickybeak.order.mapper.OrderItemMapper;
@@ -42,6 +43,8 @@ class AdminOrderServiceTest {
     @Mock
     private OrderResourceReleaser orderResourceReleaser;
     @Mock
+    private PaymentClient paymentClient;
+    @Mock
     private StringRedisTemplate stringRedisTemplate;
     @Mock
     private ValueOperations<String, String> valueOperations;
@@ -53,7 +56,7 @@ class AdminOrderServiceTest {
     void setUp() {
         lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
         adminOrderService = new AdminOrderServiceImpl(
-                orderMapper, orderItemMapper, orderStateMachine, orderResourceReleaser, stringRedisTemplate, objectMapper);
+                orderMapper, orderItemMapper, orderStateMachine, orderResourceReleaser, paymentClient, stringRedisTemplate, objectMapper);
     }
 
     @Test
@@ -129,18 +132,18 @@ class AdminOrderServiceTest {
         Order order = new Order();
         order.setId(11L);
         order.setOrderNo("SO20260916002");
-        order.setStatus("paid");
+        order.setStatus("pending");
         when(orderMapper.selectOne(any())).thenReturn(order);
-        when(orderMapper.updateIfStatus(order, "paid")).thenReturn(1);
+        when(orderMapper.updateIfStatus(order, "pending")).thenReturn(1);
 
         AdminOrderStatusUpdateRequest req = new AdminOrderStatusUpdateRequest();
         req.setStatus("cancelled");
-        req.setRemark("Customer requested full refund");
+        req.setRemark("Customer asked to cancel before paying");
 
         adminOrderService.updateOrderStatus("SO20260916002", req, 1L);
 
         verify(orderStateMachine).transition(order, OrderStatus.CANCELLED, 1L, "admin");
-        verify(orderMapper).updateIfStatus(order, "paid");
+        verify(orderMapper).updateIfStatus(order, "pending");
         verify(orderResourceReleaser).releaseQuietly("SO20260916002");
     }
 
@@ -159,5 +162,78 @@ class AdminOrderServiceTest {
 
         assertThrows(BusinessException.class, () -> adminOrderService.updateOrderStatus("SO20260916003", req, 1L));
         verify(orderResourceReleaser, never()).releaseQuietly(anyString());
+    }
+
+    @Test
+    void testRefundPaidOrder() {
+        Order order = new Order();
+        order.setId(20L);
+        order.setOrderNo("SO_REFUND_1");
+        order.setStatus("paid");
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, "paid")).thenReturn(1);
+
+        adminOrderService.refundOrder("SO_REFUND_1", "Damaged in transit", 1L);
+
+        verify(orderStateMachine).transition(order, OrderStatus.REFUNDING, 1L, "admin");
+        verify(orderMapper).updateIfStatus(order, "paid");
+        verify(paymentClient).refund("SO_REFUND_1", "Damaged in transit");
+        assertTrue(order.getRemark().contains("Refund: Damaged in transit"));
+    }
+
+    @Test
+    void testRefundRetryForRefundingOrderDoesNotChangeStatus() {
+        Order order = new Order();
+        order.setId(21L);
+        order.setOrderNo("SO_REFUND_2");
+        order.setStatus("refunding");
+        when(orderMapper.selectOne(any())).thenReturn(order);
+
+        adminOrderService.refundOrder("SO_REFUND_2", null, 1L);
+
+        verify(orderStateMachine, never()).transition(any(), any(), any(), anyString());
+        verify(orderMapper, never()).updateIfStatus(any(), anyString());
+        verify(paymentClient).refund("SO_REFUND_2", null);
+    }
+
+    @Test
+    void testRefundRejectedForShippedOrder() {
+        Order order = new Order();
+        order.setId(22L);
+        order.setOrderNo("SO_REFUND_3");
+        order.setStatus("shipped");
+        when(orderMapper.selectOne(any())).thenReturn(order);
+
+        assertThrows(BusinessException.class, () -> adminOrderService.refundOrder("SO_REFUND_3", null, 1L));
+        verifyNoInteractions(paymentClient);
+    }
+
+    @Test
+    void testRefundConcurrentChangeDoesNotCallPayment() {
+        Order order = new Order();
+        order.setId(23L);
+        order.setOrderNo("SO_REFUND_4");
+        order.setStatus("paid");
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, "paid")).thenReturn(0);
+
+        assertThrows(BusinessException.class, () -> adminOrderService.refundOrder("SO_REFUND_4", null, 1L));
+        verifyNoInteractions(paymentClient);
+    }
+
+    @Test
+    void testStatusUpdateCannotSetRefundStatesDirectly() {
+        Order order = new Order();
+        order.setId(24L);
+        order.setOrderNo("SO_REFUND_5");
+        order.setStatus("paid");
+        when(orderMapper.selectOne(any())).thenReturn(order);
+
+        AdminOrderStatusUpdateRequest req = new AdminOrderStatusUpdateRequest();
+        req.setStatus("refunded");
+
+        assertThrows(BusinessException.class, () -> adminOrderService.updateOrderStatus("SO_REFUND_5", req, 1L));
+        verify(orderMapper, never()).updateIfStatus(any(), anyString());
+        verifyNoInteractions(paymentClient);
     }
 }

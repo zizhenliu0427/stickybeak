@@ -181,14 +181,26 @@ public class InventoryServiceImpl implements InventoryService {
     @Transactional(rollbackFor = Exception.class)
     public void rollbackStock(String orderNo) {
         log.info("Executing stock rollback for order: {}", orderNo);
+        releaseHolds(orderNo, StockHold.STATUS_HELD);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void restockConfirmed(String orderNo) {
+        log.info("Restocking refunded order: {}", orderNo);
+        releaseHolds(orderNo, StockHold.STATUS_CONFIRMED);
+    }
+
+    /** 把指定状态的预占释放并归还库存：未支付关单释放 HELD，已支付退款释放 CONFIRMED */
+    private void releaseHolds(String orderNo, Integer fromStatus) {
         List<StockHold> holds = stockHoldMapper.selectList(
                 new LambdaQueryWrapper<StockHold>()
                         .eq(StockHold::getOrderNo, orderNo)
-                        .eq(StockHold::getStatus, StockHold.STATUS_HELD)
+                        .eq(StockHold::getStatus, fromStatus)
         );
 
         if (holds.isEmpty()) {
-            log.info("No held stock found for order {}, rollback skipped or already processed", orderNo);
+            log.info("No stock hold in status {} for order {}, skipped or already processed", fromStatus, orderNo);
             return;
         }
 
@@ -199,8 +211,8 @@ public class InventoryServiceImpl implements InventoryService {
             RLock lock = redissonClient.getLock(lockKey);
             try {
                 lock.lock(10, TimeUnit.SECONDS);
-                // 1. 条件流转 HELD -> RELEASED；并发的回滚（用户取消 + 超时）只有一个能成功
-                if (stockHoldMapper.transitStatus(hold.getId(), StockHold.STATUS_HELD, StockHold.STATUS_RELEASED) == 0) {
+                // 1. 条件流转 -> RELEASED；并发的释放（用户取消 + 超时、重复的退款消息）只有一个能成功
+                if (stockHoldMapper.transitStatus(hold.getId(), fromStatus, StockHold.STATUS_RELEASED) == 0) {
                     log.info("Hold {} of order {} already processed, skip", hold.getId(), orderNo);
                     continue;
                 }

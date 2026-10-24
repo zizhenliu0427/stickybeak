@@ -1,4 +1,4 @@
-import { get, put } from './api';
+import { get, post, put } from './api';
 
 export interface AnalyticsSummary {
   totalGmv: number;
@@ -128,6 +128,11 @@ export async function updateAdminOrderStatus(
   payload: { status: string; trackingNo?: string; remark?: string }
 ): Promise<void> {
   return put<void>(`/orders/admin/${orderNo}/status`, payload);
+}
+
+/** 全额退款（已支付 / 备货中）；对退款中的订单再次调用即重试 */
+export async function refundAdminOrder(orderNo: string, reason?: string): Promise<void> {
+  return post<void>(`/orders/admin/${orderNo}/refund`, { reason });
 }
 
 // ================= Product & Stock API =================

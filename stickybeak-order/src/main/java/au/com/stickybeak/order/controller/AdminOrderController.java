@@ -5,6 +5,7 @@ import au.com.stickybeak.common.result.Result;
 import au.com.stickybeak.common.result.ResultCode;
 import au.com.stickybeak.order.dto.AdminOrderPageQuery;
 import au.com.stickybeak.order.dto.AdminOrderStatusUpdateRequest;
+import au.com.stickybeak.order.dto.AdminRefundRequest;
 import au.com.stickybeak.order.service.AdminOrderService;
 import au.com.stickybeak.order.vo.AdminOrderVO;
 import au.com.stickybeak.order.vo.AnalyticsSummaryVO;
@@ -67,6 +68,18 @@ public class AdminOrderController {
         checkAdminRole(roles);
         Long adminId = parseUserId(userIdHeader);
         adminOrderService.updateOrderStatus(orderNo, req, adminId);
+        return Result.ok();
+    }
+
+    /** 全额退款（已支付 / 备货中）；对退款中的订单再次调用即重试 */
+    @PostMapping("/{orderNo}/refund")
+    public Result<Void> refundOrder(
+            @RequestHeader(value = "X-User-Roles", required = false) String roles,
+            @RequestHeader(value = "X-User-Id", required = false) String userIdHeader,
+            @PathVariable String orderNo,
+            @Valid @RequestBody(required = false) AdminRefundRequest req) {
+        checkAdminRole(roles);
+        adminOrderService.refundOrder(orderNo, req != null ? req.getReason() : null, parseUserId(userIdHeader));
         return Result.ok();
     }
 

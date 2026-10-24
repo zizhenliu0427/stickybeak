@@ -6,6 +6,7 @@ import au.com.stickybeak.common.internal.InternalCall;
 import au.com.stickybeak.payment.dto.CreatePaymentSessionRequest;
 import au.com.stickybeak.payment.service.ExchangeRateService;
 import au.com.stickybeak.payment.service.PaymentService;
+import au.com.stickybeak.payment.service.RefundService;
 import au.com.stickybeak.payment.service.WebhookService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
@@ -24,7 +25,8 @@ import static org.mockito.Mockito.mock;
 class InternalApiGuardTest {
 
     private final InternalApiInterceptor interceptor = new InternalApiInterceptor();
-    private final PaymentController controller = new PaymentController(mock(PaymentService.class), mock(ExchangeRateService.class));
+    private final PaymentController controller = new PaymentController(mock(PaymentService.class), mock(ExchangeRateService.class),
+            mock(RefundService.class));
 
     @Test
     void checkoutSessionRejectsExternalCallers() throws Exception {
@@ -43,11 +45,14 @@ class InternalApiGuardTest {
     void paymentRecordAndExpireAreInternalOnly() throws Exception {
         HandlerMethod record = new HandlerMethod(controller, PaymentController.class.getMethod("getRecord", String.class));
         HandlerMethod expire = new HandlerMethod(controller, PaymentController.class.getMethod("expireSession", String.class));
+        HandlerMethod refund = new HandlerMethod(controller, PaymentController.class.getMethod("refund", String.class, java.util.Map.class));
 
         assertThrows(BusinessException.class,
                 () -> interceptor.preHandle(new MockHttpServletRequest(), new MockHttpServletResponse(), record));
         assertThrows(BusinessException.class,
                 () -> interceptor.preHandle(new MockHttpServletRequest(), new MockHttpServletResponse(), expire));
+        assertThrows(BusinessException.class,
+                () -> interceptor.preHandle(new MockHttpServletRequest(), new MockHttpServletResponse(), refund));
     }
 
     @Test

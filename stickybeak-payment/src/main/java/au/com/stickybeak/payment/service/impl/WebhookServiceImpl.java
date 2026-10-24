@@ -9,6 +9,7 @@ import au.com.stickybeak.payment.mapper.PaymentRecordMapper;
 import au.com.stickybeak.payment.mapper.PaymentWebhookMapper;
 import au.com.stickybeak.payment.provider.MockPaymentProvider;
 import au.com.stickybeak.payment.provider.StripePaymentProvider;
+import au.com.stickybeak.payment.service.RefundService;
 import au.com.stickybeak.payment.service.WebhookService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -40,6 +41,7 @@ public class WebhookServiceImpl implements WebhookService {
             "checkout.session.completed",
             "checkout.session.async_payment_succeeded"
     );
+    private static final String STRIPE_REFUND_EVENT_TYPE = "charge.refunded";
 
     private final StripePaymentProvider stripePaymentProvider;
     private final MockPaymentProvider mockPaymentProvider;
@@ -47,19 +49,22 @@ public class WebhookServiceImpl implements WebhookService {
     private final PaymentRecordMapper paymentRecordMapper;
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
+    private final RefundService refundService;
 
     public WebhookServiceImpl(StripePaymentProvider stripePaymentProvider,
                               MockPaymentProvider mockPaymentProvider,
                               PaymentWebhookMapper paymentWebhookMapper,
                               PaymentRecordMapper paymentRecordMapper,
                               RabbitTemplate rabbitTemplate,
-                              ObjectMapper objectMapper) {
+                              ObjectMapper objectMapper,
+                              RefundService refundService) {
         this.stripePaymentProvider = stripePaymentProvider;
         this.mockPaymentProvider = mockPaymentProvider;
         this.paymentWebhookMapper = paymentWebhookMapper;
         this.paymentRecordMapper = paymentRecordMapper;
         this.rabbitTemplate = rabbitTemplate;
         this.objectMapper = objectMapper;
+        this.refundService = refundService;
     }
 
     @Override
@@ -127,6 +132,10 @@ public class WebhookServiceImpl implements WebhookService {
             String eventType = root.has("type") ? root.get("type").asText() : (isMock ? "mock.payment.paid" : "unknown");
             webhookRecord.setEventType(eventType);
 
+            if (!isMock && STRIPE_REFUND_EVENT_TYPE.equals(eventType)) {
+                return handleChargeRefunded(eventId, root, webhookRecord);
+            }
+
             PaidPayment paid = isMock ? parseMockPayment(root) : parseStripePayment(root, eventType);
             if (paid == null) {
                 // 非支付成功事件（如 checkout.session.expired）只记录，不推进订单
@@ -181,6 +190,26 @@ public class WebhookServiceImpl implements WebhookService {
             paymentWebhookMapper.updateById(webhookRecord);
             throw new BusinessException(ResultCode.SYSTEM_ERROR, "Webhook processing error: " + e.getMessage());
         }
+    }
+
+    /** 退款到账：只处理全额退款（refunded=true），按 payment_intent 找到支付记录 */
+    private String handleChargeRefunded(String eventId, JsonNode root, PaymentWebhook webhookRecord) {
+        JsonNode charge = root.path("data").path("object");
+        if (!charge.path("refunded").asBoolean(false)) {
+            log.info("Ignoring partial refund event {}", eventId);
+            markProcessed(webhookRecord, 1, null);
+            return RESULT_IGNORED;
+        }
+        String paymentIntent = charge.path("payment_intent").asText(null);
+        String refundId = charge.path("refunds").path("data").path(0).path("id").asText(null);
+        if (!refundService.confirmRefund(paymentIntent, refundId)) {
+            String reason = "UNKNOWN_PAYMENT_INTENT: " + paymentIntent;
+            log.error("Refund event {} rejected: {}", eventId, reason);
+            markProcessed(webhookRecord, 2, reason);
+            return RESULT_REJECTED;
+        }
+        markProcessed(webhookRecord, 1, null);
+        return RESULT_SUCCESS;
     }
 
     /** Stripe：只有支付成功的结账事件才算付款，其余事件（expired、unpaid 等）返回 null */

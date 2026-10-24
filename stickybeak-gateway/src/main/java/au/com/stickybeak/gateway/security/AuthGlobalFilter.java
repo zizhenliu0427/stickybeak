@@ -174,6 +174,10 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
         if (path.endsWith("/expire-session")) {
             return true;
         }
+        // 支付服务的退款接口只给订单服务；管理员退款走 /api/orders/admin/{orderNo}/refund
+        if (path.startsWith("/api/payments/") && path.endsWith("/refund")) {
+            return true;
+        }
         for (String prefix : INTERNAL_PREFIXES) {
             if (path.startsWith(prefix)) {
                 return true;

@@ -5,8 +5,11 @@ import au.com.stickybeak.common.result.ResultCode;
 import au.com.stickybeak.payment.config.StripeConfig;
 import com.stripe.Stripe;
 import com.stripe.model.Event;
+import com.stripe.model.Refund;
 import com.stripe.model.checkout.Session;
+import com.stripe.net.RequestOptions;
 import com.stripe.net.Webhook;
+import com.stripe.param.RefundCreateParams;
 import com.stripe.param.checkout.SessionCreateParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -117,6 +120,31 @@ public class StripePaymentProvider implements PaymentProvider {
         } catch (Exception e) {
             log.error("Failed to expire Stripe Checkout session {}: {}", sessionId, e.getMessage());
             throw new BusinessException(ResultCode.SYSTEM_ERROR, "Stripe session expire failed: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public RefundResult refund(RefundCommand cmd) {
+        if (!StringUtils.hasText(cmd.getTransactionId())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "Order " + cmd.getOrderNo() + " has no payment intent to refund");
+        }
+        Stripe.apiKey = stripeConfig.getApiKey();
+        RefundCreateParams params = RefundCreateParams.builder()
+                .setPaymentIntent(cmd.getTransactionId())
+                .setReason(RefundCreateParams.Reason.REQUESTED_BY_CUSTOMER)
+                .putMetadata("orderNo", cmd.getOrderNo())
+                .build();
+        // 同一订单的退款请求重试时复用幂等键，Stripe 不会重复退款
+        RequestOptions options = RequestOptions.builder()
+                .setIdempotencyKey("refund-" + cmd.getOrderNo())
+                .build();
+        try {
+            Refund refund = Refund.create(params, options);
+            log.info("Stripe refund {} for order {} is {}", refund.getId(), cmd.getOrderNo(), refund.getStatus());
+            return new RefundResult(refund.getId(), refund.getStatus());
+        } catch (Exception e) {
+            log.error("Stripe refund failed for order {}: {}", cmd.getOrderNo(), e.getMessage());
+            throw new BusinessException(ResultCode.SYSTEM_ERROR, "Stripe refund failed: " + e.getMessage());
         }
     }
 

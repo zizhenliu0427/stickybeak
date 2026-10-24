@@ -56,11 +56,6 @@ public class MessageRetrySupport {
         }
     }
 
-    public void deadLetter(Message message, Channel channel, String deadLetterQueue, String reason) throws IOException {
-        log.error("Moving message to {}: {}", deadLetterQueue, reason);
-        forward(message, channel, deadLetterQueue, null, reason);
-    }
-
     private void forward(Message message, Channel channel, String queue, Integer retryCount, String reason)
             throws IOException {
         long deliveryTag = message.getMessageProperties().getDeliveryTag();

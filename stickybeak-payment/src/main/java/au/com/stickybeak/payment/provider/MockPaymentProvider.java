@@ -44,4 +44,11 @@ public class MockPaymentProvider implements PaymentProvider {
             throw new BusinessException(ResultCode.BAD_REQUEST, "Malformed webhook payload");
         }
     }
+
+    /** 模拟渠道：退款同步成功 */
+    @Override
+    public RefundResult refund(RefundCommand cmd) {
+        String refundId = "mock_re_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        return new RefundResult(refundId, RefundResult.STATUS_SUCCEEDED);
+    }
 }

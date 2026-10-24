@@ -317,7 +317,8 @@ public class OrderServiceImpl implements OrderService {
 
         OrderStatus current = OrderStatus.fromCode(order.getStatus());
         if (current == OrderStatus.PAID || current == OrderStatus.PROCESSING
-                || current == OrderStatus.SHIPPED || current == OrderStatus.COMPLETED) {
+                || current == OrderStatus.SHIPPED || current == OrderStatus.COMPLETED
+                || current == OrderStatus.REFUNDING || current == OrderStatus.REFUNDED) {
             log.info("Order {} is already {}, skipping paid transition", order.getOrderNo(), order.getStatus());
             return PaidOutcome.ALREADY_PAID;
         }
@@ -377,6 +378,42 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public void releaseOrderResources(String orderNo) {
         orderResourceReleaser.release(orderNo);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public RefundOutcome markRefunded(String orderNo) {
+        Order order = orderMapper.selectOne(
+                new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, orderNo)
+        );
+        if (order == null) {
+            log.warn("Order {} not found when processing OrderRefundedEvent", orderNo);
+            return RefundOutcome.NOT_FOUND;
+        }
+        if (OrderStatus.REFUNDED.getCode().equalsIgnoreCase(order.getStatus())) {
+            return RefundOutcome.ALREADY_REFUNDED;
+        }
+        if (!OrderStatus.REFUNDING.getCode().equalsIgnoreCase(order.getStatus())) {
+            log.info("Order {} is {}, refund recorded without status change", orderNo, order.getStatus());
+            return RefundOutcome.NOT_REFUNDING;
+        }
+
+        String fromStatus = order.getStatus();
+        orderStateMachine.transition(order, OrderStatus.REFUNDED, null, "payment_webhook");
+        persistTransition(order, fromStatus);
+        log.info("Order {} refunded", orderNo);
+        return RefundOutcome.REFUNDED_NOW;
+    }
+
+    @Override
+    public void restockRefundedOrder(String orderNo) {
+        productClient.restockStock(orderNo);
+    }
+
+    @Override
+    public void refundPaidAfterCancel(String orderNo) {
+        log.warn("Order {} was paid after it was cancelled, refunding automatically", orderNo);
+        paymentClient.refund(orderNo, "Order was cancelled before the payment completed");
     }
 
     /**

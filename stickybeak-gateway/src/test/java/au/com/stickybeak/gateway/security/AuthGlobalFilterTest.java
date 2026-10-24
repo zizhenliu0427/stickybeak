@@ -89,12 +89,21 @@ class AuthGlobalFilterTest {
         for (String path : new String[]{
                 "/api/payments/checkout-session",
                 "/api/payments/records/SO1",
-                "/api/payments/SO1/expire-session"}) {
+                "/api/payments/SO1/expire-session",
+                "/api/payments/SO1/refund"}) {
             forwarded.set(null);
             MockServerWebExchange exchange = run(MockServerHttpRequest.post(path).build());
             assertNull(forwarded.get(), path);
             assertEquals(HttpStatus.FORBIDDEN, exchange.getResponse().getStatusCode(), path);
         }
+    }
+
+    @Test
+    void adminRefundIsNotTreatedAsInternal() {
+        // 管理员退款入口需要登录 + 管理员角色，而不是被当成内部接口拒绝
+        MockServerWebExchange exchange = run(MockServerHttpRequest.post("/api/orders/admin/SO1/refund").build());
+        assertNull(forwarded.get());
+        assertEquals(HttpStatus.UNAUTHORIZED, exchange.getResponse().getStatusCode());
     }
 
     @Test

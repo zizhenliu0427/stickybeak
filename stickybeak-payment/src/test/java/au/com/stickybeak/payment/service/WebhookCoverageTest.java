@@ -41,6 +41,8 @@ class WebhookCoverageTest {
     private PaymentRecordMapper paymentRecordMapper;
     @Mock
     private RabbitTemplate rabbitTemplate;
+    @Mock
+    private RefundService refundService;
 
     private ObjectMapper objectMapper;
     private WebhookServiceImpl webhookService;
@@ -54,7 +56,8 @@ class WebhookCoverageTest {
                 paymentWebhookMapper,
                 paymentRecordMapper,
                 rabbitTemplate,
-                objectMapper
+                objectMapper,
+                refundService
         );
     }
 
@@ -285,6 +288,62 @@ class WebhookCoverageTest {
 
         assertEquals(WebhookServiceImpl.RESULT_REJECTED, webhookService.handleMockWebhook(payload));
         verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any(Object.class));
+    }
+
+    @Test
+    @DisplayName("handleStripeWebhook: charge.refunded confirms a pending refund")
+    void testChargeRefundedConfirmsRefund() {
+        String payload = chargeRefunded("evt_refund", "pi_123", true);
+        when(stripePaymentProvider.verifyWebhook(payload, "sig")).thenReturn("evt_refund");
+        when(paymentWebhookMapper.selectOne(any())).thenReturn(null);
+        when(refundService.confirmRefund("pi_123", "re_1")).thenReturn(true);
+
+        assertEquals(WebhookServiceImpl.RESULT_SUCCESS, webhookService.handleStripeWebhook(payload, "sig"));
+        verify(refundService).confirmRefund("pi_123", "re_1");
+        // 退款事件不能被当成支付成功
+        verify(rabbitTemplate, never()).convertAndSend(eq(OrderPaidEvent.EXCHANGE), eq(OrderPaidEvent.ROUTING_KEY), any(Object.class));
+    }
+
+    @Test
+    @DisplayName("handleStripeWebhook: partial refund is ignored")
+    void testPartialRefundIgnored() {
+        String payload = chargeRefunded("evt_partial", "pi_123", false);
+        when(stripePaymentProvider.verifyWebhook(payload, "sig")).thenReturn("evt_partial");
+        when(paymentWebhookMapper.selectOne(any())).thenReturn(null);
+
+        assertEquals(WebhookServiceImpl.RESULT_IGNORED, webhookService.handleStripeWebhook(payload, "sig"));
+        verifyNoInteractions(refundService);
+    }
+
+    @Test
+    @DisplayName("handleStripeWebhook: refund for an unknown payment intent is rejected")
+    void testRefundForUnknownPaymentIntentRejected() {
+        String payload = chargeRefunded("evt_unknown_refund", "pi_unknown", true);
+        when(stripePaymentProvider.verifyWebhook(payload, "sig")).thenReturn("evt_unknown_refund");
+        when(paymentWebhookMapper.selectOne(any())).thenReturn(null);
+        when(refundService.confirmRefund("pi_unknown", "re_1")).thenReturn(false);
+
+        assertEquals(WebhookServiceImpl.RESULT_REJECTED, webhookService.handleStripeWebhook(payload, "sig"));
+        ArgumentCaptor<PaymentWebhook> captor = ArgumentCaptor.forClass(PaymentWebhook.class);
+        verify(paymentWebhookMapper).updateById(captor.capture());
+        assertEquals(2, captor.getValue().getProcessed());
+    }
+
+    private static String chargeRefunded(String eventId, String paymentIntent, boolean fullyRefunded) {
+        return """
+                {
+                  "id": "%s",
+                  "type": "charge.refunded",
+                  "data": {
+                    "object": {
+                      "id": "ch_1",
+                      "payment_intent": "%s",
+                      "refunded": %s,
+                      "refunds": { "data": [ { "id": "re_1" } ] }
+                    }
+                  }
+                }
+                """.formatted(eventId, paymentIntent, fullyRefunded);
     }
 
     private static String stripeEvent(String eventId, String type, String orderNo, String paymentStatus, long amountTotal) {
