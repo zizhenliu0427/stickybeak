@@ -33,6 +33,12 @@ x-svc-defaults: &svc-defaults
     # 商品搜索：未提供 ES 集群时关闭，搜索走 MySQL
     - SEARCH_ES_ENABLED=${SEARCH_ES_ENABLED:-false}
     - ES_URIS=${ES_URIS:-http://elasticsearch.internal:9200}
+    # 商品媒体对象存储（S3 兼容：MinIO 或 AWS S3）
+    - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+    - MINIO_PUBLIC_ENDPOINT=${MINIO_PUBLIC_ENDPOINT}
+    - MINIO_USER=${MINIO_USER}
+    - MINIO_PASSWORD=${MINIO_PASSWORD}
+    - MINIO_BUCKET=${MINIO_BUCKET:-stickybeak}
     - STRIPE_API_KEY=${STRIPE_API_KEY}
     - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
     - JWT_SECRET=${JWT_SECRET}

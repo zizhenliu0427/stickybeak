@@ -39,6 +39,9 @@ public class InventoryServiceImpl implements InventoryService {
     private static final String RESERVATION_KEY_PREFIX = "stock:reservation:";
     /** 远大于结账全局事务超时（15s），过期后账本已无用 */
     private static final long RESERVATION_TTL_SECONDS = 3600;
+    /** 补偿类写操作（关单释放、退款回补）等待全局锁的时间：20ms × 100 次 ≈ 2 秒 */
+    static final int COMPENSATION_LOCK_RETRY_INTERVAL_MS = 20;
+    static final int COMPENSATION_LOCK_RETRY_TIMES = 100;
 
     private final ProductMapper productMapper;
     private final StockHoldMapper stockHoldMapper;
@@ -174,9 +177,12 @@ public class InventoryServiceImpl implements InventoryService {
     /**
      * 关单释放与退款回补都会改 t_product.stock，而这一行可能正被一个未完成的结账全局事务持有全局锁。
      * 不加 @GlobalLock 的本地写会绕过全局锁，那个全局事务回滚时 after-image 校验失败，回滚卡住需要人工处理。
+     * <p>
+     * 默认只等全局锁约 300ms（10ms × 30 次）。热点商品并发结账时这一行几乎一直被某个结账持有，
+     * 补偿操作等不到就整笔失败、库存要等 30 分钟后的超时消息才归还；所以这里放宽到约 2 秒。
      */
     @Override
-    @GlobalLock
+    @GlobalLock(lockRetryInterval = COMPENSATION_LOCK_RETRY_INTERVAL_MS, lockRetryTimes = COMPENSATION_LOCK_RETRY_TIMES)
     @Transactional(rollbackFor = Exception.class)
     public void rollbackStock(String orderNo) {
         log.info("Executing stock rollback for order: {}", orderNo);
@@ -184,7 +190,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-    @GlobalLock
+    @GlobalLock(lockRetryInterval = COMPENSATION_LOCK_RETRY_INTERVAL_MS, lockRetryTimes = COMPENSATION_LOCK_RETRY_TIMES)
     @Transactional(rollbackFor = Exception.class)
     public void restockConfirmed(String orderNo) {
         log.info("Restocking refunded order: {}", orderNo);

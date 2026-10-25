@@ -64,7 +64,7 @@
             │              │  (search; MySQL fallback)         │              │       │
             │              │                                   │              │       │
             │              └────── Seata AT (checkout) ────────┼──────────────┘       │
-            │                 [ Seata Server 2.0 (:8091) ]     │                      │
+            │                 [ Seata Server 2.3 (:8091) ]     │                      │
             ▼                       ▼                          ▼                      │
      [ MySQL 8.0 — one schema per service ]     [ Redis 7 (single node): stock,       │
                                                   carts, caches, token blacklist ]    │

@@ -82,7 +82,7 @@ stickybeak:
       reindex-cron: ${SEARCH_REINDEX_CRON:0 30 3 * * *}
 
 # Seata AT：结账"扣库存（product 库）+ 写订单（order 库）"的分布式事务。
-# 不经注册中心，直连 TC（docker-compose 中的 seata-server 2.0，与 Spring Cloud Alibaba 2023.0.1.x 的客户端版本一致）
+# 不经注册中心，直连 TC。客户端是 Spring Cloud Alibaba 2023.0.1.x 自带的 2.0；TC 用 2.3.0（2.0–2.2 的 file 锁存储在锁冲突时会泄漏行锁，见 HANDOFF）
 seata:
   enabled: ${SEATA_ENABLED:true}
   application-id: ${spring.application.name}

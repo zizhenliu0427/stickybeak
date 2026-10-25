@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Generic backend service image. Build context = repo root.
 # Usage: docker build -f docker/Dockerfile.backend --build-arg MODULE=stickybeak-auth .
 
@@ -5,7 +6,8 @@ FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /workspace
 ARG MODULE
 COPY . .
-RUN mvn -q -pl ${MODULE} -am package -DskipTests
+# 7 个服务镜像共用一份 Maven 本地仓库缓存，不用每个镜像都重新下载依赖
+RUN --mount=type=cache,target=/root/.m2 mvn -q -pl ${MODULE} -am package -DskipTests
 
 # SkyWalking Java agent。版本必须与 pom.xml 的 skywalking.version（apm-toolkit-*）一致
 FROM apache/skywalking-java-agent:9.7.0-java17 AS skywalking
