@@ -104,3 +104,23 @@ async def test_startup_ingest_retries_until_elasticsearch_is_up(monkeypatch):
     await mcp_server._ingest_in_background(store=None, embeddings=None, attempts=5, retry_delay=0)
 
     assert len(calls) == 3
+
+
+async def test_category_filter_matches_the_shop_categories():
+    async with mcp_session(deps()) as session:
+        tools = {t.name: t for t in (await session.list_tools()).tools}
+    schema = tools["search_products"].inputSchema["properties"]["category"]
+    options = next(o for o in schema["anyOf"] if "enum" in o)["enum"]
+    # 与商品服务 /api/categories 的 slug 一致；booze 在 2026-09 已并入 road-sign
+    assert set(options) == {
+        "bus-sign",
+        "supermarket",
+        "train",
+        "tram",
+        "bird",
+        "road-sign",
+        "collections",
+        "achievement",
+        "slogan",
+        "phonecase",
+    }

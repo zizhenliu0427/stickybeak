@@ -2,7 +2,8 @@
 
 SHOP_CONTEXT = (
     "StickyBeak is an online shop selling Australian-themed fridge magnets and souvenirs "
-    "(bus stop signs of Australian universities, supermarket parodies, trains, native birds, drinks, phone cases). "
+    "(university bus stop signs, supermarket price tickets, Sydney train and Melbourne tram signs, native birds, "
+    "road signs, 'international student achievement' badges, slogans, phone cases). "
     "Prices are in AUD."
 )
 

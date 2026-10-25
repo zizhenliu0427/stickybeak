@@ -21,7 +21,10 @@ WRITE_TOOLS = frozenset({"add_to_cart", "cancel_order"})
 SHOPPING_TOOLS = ("search_products", "get_product", "add_to_cart")
 ORDER_TOOLS = ("list_my_orders", "get_order", "cancel_order")
 
-CATEGORIES = Literal["bus-sign", "supermarket", "train", "bird", "booze", "phonecase"]
+# 与商品服务 t_category 的 slug 一致（2026-09 对齐的 10 个子品类；原 booze 已并入 road-sign）。改类目时同步这里
+CATEGORIES = Literal[
+    "bus-sign", "supermarket", "train", "tram", "bird", "road-sign", "collections", "achievement", "slogan", "phonecase"
+]
 
 
 def current_user(config: RunnableConfig) -> str | None:

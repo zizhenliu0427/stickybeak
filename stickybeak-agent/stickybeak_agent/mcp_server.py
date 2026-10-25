@@ -91,7 +91,10 @@ def build_mcp(deps: McpDeps) -> FastMCP:
     @mcp.tool(annotations=READ_ONLY)
     async def search_products(
         query: Annotated[str | None, Field(description="keywords, e.g. 'kookaburra' or '公交站牌'")] = None,
-        category: Annotated[CATEGORIES | None, Field(description="category slug")] = None,
+        category: Annotated[
+            CATEGORIES | None,
+            Field(description="category slug, e.g. bus-sign (uni bus stops), tram (Melbourne trams), achievement"),
+        ] = None,
         max_price_aud: Annotated[float | None, Field(description="upper price limit in AUD")] = None,
         sort: Literal["relevance", "sales", "price-asc", "price-desc", "new"] | None = None,
         size: Annotated[int, Field(ge=1, le=10)] = 5,

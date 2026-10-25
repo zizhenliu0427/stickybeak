@@ -105,6 +105,7 @@
 - ✅ agent / MCP 与 Nacos 同时启动时注册失败直接退出、知识库入库失败不重试 → 都改为重试
 - ✅ OAP 健康检查用了镜像里没有的 curl；全栈 compose 的 ES / Nacos 端口与 Windows 保留段冲突；缺 `.dockerignore`（Windows 的 `node_modules` 进 Linux 镜像）
 - ✅ 5xx 错误提示带上网关返回的 `X-Trace-Id`；个人中心文案走 i18n
+- ✅ MCP `search_products` 的类目枚举还是 PR 分支上的旧 6 类（含已并入交通指示牌的 `booze`，缺 tram / road-sign / collections / achievement / slogan），模型按"墨尔本电车"等类目筛不出来；改为与商品服务一致的 10 类，提示词里的商品线描述同步更新，并加单测守住
 
 ## 待处理
 
