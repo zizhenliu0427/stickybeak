@@ -1,7 +1,7 @@
 # HANDOFF — StickyBeak 交接文档
 
 > 给下一个 AI 会话/协作者：读完本文 + `docs/` 三份文档即可无缝接手。
-> 最近更新：2026-09-17 · 全部 Sprint 完成，main = v1.1.0（含 Sprint 9 部分故事线）
+> 最近更新：2026-10-25 · 全部 Sprint 完成，main = v1.1.0（含 Sprint 9 部分故事线）；develop 上另有 SKU 合并 + 前台编辑风改版（见文末两节）
 
 ## 项目是什么
 
@@ -123,7 +123,7 @@
 
 - `manifest.webmanifest` + 多尺寸图标（`scripts/generate-pwa-icons.py` 用 GDCUP 素材生成 192/512/maskable/apple-touch）
 - `sw.js`：静态资源 cache-first、商品页 network-first、离线兜底
-- 移动端：`MobileBottomNav` 底部导航、`OfflineBanner` + `useOnlineStatus` 离线检测、触控目标 ≥44px
+- 移动端：`MobileBottomNav` 底部导航（2026-09-28 编辑风改版已移除，见下文）、`OfflineBanner` + `useOnlineStatus` 离线检测、触控目标 ≥44px
 - **测试**：`scripts/test-sprint7-pwa.js`
 
 ## Sprint 8 交付明细（v1.0.0 · 生产发布）
@@ -175,6 +175,24 @@
   28. **MinIO java SDK 预签名前会联网查 bucket region**——必须 `region("us-east-1")` 显式设置，否则容器内用 public endpoint 签发时连接失败
   29. **~~雪花 ID 撞 JS Number 精度上限~~（已修）**：Jackson 全局 Long→String + 前端 ID 改 string。计数类 Long（Page.total 等）记得 `Number()`，不要当 ID 用字符串做加减。
   30. **存量库要跑增量 SQL**：`docker/mysql/init/08-product-media-type.sql`（幂等 ADD COLUMN media_type）。全新安装已写进 `03-product-schema.sql`
+
+## 2026-09-17 追加：SKU 视觉合并（店面 = 44 个在售 SKU，已落库）
+
+- **背景**：导入的 265 件是「一篇笔记 = 一件商品」，同一印刷款在多篇笔记里重复出现。按封面图聚类后与店主逐类确认，合并成 44 个规范 SKU。
+- **工具链**：`scripts/cluster-sku-covers.py`（封面 dHash 近重聚类，不改库 → `scripts/sku-review/listings.json` + 每类 `sheet-*.jpg` 联系表）→ `sku-review/build-proposal.py`（`sku-proposal.json`）→ `sku-review/apply-sku-merge.py`（SKU 表写在脚本里，生成 `apply-sku-merge.sql` + `canonical-skus.json`）→ `sku-review/fix-cover-sort.sql`
+- **合并规则**：全部先下架（status=1），再把 44 个保留 id 改名/改 slug/改类目并上架；**不删行**（历史订单/购物车仍引用旧 id）。天崩开局（1000266）从成就合集克隆。手机壳、DIY 教程、合集/lookbook、E2E 测试商品、T2 Parramatta/T4 未上架
+- **排序修复**：导入后 create_time 全相同 → 分页 LIMIT/OFFSET 重复/漏行。`fix-cover-sort.sql` 把在售商品 create_time 按 id 错开；`ProductServiceImpl` 列表加 `id DESC` 兜底排序，图集按 `is_cover DESC, sort_order` 取（前台用 `images[0]` 当封面）
+- 当前上架分布：bus-sign 11 / supermarket 8 / train 7 / road-sign 6 / bird 4 / achievement 5 / tram 2 / slogan 1；**collections、phonecase 为 0**（类目 tab 点进去是空的）
+
+## 2026-09-28 追加：前台编辑风改版（2026-10-25 收尾）
+
+- **视觉**：纸色 `#f6f1e8` / 墨色 `#1c1916`，Cormorant Garamond + Noto Serif SC 标题、Outfit 正文（Google Fonts，`index.html` 引入）；AntD 主题同步（圆角 0）。通用类 `.eyebrow/.muted/.tone-paper/.btn-ink/.btn-ghost/.btn-cream` 在 `index.css`
+- **首页**：不再拉接口，改为编辑长页 hero → series（3 个品类入口）→ craft → story → visit（Paddy's Markets 线下店），图在 `public/editorial/` 与 `public/mock-products/`
+- **导航**：去掉移动端底部 Tab 栏 `MobileBottomNav`；顶栏 ≥1280px 居中导航，更窄时顶栏下方横向滚动栏（1024–1279px 居中导航会压到右侧按钮组）。语言/币种/主题收进「EN · AUD」下拉
+- **品牌外链**：`src/lib/brand.ts`（GDCUP 与 Sydney Souvenirs 小红书主页用 profile ID，不用会过期的 xhslink/xsec_token；Paddy's Markets 460 号摊位地图）
+- **英文商品文案**：库里商品资料只有中文 → `src/lib/productCopy.ts` 按 slug 提供 en-AU 名称/描述，覆盖全部 44 个在售 SKU。**新上架/改 slug 要补一条**，否则英文界面会露中文名
+- **离线兜底目录**：后端不可达时，商品列表、详情、同类推荐退回 `src/lib/localCatalog.ts`（读 `src/mocks/catalog.json`）。404/业务错误仍按“商品不存在”处理，只有无响应/5xx 才兜底。`catalog.json` 由 `node scripts/export-shop-catalog.cjs` 从 sb-mysql 导出在售 SKU，**上下架/改价/改 slug 后重跑**（旧的 `generate-mock-catalog.cjs` 会把它退回 Sprint 1 的 16 件 mock）
+- **验证**（2026-10-25）：tsc 0 错、vitest 19/19、`vite build` 通过、`test-sprint7-pwa.js` 40/40（断言已随改版更新）、product 模块单测 19/19；浏览器实测英文列表/详情、两页分页 24+20 无重复、停 product 服务后列表与详情走本地目录、375px 无横向滚动
 
 ## 环境差异（本机实测，新机器必读）
 
@@ -230,14 +248,18 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 25. **`query.hashCode()` 当缓存 key 是身份哈希**：ModelAttribute 绑定的 POJO 每次请求都是新对象 → 缓存永不命中。已修为字段拼接 key（listCacheKey）
 26. **`mvn test` 不会重新打 jar**：容器重启前必须 `package`，否则跑的是旧代码
 27. **MySQL 加索引不等于优化**：优化器可能因新索引翻转 join 顺序反而更慢（Top-N 案例实测 607→732ms），必须 EXPLAIN ANALYZE 复查；聚合类查询的终极解是预聚合汇总表
+31. **分页排序必须有唯一键兜底**：批量导入后 create_time 全相同，只按 create_time 排序时 MySQL 每页顺序不稳定，LIMIT/OFFSET 会重复/漏行 → 末尾追加 `ORDER BY id DESC`
+32. **前台封面取 `images[0]`，不看 `is_cover`**：改封面时要同时把封面行 sort_order 排到最前（`fix-cover-sort.sql`），后端图集查询也按 `is_cover DESC` 先排
 
 ## 剩余项（全部非阻塞，按需）
 
 1. **数据尾巴**：
-   - 2 篇商品笔记未导入店铺（693d2a83→商品合集、69522416→校园公交路牌），需走导入流程补
-   - 商品 1000007（note 6aa2781a「垃圾桶不能翻」）在用户分类里属「个人分享/观鸟日常」非商品——目前仍挂在小鸟冰箱贴下，是否下架由业务决定
+   - 2 篇商品笔记未导入店铺（693d2a83→商品合集、69522416→校园公交路牌）。SKU 合并后店面以 `canonical-skus.json` 为准：导入后若是已有印刷款就不用上架；是新印刷款则在 `apply-sku-merge.py` 加 SKU，并补 `productCopy.ts` 英文文案、重跑 `export-shop-catalog.cjs`
+   - ~~商品 1000007 是否下架~~（已解决）：SKU 合并时改为在售的「NO BIN CHICKEN 白鹮」SKU
+   - 商品合集、手机壳两个类目当前 0 个在售 SKU：隐藏空类目还是补货，由业务决定
 2. **真实云部署**：AWS 配置已就绪（`docker/aws/`），尚未实际上线
 3. **可选**：补爬缺口笔记 `6a806381`（非商品，观鸟内容）
+4. **可选**：主包 2.5 MB（gzip 814 KB），可按路由 `lazy()` 拆分 admin 与 AntD 重组件
 
 ### 品类体系（2026-09-17 已对齐用户分类）
 

@@ -40,11 +40,10 @@ export default {
       },
       fontFamily: {
         sans: [
-          '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial',
-          'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', 'sans-serif',
+          'Outfit', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue',
+          'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', 'sans-serif',
         ],
-        // 标题衬线：西文 Georgia，中文回退宋体系（保持编辑感）
-        display: ['Georgia', 'Times New Roman', 'Noto Serif SC', 'SimSun', 'serif'],
+        display: ['"Cormorant Garamond"', '"Noto Serif SC"', 'Georgia', '"Songti SC"', 'serif'],
       },
     },
   },

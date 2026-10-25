@@ -8,6 +8,7 @@
  *   listRelated    → GET /api/products/:slug/related
  */
 
+import axios from 'axios';
 import { get } from './api';
 
 export interface Category {
@@ -76,7 +77,9 @@ export async function listProducts(query: ProductQuery = {}): Promise<ProductLis
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   try {
     return await get<Product>(`/products/${slug}`);
-  } catch {
+  } catch (err) {
+    // 后端不可达（无响应 / 5xx）往外抛，让页面退回本地目录；404 或业务错误才算“没有这件商品”
+    if (axios.isAxiosError(err) && (!err.response || err.response.status >= 500)) throw err;
     return null;
   }
 }
