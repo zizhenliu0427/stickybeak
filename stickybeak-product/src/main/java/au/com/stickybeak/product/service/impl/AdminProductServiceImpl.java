@@ -1,8 +1,8 @@
 package au.com.stickybeak.product.service.impl;
 
-import au.com.stickybeak.common.event.ProductChangedEvent;
 import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.common.result.ResultCode;
+import au.com.stickybeak.common.tx.AfterCommit;
 import au.com.stickybeak.product.dto.AdminProductPageQuery;
 import au.com.stickybeak.product.dto.ProductCreateRequest;
 import au.com.stickybeak.product.dto.ProductPriceUpdateRequest;
@@ -18,19 +18,19 @@ import au.com.stickybeak.product.mapper.ProductImageMapper;
 import au.com.stickybeak.product.mapper.ProductMapper;
 import au.com.stickybeak.product.mapper.ProductTagRelMapper;
 import au.com.stickybeak.product.mapper.TagMapper;
+import au.com.stickybeak.product.search.ProductChangedEvent;
 import au.com.stickybeak.product.service.AdminProductService;
 import au.com.stickybeak.product.vo.AdminProductVO;
 import au.com.stickybeak.product.vo.StockAlertSummaryVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.seata.spring.annotation.GlobalLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -48,7 +48,8 @@ public class AdminProductServiceImpl implements AdminProductService {
     private final TagMapper tagMapper;
     private final ProductTagRelMapper productTagRelMapper;
     private final StringRedisTemplate stringRedisTemplate;
-    private final RabbitTemplate rabbitTemplate;
+    /** 商品变更后通知 ES 索引同步（事务提交后执行，见 ProductIndexer） */
+    private final ApplicationEventPublisher eventPublisher;
 
     public AdminProductServiceImpl(ProductMapper productMapper,
                                    CategoryMapper categoryMapper,
@@ -56,14 +57,14 @@ public class AdminProductServiceImpl implements AdminProductService {
                                    TagMapper tagMapper,
                                    ProductTagRelMapper productTagRelMapper,
                                    StringRedisTemplate stringRedisTemplate,
-                                   RabbitTemplate rabbitTemplate) {
+                                   ApplicationEventPublisher eventPublisher) {
         this.productMapper = productMapper;
         this.categoryMapper = categoryMapper;
         this.productImageMapper = productImageMapper;
         this.tagMapper = tagMapper;
         this.productTagRelMapper = productTagRelMapper;
         this.stringRedisTemplate = stringRedisTemplate;
-        this.rabbitTemplate = rabbitTemplate;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -175,11 +176,13 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setStatus(req.getStatus());
         productMapper.updateById(product);
         clearProductCaches(product);
-        publishProductChanged(id);
+        eventPublisher.publishEvent(new ProductChangedEvent(id));
         log.info("Admin updated product {} status to {}", id, req.getStatus());
     }
 
+    /** 与 InventoryServiceImpl#rollbackStock 同理：改库存行要先确认它不在未完成的结账全局事务里 */
     @Override
+    @GlobalLock
     @Transactional(rollbackFor = Exception.class)
     public void updateStock(Long id, ProductStockUpdateRequest req) {
         Product product = productMapper.selectById(id);
@@ -187,28 +190,28 @@ public class AdminProductServiceImpl implements AdminProductService {
             throw new BusinessException(ResultCode.NOT_FOUND, "Product not found: " + id);
         }
 
-        int targetStock;
+        // 在数据库内原子更新：先读后写（updateById）会覆盖这期间下单产生的扣减，导致超卖
         if (req.getStock() != null) {
-            targetStock = Math.max(0, req.getStock());
+            productMapper.setStock(id, Math.max(0, req.getStock()));
         } else if (req.getDelta() != null) {
-            targetStock = Math.max(0, (product.getStock() != null ? product.getStock() : 0) + req.getDelta());
+            productMapper.adjustStock(id, req.getDelta());
         } else {
             throw new BusinessException(ResultCode.BAD_REQUEST, "Either stock or delta must be provided");
         }
 
-        product.setStock(targetStock);
-        productMapper.updateById(product);
-
-        // 同步更新 Redis 预扣减库存缓存
-        try {
-            stringRedisTemplate.opsForValue().set("product:stock:" + id, String.valueOf(targetStock));
-        } catch (Exception e) {
-            log.warn("Failed to sync Redis stock cache for product {}: {}", id, e.getMessage());
-        }
+        // Redis 预扣缓存在提交后删除，下一次扣减按 MySQL 最新值重新预热（避免覆盖并发扣减的结果）
+        String stockKey = "product:stock:" + id;
+        AfterCommit.run(() -> {
+            try {
+                stringRedisTemplate.delete(stockKey);
+            } catch (Exception e) {
+                log.warn("Failed to evict Redis stock cache for product {}: {}", id, e.getMessage());
+            }
+        });
 
         clearProductCaches(product);
-        publishProductChanged(id);
-        log.info("Admin updated product {} stock to {}", id, targetStock);
+        eventPublisher.publishEvent(new ProductChangedEvent(id));
+        log.info("Admin updated product {} stock (set={}, delta={})", id, req.getStock(), req.getDelta());
     }
 
     @Override
@@ -221,7 +224,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setPrice(req.getPrice());
         productMapper.updateById(product);
         clearProductCaches(product);
-        publishProductChanged(id);
+        eventPublisher.publishEvent(new ProductChangedEvent(id));
         log.info("Admin updated product {} price to {}", id, req.getPrice());
     }
 
@@ -349,33 +352,9 @@ public class AdminProductServiceImpl implements AdminProductService {
             }
         }
 
-        publishProductChanged(product.getId());
+        eventPublisher.publishEvent(new ProductChangedEvent(product.getId()));
         log.info("Admin created product {} ({}), category={}", product.getId(), product.getName(), req.categoryId());
         return product.getId();
-    }
-
-    /**
-     * 商品变更事件：事务提交后再投递，消费者（ES 索引监听器）读到的必然是已落库数据。
-     * MQ 不可用时只告警——Redis 缓存已清，ES 偏差由全量 reindex 兜底。
-     */
-    private void publishProductChanged(Long productId) {
-        try {
-            if (TransactionSynchronizationManager.isSynchronizationActive()) {
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        rabbitTemplate.convertAndSend(ProductChangedEvent.EXCHANGE,
-                                ProductChangedEvent.ROUTING_KEY,
-                                new ProductChangedEvent(productId, ProductChangedEvent.ChangeType.UPSERT));
-                    }
-                });
-            } else {
-                rabbitTemplate.convertAndSend(ProductChangedEvent.EXCHANGE, ProductChangedEvent.ROUTING_KEY,
-                        new ProductChangedEvent(productId, ProductChangedEvent.ChangeType.UPSERT));
-            }
-        } catch (Exception e) {
-            log.warn("Failed to publish ProductChangedEvent for {}: {}", productId, e.getMessage());
-        }
     }
 
     private String computeStockStatus(Integer stock) {

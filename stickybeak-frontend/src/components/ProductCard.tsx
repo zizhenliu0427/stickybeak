@@ -10,6 +10,8 @@ export default function ProductCard({ product }: { product: Product }) {
   const cover = product.images[0];
   const videoFallback = product.media?.find((m) => m.mediaType === 'video')?.url;
   const name = productName(product.slug, product.name, locale);
+  // 高亮片段来自中文原名；英文界面换成了英文名时就不用它
+  const highlighted = name === product.name ? product.highlightedName : null;
   const line = productDescription(product.slug, product.description, locale)
     .replace(/\[[^\]]+\]/g, '')
     .replace(/\s+/g, ' ')
@@ -38,7 +40,15 @@ export default function ProductCard({ product }: { product: Product }) {
         )}
       </div>
       <div className="pt-4">
-        <h3 className="font-display line-clamp-2 text-2xl leading-tight">{name}</h3>
+        {highlighted ? (
+          // ES 高亮使用 encoder=html：原文已转义，只有 <em> 是标签，可以安全渲染
+          <h3
+            className="search-highlight font-display line-clamp-2 text-2xl leading-tight"
+            dangerouslySetInnerHTML={{ __html: highlighted }}
+          />
+        ) : (
+          <h3 className="font-display line-clamp-2 text-2xl leading-tight">{name}</h3>
+        )}
         {line ? <p className="mt-2 line-clamp-2 text-sm leading-6 muted">{line}</p> : null}
         <div className="mt-3 flex items-baseline justify-between gap-3">
           <Price cents={product.priceCents} className="text-sm tracking-wide" />

@@ -49,7 +49,15 @@ export interface OrderVO {
   payAmount: number;
   currency: string;
   exchangeRateAtPay: number;
-  status: 'pending' | 'paid' | 'processing' | 'shipped' | 'completed' | 'cancelled';
+  status:
+    | 'pending'
+    | 'paid'
+    | 'processing'
+    | 'shipped'
+    | 'completed'
+    | 'cancelled'
+    | 'refunding'
+    | 'refunded';
   payTime?: string;
   shipTime?: string;
   completeTime?: string;

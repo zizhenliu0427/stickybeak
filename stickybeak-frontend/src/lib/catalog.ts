@@ -36,6 +36,8 @@ export interface Product {
   media: { url: string; mediaType: 'image' | 'video' }[];
   sourceNoteId: string;
   featured: boolean;
+  /** 搜索结果的高亮名称：后端已做 HTML 转义，只有命中词被 <em> 包裹 */
+  highlightedName?: string | null;
 }
 
 export interface ProductQuery {
@@ -44,7 +46,7 @@ export interface ProductQuery {
   tags?: string;
   minPrice?: number;
   maxPrice?: number;
-  /** new | sales | price-asc | price-desc */
+  /** relevance（仅搜索） | new | sales | price-asc | price-desc */
   sort?: string;
   q?: string;
   page?: number;

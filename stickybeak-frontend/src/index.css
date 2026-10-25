@@ -131,3 +131,13 @@ html.dark .muted {
 .product-card:hover .product-card-img {
   transform: scale(1.04);
 }
+
+/* 搜索命中词高亮（ES highlight 输出 <em>） */
+.search-highlight em {
+  font-style: normal;
+  color: inherit;
+  background-color: rgba(176, 141, 76, 0.24);
+}
+html.dark .search-highlight em {
+  background-color: rgba(214, 186, 128, 0.22);
+}

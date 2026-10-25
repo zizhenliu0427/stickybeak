@@ -11,6 +11,8 @@ services:
     container_name: sb-gateway
     environment:
       NACOS_ADDR: nacos:8848
+      REDIS_HOST: redis
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: oap:11800
     ports:
       - "8080:8080"
     depends_on:
@@ -23,8 +25,19 @@ services:
       args:
         MODULE: stickybeak-auth
     container_name: sb-auth
+    # 容器网络内按服务名访问中间件；不设置时各服务会回落到 localhost 而连不上
     environment: &svc-env
       NACOS_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      REDIS_HOST: redis
+      RABBITMQ_HOST: rabbitmq
+      MAIL_HOST: mailhog
+      ES_URIS: http://elasticsearch:9200
+      SEATA_ADDR: seata:8091
+      # 挂 SkyWalking agent 并上报到 OAP（不设置则不挂 agent，见 Dockerfile.backend）
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: oap:11800
+      # 本地 E2E 脚本使用模拟支付回调；生产 compose 不设置（默认关闭）
+      PAYMENT_MOCK_WEBHOOK_ENABLED: "true"
     depends_on: &svc-deps
       - nacos
       - mysql
@@ -38,7 +51,11 @@ services:
         MODULE: stickybeak-product
     container_name: sb-product
     environment: *svc-env
-    depends_on: *svc-deps
+    depends_on:
+      - nacos
+      - mysql
+      - redis
+      - seata
 
   cart:
     build:
@@ -91,6 +108,41 @@ services:
       - rabbitmq
       - mailhog
 
+  # MCP Server（Sprint 14）：商城的只读能力（商品、订单查询、售后检索）。外部 AI 客户端经网关 /api/mcp 访问，agent 也通过它调用
+  mcp:
+    build:
+      context: ../stickybeak-agent
+    container_name: sb-mcp
+    command: ["python", "-m", "stickybeak_agent.mcp_server"]
+    environment:
+      NACOS_ADDR: nacos:8848
+      ES_URIS: http://elasticsearch:9200
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: oap:11800
+      # 知识库向量化与重排用通义（DashScope）；不配置时售后检索只用关键词
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+    depends_on:
+      - nacos
+      - elasticsearch
+
+  # AI 助手（Python / FastAPI + LangGraph）。没有配置模型 key 时助手返回"暂不可用"，商城其他功能不受影响
+  agent:
+    build:
+      context: ../stickybeak-agent
+    container_name: sb-agent
+    environment:
+      NACOS_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      REDIS_HOST: redis
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: oap:11800
+      # 通义千问（主）与 DeepSeek（备用），在 docker/.env 或 shell 环境里提供
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    depends_on:
+      - nacos
+      - mysql
+      - redis
+      - mcp
+
   frontend:
     build:
       context: ..
@@ -134,7 +186,9 @@ services:
       - "15672:15672"
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    # 官方镜像 + IK 中文分词插件（docker/elasticsearch/Dockerfile）
+    build: ./elasticsearch
+    image: stickybeak/elasticsearch-ik:8.14.3
     container_name: sb-elasticsearch
     environment:
       - discovery.type=single-node
@@ -156,15 +210,72 @@ services:
       - "9848:9848"
 
   seata:
-    image: seataio/seata-server:1.8.0
+    # 与 Spring Cloud Alibaba 2023.0.1.x 自带的 Seata 2.0 客户端对齐；file 存储，单机演示用
+    image: seataio/seata-server:2.0.0
     container_name: sb-seata
     environment:
       SEATA_PORT: "8091"
-      store.mode: file
+      STORE_MODE: file
     ports:
       - "8091:8091"
+      - "7091:7091"   # 控制台
+
+  # --- SkyWalking 全链路追踪（Sprint 12）：BanyanDB 存储 + OAP + UI ---
+  # BanyanDB 是 SkyWalking 10 的默认存储，专为链路 / 指标 / 日志设计，比 ES 省资源，也不和商品搜索抢 ES 内存
+  banyandb:
+    image: apache/skywalking-banyandb:0.10.3
+    container_name: sb-banyandb
+    command: >-
+      standalone
+      --stream-root-path /data --measure-root-path /data --trace-root-path /data
+      --property-root-path /data --metadata-root-path /data --schema-server-root-path /data
+    volumes:
+      - banyandb-data:/data
+    ports:
+      - "17912:17912"
+      - "17913:17913"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -nz 127.0.0.1 17912"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  oap:
+    image: apache/skywalking-oap-server:10.4.0
+    container_name: sb-oap
     depends_on:
-      - mysql
+      banyandb:
+        condition: service_healthy
+    environment:
+      SW_STORAGE: banyandb
+      SW_STORAGE_BANYANDB_TARGETS: banyandb:17912
+      SW_HEALTH_CHECKER: default
+      # 默认文件 + 业务自定义指标（死信队列积压，见 skywalking/meter-analyzer-config/stickybeak.yaml）
+      SW_METER_ANALYZER_ACTIVE_FILES: datasource,threadpool,satellite,go-runtime,python-runtime,continuous-profiling,java-agent,go-agent,ruby-runtime,stickybeak
+      JAVA_OPTS: "-Xms512m -Xmx1g"
+    volumes:
+      - ./skywalking/alarm-settings.yml:/skywalking/config/alarm-settings.yml:ro
+      - ./skywalking/meter-analyzer-config/stickybeak.yaml:/skywalking/config/meter-analyzer-config/stickybeak.yaml:ro
+      # 网关端点按 URL 模板分组（/api/products/{var}），避免订单号、slug 让端点数无限增长
+      - ./skywalking/endpoint-name-grouping.yml:/skywalking/config/endpoint-name-grouping.yml:ro
+    ports:
+      - "11800:11800"   # agent 上报（gRPC）
+      - "12800:12800"   # UI / 查询（HTTP）
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:12800/healthcheck || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  skywalking-ui:
+    image: apache/skywalking-ui:10.4.0
+    container_name: sb-skywalking-ui
+    depends_on:
+      - oap
+    environment:
+      SW_OAP_ADDRESS: http://oap:12800
+    ports:
+      - "8088:8080"
 
   minio:
     # MinIO 社区版已停止向 Docker Hub 发布镜像，改用 quay.io 历史版本
@@ -192,3 +303,4 @@ volumes:
   redis-data:
   es-data:
   minio-data:
+  banyandb-data:

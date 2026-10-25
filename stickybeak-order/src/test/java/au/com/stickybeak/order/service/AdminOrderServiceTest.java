@@ -1,11 +1,12 @@
 package au.com.stickybeak.order.service;
 
 import au.com.stickybeak.common.enums.OrderStatus;
-import au.com.stickybeak.order.client.ProductClient;
+import au.com.stickybeak.order.client.PaymentClient;
 import au.com.stickybeak.order.dto.AdminOrderStatusUpdateRequest;
 import au.com.stickybeak.order.entity.Order;
 import au.com.stickybeak.order.mapper.OrderItemMapper;
 import au.com.stickybeak.order.mapper.OrderMapper;
+import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.order.service.impl.AdminOrderServiceImpl;
 import au.com.stickybeak.order.statemachine.OrderStateMachine;
 import au.com.stickybeak.order.vo.AnalyticsSummaryVO;
@@ -21,6 +22,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -38,7 +41,9 @@ class AdminOrderServiceTest {
     @Mock
     private OrderStateMachine orderStateMachine;
     @Mock
-    private ProductClient productClient;
+    private OrderResourceReleaser orderResourceReleaser;
+    @Mock
+    private PaymentClient paymentClient;
     @Mock
     private StringRedisTemplate stringRedisTemplate;
     @Mock
@@ -51,7 +56,7 @@ class AdminOrderServiceTest {
     void setUp() {
         lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
         adminOrderService = new AdminOrderServiceImpl(
-                orderMapper, orderItemMapper, orderStateMachine, productClient, stringRedisTemplate, objectMapper);
+                orderMapper, orderItemMapper, orderStateMachine, orderResourceReleaser, paymentClient, stringRedisTemplate, objectMapper);
     }
 
     @Test
@@ -70,13 +75,15 @@ class AdminOrderServiceTest {
 
     @Test
     void testGetSalesTrend() {
-        Map<String, Object> row = Map.of("order_date", "2026-09-15", "order_count", 5, "daily_gmv", 150.0);
+        // 用相对今天的日期，避免测试随时间推移失效
+        String yesterday = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        Map<String, Object> row = Map.of("order_date", yesterday, "order_count", 5, "daily_gmv", 150.0);
         when(orderMapper.selectDailySalesTrend(7)).thenReturn(List.of(row));
 
         List<SalesTrendItemVO> trend = adminOrderService.getSalesTrend(7);
 
         assertEquals(7, trend.size());
-        assertTrue(trend.stream().anyMatch(t -> "2026-09-15".equals(t.getDate()) && t.getOrderCount() == 5));
+        assertTrue(trend.stream().anyMatch(t -> yesterday.equals(t.getDate()) && t.getOrderCount() == 5));
     }
 
     @Test
@@ -105,6 +112,7 @@ class AdminOrderServiceTest {
         order.setOrderNo("SO20260916001");
         order.setStatus("processing");
         when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, "processing")).thenReturn(1);
 
         AdminOrderStatusUpdateRequest req = new AdminOrderStatusUpdateRequest();
         req.setStatus("shipped");
@@ -114,7 +122,8 @@ class AdminOrderServiceTest {
         adminOrderService.updateOrderStatus("SO20260916001", req, 1L);
 
         verify(orderStateMachine).transition(order, OrderStatus.SHIPPED, 1L, "admin");
-        verify(orderMapper).updateById(order);
+        verify(orderMapper).updateIfStatus(order, "processing");
+        verify(orderResourceReleaser, never()).releaseQuietly(anyString());
         assertTrue(order.getRemark().contains("Tracking: AUSPOST_998877"));
     }
 
@@ -123,17 +132,108 @@ class AdminOrderServiceTest {
         Order order = new Order();
         order.setId(11L);
         order.setOrderNo("SO20260916002");
+        order.setStatus("pending");
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, "pending")).thenReturn(1);
+
+        AdminOrderStatusUpdateRequest req = new AdminOrderStatusUpdateRequest();
+        req.setStatus("cancelled");
+        req.setRemark("Customer asked to cancel before paying");
+
+        adminOrderService.updateOrderStatus("SO20260916002", req, 1L);
+
+        verify(orderStateMachine).transition(order, OrderStatus.CANCELLED, 1L, "admin");
+        verify(orderMapper).updateIfStatus(order, "pending");
+        verify(orderResourceReleaser).releaseQuietly("SO20260916002");
+    }
+
+    @Test
+    void testUpdateOrderStatus_ConcurrentChangeRejected() {
+        Order order = new Order();
+        order.setId(12L);
+        order.setOrderNo("SO20260916003");
+        order.setStatus("pending");
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        // 管理员操作期间订单已被用户取消 / 超时关闭
+        when(orderMapper.updateIfStatus(order, "pending")).thenReturn(0);
+
+        AdminOrderStatusUpdateRequest req = new AdminOrderStatusUpdateRequest();
+        req.setStatus("cancelled");
+
+        assertThrows(BusinessException.class, () -> adminOrderService.updateOrderStatus("SO20260916003", req, 1L));
+        verify(orderResourceReleaser, never()).releaseQuietly(anyString());
+    }
+
+    @Test
+    void testRefundPaidOrder() {
+        Order order = new Order();
+        order.setId(20L);
+        order.setOrderNo("SO_REFUND_1");
+        order.setStatus("paid");
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, "paid")).thenReturn(1);
+
+        adminOrderService.refundOrder("SO_REFUND_1", "Damaged in transit", 1L);
+
+        verify(orderStateMachine).transition(order, OrderStatus.REFUNDING, 1L, "admin");
+        verify(orderMapper).updateIfStatus(order, "paid");
+        verify(paymentClient).refund("SO_REFUND_1", "Damaged in transit");
+        assertTrue(order.getRemark().contains("Refund: Damaged in transit"));
+    }
+
+    @Test
+    void testRefundRetryForRefundingOrderDoesNotChangeStatus() {
+        Order order = new Order();
+        order.setId(21L);
+        order.setOrderNo("SO_REFUND_2");
+        order.setStatus("refunding");
+        when(orderMapper.selectOne(any())).thenReturn(order);
+
+        adminOrderService.refundOrder("SO_REFUND_2", null, 1L);
+
+        verify(orderStateMachine, never()).transition(any(), any(), any(), anyString());
+        verify(orderMapper, never()).updateIfStatus(any(), anyString());
+        verify(paymentClient).refund("SO_REFUND_2", null);
+    }
+
+    @Test
+    void testRefundRejectedForShippedOrder() {
+        Order order = new Order();
+        order.setId(22L);
+        order.setOrderNo("SO_REFUND_3");
+        order.setStatus("shipped");
+        when(orderMapper.selectOne(any())).thenReturn(order);
+
+        assertThrows(BusinessException.class, () -> adminOrderService.refundOrder("SO_REFUND_3", null, 1L));
+        verifyNoInteractions(paymentClient);
+    }
+
+    @Test
+    void testRefundConcurrentChangeDoesNotCallPayment() {
+        Order order = new Order();
+        order.setId(23L);
+        order.setOrderNo("SO_REFUND_4");
+        order.setStatus("paid");
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.updateIfStatus(order, "paid")).thenReturn(0);
+
+        assertThrows(BusinessException.class, () -> adminOrderService.refundOrder("SO_REFUND_4", null, 1L));
+        verifyNoInteractions(paymentClient);
+    }
+
+    @Test
+    void testStatusUpdateCannotSetRefundStatesDirectly() {
+        Order order = new Order();
+        order.setId(24L);
+        order.setOrderNo("SO_REFUND_5");
         order.setStatus("paid");
         when(orderMapper.selectOne(any())).thenReturn(order);
 
         AdminOrderStatusUpdateRequest req = new AdminOrderStatusUpdateRequest();
-        req.setStatus("cancelled");
-        req.setRemark("Customer requested full refund");
+        req.setStatus("refunded");
 
-        adminOrderService.updateOrderStatus("SO20260916002", req, 1L);
-
-        verify(productClient).rollbackStock("SO20260916002");
-        verify(orderStateMachine).transition(order, OrderStatus.CANCELLED, 1L, "admin");
-        verify(orderMapper).updateById(order);
+        assertThrows(BusinessException.class, () -> adminOrderService.updateOrderStatus("SO_REFUND_5", req, 1L));
+        verify(orderMapper, never()).updateIfStatus(any(), anyString());
+        verifyNoInteractions(paymentClient);
     }
 }

@@ -236,14 +236,14 @@ async function main() {
   const orderNo = checkoutResp.data.data.orderNo;
   console.log(`   买家创建订单成功: ${orderNo}`);
 
-  // 模拟支付成功
+  // 模拟支付成功（mock 回调需登录；金额必须与订单实付一致，否则会被拒绝）
   await makeRequest('POST', '/api/webhooks/mock', {
     id: `evt_mock_${Date.now()}`,
     type: 'mock.payment.paid',
     orderNo,
-    amount: 34.9,
+    amount: checkoutResp.data.data.payAmount,
     currency: 'AUD',
-  });
+  }, customerCookie);
   await sleep(1500);
 
   // 管理员推进状态: paid -> processing (开始拣货)

@@ -23,7 +23,12 @@ export default function ProductsPage() {
   const rate = useAppSelector((s) => s.currency.audToCny);
   const { t } = useI18n();
 
+  const keyword = searchParams.get('q') ?? undefined;
+  // 有关键词时默认按相关度排序（ES），否则默认最新
+  const defaultSort = keyword ? 'relevance' : 'new';
+
   const sortOptions = [
+    ...(keyword ? [{ value: 'relevance', label: t('products.sortRelevance') }] : []),
     { value: 'new', label: t('products.sortNew') },
     { value: 'sales', label: t('products.sortSales') },
     { value: 'price-asc', label: t('products.sortPriceAsc') },
@@ -34,14 +39,14 @@ export default function ProductsPage() {
   const query = useMemo(
     () => ({
       category: searchParams.get('category') ?? undefined,
-      q: searchParams.get('q') ?? undefined,
-      sort: searchParams.get('sort') ?? 'new',
+      q: keyword,
+      sort: searchParams.get('sort') ?? defaultSort,
       minPrice: searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : undefined,
       maxPrice: searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : undefined,
       page: Number(searchParams.get('page') ?? 1),
       size: PAGE_SIZE,
     }),
-    [searchParams],
+    [searchParams, keyword, defaultSort],
   );
 
   useEffect(() => {
@@ -122,7 +127,7 @@ export default function ProductsPage() {
           <Select
             value={query.sort}
             options={sortOptions}
-            onChange={(v) => patchParams({ sort: v === 'new' ? undefined : v })}
+            onChange={(v) => patchParams({ sort: v === defaultSort ? undefined : v })}
             className="w-36 sm:w-40"
           />
           <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-stone-400">

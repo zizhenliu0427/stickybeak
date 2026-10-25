@@ -41,16 +41,22 @@ class OrderStateMachineCoverageTest {
         assertTrue(orderStateMachine.canTransition(OrderStatus.PENDING, OrderStatus.PAID));
         assertTrue(orderStateMachine.canTransition(OrderStatus.PENDING, OrderStatus.CANCELLED));
         assertTrue(orderStateMachine.canTransition(OrderStatus.PAID, OrderStatus.PROCESSING));
-        assertTrue(orderStateMachine.canTransition(OrderStatus.PAID, OrderStatus.CANCELLED));
+        assertTrue(orderStateMachine.canTransition(OrderStatus.PAID, OrderStatus.REFUNDING));
         assertTrue(orderStateMachine.canTransition(OrderStatus.PROCESSING, OrderStatus.SHIPPED));
-        assertTrue(orderStateMachine.canTransition(OrderStatus.PROCESSING, OrderStatus.CANCELLED));
+        assertTrue(orderStateMachine.canTransition(OrderStatus.PROCESSING, OrderStatus.REFUNDING));
         assertTrue(orderStateMachine.canTransition(OrderStatus.SHIPPED, OrderStatus.COMPLETED));
+        assertTrue(orderStateMachine.canTransition(OrderStatus.REFUNDING, OrderStatus.REFUNDED));
 
         // Invalid transitions
         assertFalse(orderStateMachine.canTransition(OrderStatus.COMPLETED, OrderStatus.PAID));
         assertFalse(orderStateMachine.canTransition(OrderStatus.CANCELLED, OrderStatus.PENDING));
         assertFalse(orderStateMachine.canTransition(OrderStatus.PAID, OrderStatus.PENDING));
         assertFalse(orderStateMachine.canTransition(OrderStatus.SHIPPED, OrderStatus.PROCESSING));
+        // 已付款订单不能直接取消，必须退款；已发货不支持退款（退货流程不在范围内）
+        assertFalse(orderStateMachine.canTransition(OrderStatus.PAID, OrderStatus.CANCELLED));
+        assertFalse(orderStateMachine.canTransition(OrderStatus.PROCESSING, OrderStatus.CANCELLED));
+        assertFalse(orderStateMachine.canTransition(OrderStatus.SHIPPED, OrderStatus.REFUNDING));
+        assertFalse(orderStateMachine.canTransition(OrderStatus.REFUNDED, OrderStatus.PAID));
     }
 
     @Test
@@ -65,17 +71,19 @@ class OrderStateMachineCoverageTest {
 
         List<String> paidAllowed = orderStateMachine.getAllowedTransitions("paid");
         assertTrue(paidAllowed.contains("processing"));
-        assertTrue(paidAllowed.contains("cancelled"));
+        assertTrue(paidAllowed.contains("refunding"));
 
         List<String> processingAllowed = orderStateMachine.getAllowedTransitions("processing");
         assertTrue(processingAllowed.contains("shipped"));
-        assertTrue(processingAllowed.contains("cancelled"));
+        assertTrue(processingAllowed.contains("refunding"));
 
         List<String> shippedAllowed = orderStateMachine.getAllowedTransitions("shipped");
         assertEquals(List.of("completed"), shippedAllowed);
 
+        assertEquals(List.of("refunded"), orderStateMachine.getAllowedTransitions("refunding"));
         assertTrue(orderStateMachine.getAllowedTransitions("completed").isEmpty());
         assertTrue(orderStateMachine.getAllowedTransitions("cancelled").isEmpty());
+        assertTrue(orderStateMachine.getAllowedTransitions("refunded").isEmpty());
     }
 
     @Test

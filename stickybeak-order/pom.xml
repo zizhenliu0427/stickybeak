@@ -10,6 +10,10 @@
     </parent>
     <artifactId>stickybeak-order</artifactId>
     <name>stickybeak-order</name>
+    <properties>
+        <!-- 覆盖率门禁底线（Sprint 11 实测后向下取整） -->
+        <jacoco.line.minimum>0.45</jacoco.line.minimum>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>au.com.stickybeak</groupId>
@@ -18,6 +22,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <!-- OpenAPI 3 文档（springdoc + Knife4j UI），网关 /doc.html 聚合 -->
+        <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -58,6 +67,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
+        <!-- SkyWalking meter API：上报死信队列积压量，供 OAP 告警（没挂 agent 时为空实现） -->
+        <dependency>
+            <groupId>org.apache.skywalking</groupId>
+            <artifactId>apm-toolkit-meter</artifactId>
+        </dependency>
+        <!-- Seata AT：结账"扣库存 + 写订单"跨库分布式事务（Sprint 11.1） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-seata</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -69,6 +88,33 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>check</id>
+                        <configuration>
+                            <rules combine.children="append">
+                                <!-- 核心类单独设 90% 门禁（README 中"核心模块 > 90%"的出处） -->
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes>
+                                        <include>au.com.stickybeak.order.statemachine.OrderStateMachine</include>
+                                    </includes>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.90</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

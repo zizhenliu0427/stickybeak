@@ -10,8 +10,8 @@ import au.com.stickybeak.product.dto.ProductStockUpdateRequest;
 import au.com.stickybeak.product.dto.ProductCreateRequest;
 import au.com.stickybeak.product.dto.UploadUrlRequest;
 import au.com.stickybeak.product.service.AdminProductService;
-import au.com.stickybeak.product.service.ProductIndexService;
 import au.com.stickybeak.product.service.StorageService;
+import au.com.stickybeak.product.search.ProductIndexer;
 import au.com.stickybeak.product.vo.AdminProductVO;
 import au.com.stickybeak.product.vo.StockAlertSummaryVO;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -20,20 +20,22 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/products/admin")
 public class AdminProductController {
 
     private final AdminProductService adminProductService;
-    private final ProductIndexService productIndexService;
+    /** 关闭 ES（stickybeak.search.elasticsearch.enabled=false）时为空 */
+    private final Optional<ProductIndexer> productIndexer;
     private final StorageService storageService;
 
     public AdminProductController(AdminProductService adminProductService,
-                                  ProductIndexService productIndexService,
+                                  Optional<ProductIndexer> productIndexer,
                                   StorageService storageService) {
         this.adminProductService = adminProductService;
-        this.productIndexService = productIndexService;
+        this.productIndexer = productIndexer;
         this.storageService = storageService;
     }
 
@@ -88,8 +90,9 @@ public class AdminProductController {
     public Result<Map<String, Object>> reindex(
             @RequestHeader(value = "X-User-Roles", required = false) String roles) {
         checkAdminRole(roles);
-        int count = productIndexService.reindexAll();
-        return Result.ok(Map.of("indexed", count));
+        ProductIndexer indexer = productIndexer.orElseThrow(() ->
+                new BusinessException(ResultCode.BAD_REQUEST, "Elasticsearch search is disabled"));
+        return Result.ok(Map.of("indexed", indexer.reindexAll()));
     }
 
     /** 申请图片预签名上传 URL（浏览器直传 MinIO） */

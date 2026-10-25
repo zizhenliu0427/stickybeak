@@ -241,6 +241,385 @@
 
 ---
 
+# 第二阶段路线图（2026-10 制定）
+
+> 目标：求职（国内 Java 后端 + AI 应用方向）。
+> 顺序：修好网站 → 补齐 README 宣称的能力 → SkyWalking → Python Agent + RAG → MCP。
+> 规则：
+> - **README 只写已落地并验证过的能力**，每个 Sprint 结束后再更新 README。
+> - 文档与简历中的性能数字一律来自实测（压测脚本 + SkyWalking / 日志截图），不写预估值。Sprint 9 表中的数字同样以实测为准。
+> - 新增 Labels：`area:agent` `area:observability` `sprint:10` … `sprint:14`
+
+## Sprint 10 — 修复资金与库存安全（第一步 · 上）
+
+**目标：** CI 转绿，`docs/CODE_REVIEW_TODO.md` 中 P0–P2 全部关闭。 **Tag:** `v1.2.0`
+
+### Issue 10.1 — CI 转绿
+`type:bug` `area:order` `p0`
+- 修复 P0-0 时间相关测试
+- 验收：后端 `mvn verify` 与前端 CI 全绿
+
+### Issue 10.2 — 支付回调安全
+`type:bug` `area:payment` `area:gateway` `p0`
+- P0-1 mock webhook 仅 dev 环境可用，网关白名单收窄到 `/api/webhooks/stripe`
+- P0-2 只处理 `checkout.session.completed` 且 `payment_status=paid`，核对金额与币种
+- P0-6 Checkout Session 设置 30 分钟过期；取消订单时让 session 失效
+- 验收：单测覆盖伪造 mock 请求、expired 事件、金额不符三种场景；prod profile 下 `/webhooks/mock` 不可访问
+
+### Issue 10.3 — 内部接口隔离
+`type:bug` `area:gateway` `area:product` `p0`
+- P0-3 网关拦截 `/api/products/stock/**` 写接口；内部接口统一 `@InternalApi` + `X-Internal-Call`
+- 孤儿预占：结账在扣减后任一步失败都归还；订单服务兜底扫描超时消息丢失的待支付订单（不在商品服务按时间释放，避免误放已付款订单的库存）
+- 验收：登录用户经网关调用 deduct / rollback 被拒；超时未支付且消息丢失的订单会被关闭并归还库存
+
+### Issue 10.4 — 消息可靠性与状态并发
+`type:bug` `area:order` `p0`
+- P0-4 拆分 `handleOrderPaid` 事务；`order.status.queue` / `order.close.queue` 配置 DLX 与死信队列；区分可重试与不可重试异常
+- P0-5 订单状态与库存预占改为条件更新（`WHERE status = ?`）
+- 验收：product 服务宕机期间支付消息不丢失，恢复后订单变为 PAID；"支付 + 超时"并发时只有一个生效（并发单测）
+
+### Issue 10.5 — 生产配置修正
+`type:bug` `area:devops` `p1`
+- `CODE_REVIEW_TODO` P1 全部：prod compose 环境变量名、网关 `JWT_SECRET` / `REDIS_HOST`、Redis 密码、示例密钥改为合法 Base64、cookie `Secure`、关闭网关 `actuator/gateway`；prod 缺 `JWT_SECRET` 时启动失败
+- 验收：按 prod 变量启动后各服务能连上依赖，网关能校验 auth 签发的 token
+
+### Issue 10.6 — 逻辑小问题 + 冒烟回归
+`type:bug` `p2`
+- `CODE_REVIEW_TODO` P2 全部（Lua `-1`、库存 delta 原子更新、订单号生成、Redis 回滚顺序）
+- 跑一遍全流程（注册 → 加购 → 支付 → 发货 → 取消），收集前端体验问题，按需补 issue
+- 验收：`scripts/test-sprint5-e2e.js` 与 Playwright E2E 全部通过
+
+---
+
+## Sprint 11 — 补齐 README 宣称的能力（第一步 · 下）
+
+**目标：** README 中的 Seata / Elasticsearch / 退款 / 覆盖率门禁全部真实落地。 **Tag:** `v1.3.0`
+
+### Issue 11.1 — Seata 分布式事务
+`type:feature` `area:order` `area:product` `p0`
+- 结账链路"创建订单 + MySQL 扣减库存"纳入 `@GlobalTransactional`（AT 模式），替换现有手工 `compensate`
+- 各业务库补 `undo_log` 表；Seata Server 版本与 Spring Cloud Alibaba 对齐（compose 现为 1.8.0）
+- Redis 预扣不在全局事务内，全局回滚时补偿 Redis
+- 验收：故意让订单写库失败 → MySQL 库存自动回滚；压测热点商品，记录 AT 全局锁对吞吐的影响（面试素材：AT 与 TCC 的取舍）
+
+> 实现说明：
+> - 全局事务边界是 `CheckoutTransaction#placeOrder`（`@GlobalTransactional`）：product 的 `deductStock`（一个本地事务 = 一个 AT 分支，XID 由 RestTemplate 拦截器透传）+ order 写订单 / 明细 / 状态历史。原来的手工 `compensate` 与"失败后调 rollback 接口"都删掉了。
+> - 支付会话（Stripe）不在全局事务里：AT 分支提交后商品行的全局锁要到全局提交才释放，外部 HTTP 调用会让同一热门商品的结账在全局锁上排队。支付会话建失败时订单已提交，改为立即关单并释放库存（`cancelUnpayable`）。
+> - Redis 预扣不受 undo_log 管理：Lua 扣减时按订单记账（`stock:reservation:{orderNo}`），本地事务没提交时由 `AfterCommit.onRollback` 归还；全局回滚时由订单服务注册的 Seata `TransactionHook#afterRollback` 调 `/products/stock/redis-restore` 归还。归还脚本"读账本 + 加回 + 删账本"是原子的，重复调用只生效一次。hook 在扣库存之前注册，覆盖"扣库存请求超时但商品服务其实扣了"的情况。
+> - AT 写隔离：关单释放、退款回补、后台改库存这些不在全局事务里的本地写，会改到可能被未完成全局事务锁住的 `t_product` 行，已加 `@GlobalLock`，否则全局回滚时 after-image 校验失败、回滚卡住。
+> - 网关剥离外部请求的 `TX_XID` 头，防止外部请求把写操作挂进别人的全局事务。
+> - Seata Server 升级到 2.0.0（与 SCA 2023.0.1.2 的客户端一致），file 存储、直连（不走注册中心）；`undo_log` 见 `docker/mysql/init/07-seata-undo-log.sql`。
+> - 已知取舍：热点商品的结账在行级全局锁上串行（持锁时间 = 扣库存分支提交到全局提交，约几十毫秒），这是选 AT 而不是 TCC 的代价；全局回滚后若归还 Redis 的调用失败，Redis 库存只会偏少（不会超卖），后台改库存或 key 过期后从 MySQL 重新预热。
+> - 未完成：本地无 Docker 环境，"订单写库失败 → 库存自动回滚"与热点压测还没在真实 Seata Server 上跑过。
+
+### Issue 11.2 — Elasticsearch 商品搜索（即 9.2）
+`type:feature` `area:product` `p0`
+- ES 镜像安装 IK 中文分词插件（版本与 ES 8.14.3 一致）；商品索引包含中英文名、描述、分类、标签、价格、销量
+- 搜索接口：多字段检索、高亮、筛选、排序；前端搜索切换到新接口
+- MySQL → ES 同步：商品变更发 RabbitMQ 事件做增量更新 + 每日全量对账
+- 验收：同一查询 MySQL `LIKE` 与 ES 的耗时实测对比写入 docs；后台改价 / 上下架后数秒内搜索结果可见
+
+> 实现说明（与原计划的差异）：
+> - 增量同步没有走 RabbitMQ：商品写入方只有 product 服务自己，后台改价 / 改库存 / 上下架在事务提交后发 Spring 事件（`ProductChangedEvent`），由 `ProductIndexer` 重建该商品文档；启动时 + 每天 03:30 全量对账，顺带清理已逻辑删除的文档。跨服务、或写入方变多时再换 MQ / Canal（binlog）。
+> - ES 只负责检索、相关度排序和高亮，返回商品 ID；详情、图片、实时库存仍从 MySQL 读。ES 不可用或关闭（`SEARCH_ES_ENABLED=false`）时自动回退 MySQL `LIKE`，商城不受影响。
+> - 下单引起的销量 / 库存变化只在全量对账时进入 ES，所以搜索结果按"销量"排序最多滞后一天；列表上展示的数字来自 MySQL，不受影响。
+> - 未完成：本地无 Docker 环境，IK 插件镜像构建与 `LIKE` / ES 耗时对比还没实测。
+
+### Issue 11.3 — 退款流程
+`type:feature` `area:payment` `area:order` `p0`
+- 新增 `REFUNDED` 状态及状态机转移
+- 管理员对已支付订单发起退款 → Stripe Refund API → `charge.refunded` webhook 确认 → 订单 REFUNDED + 库存回补 + 邮件通知
+- 覆盖 P0-6 场景：已取消订单收到支付成功时自动退款
+- 验收：Stripe 测试模式下完整走通，E2E 覆盖
+
+> 实现说明：状态机新增 `paid / processing → refunding → refunded`（已支付订单不再允许直接取消）；管理员退款调用 Stripe Refund API（幂等键 `refund-{orderNo}`），`charge.refunded` 回调确认后发 `order.refunded`，订单服务消费后置为 REFUNDED 并回补已确认库存；关单后才到账的支付自动退款。Mock 支付通道退款立即成功。未完成：Stripe 测试模式下的真实退款还没跑过；Playwright 管理端用例覆盖了前端退款与重试按钮。
+
+### Issue 11.4 — JaCoCo 覆盖率门禁
+`type:test` `area:devops` `p1`
+- 先实测各模块覆盖率；pom 增加 `check` 规则，按包设阈值（状态机、webhook ≥ 90%，其余按实测设底线）
+- 验收：覆盖率低于阈值时 CI 失败；README 中的覆盖率数字与报告一致
+
+> 实现说明：父 pom 的 `check` 绑定在 `verify`，各模块用 `jacoco.line.minimum` 设底线（实测向下取整）；order / payment 额外对 `OrderStateMachine`、`WebhookServiceImpl` 设 90% 类级规则。README 覆盖率表取自 `mvn verify` 的报告。
+
+### Issue 11.5 — 文档校准
+`type:docs` `p1`
+- 补 `LICENSE`（Apache 2.0）；修正徽章版本；README 措辞与实际一致（如 Redis 为单节点）；更新 HANDOFF 与架构图
+- 验收：README 中每一项能力都能在代码里找到对应实现
+
+> 实现说明：逐条对照后发现 README 还宣称了 Knife4j 网关聚合、Playwright 桌面 + 移动端 E2E、SES 邮件，三者都没有真正可用的实现，一并补齐；只有纯基础设施描述（Redis 集群、网关集群、状态机编号）改为与实际一致。核对过程中还发现网关自 Sprint 9 起无法启动、管理后台刷新卡住、商品列表缓存从不命中，均已修复，见 `docs/CODE_REVIEW_TODO.md`。
+
+---
+
+## Sprint 12 — SkyWalking 全链路追踪（第二步）
+
+**目标：** 一次下单在 SkyWalking 中能看到跨服务、跨 MQ 的完整链路。 **Tag:** `v1.4.0`
+
+### Issue 12.1 — 部署 OAP + UI
+`type:chore` `area:observability` `p0`
+- compose 新增 SkyWalking OAP + UI；存储复用现有 ES（与 ES 8.14 的兼容性开工时核对）
+
+> 实现说明（与原计划的差异）：
+> - 版本：OAP / UI 10.4.0，Java agent 9.7.0。
+>   - 11.0 去掉了自带的 UI，所以没用。
+>   - `pom.xml` 里 apm-toolkit 的版本必须与 `Dockerfile.backend` 的 agent 版本一致。
+> - 存储没有复用 ES，改用 BanyanDB 0.10.3。
+>   - 它是 OAP 10.x 的默认存储，专为链路 / 指标设计，单个容器。
+>   - 复用 ES 的话，SkyWalking 会建大量索引，并和商品搜索抢同一个 ES 节点的堆内存。
+> - compose 新增 `banyandb`、`oap`、`skywalking-ui` 三个容器，端口：
+>   - UI：`8088`
+>   - OAP gRPC：`11800`
+>   - OAP HTTP / GraphQL：`12800`
+>   - OAP 健康检查是 `/healthcheck`（10.4 里 `/internal/l7check` 返回 404）。
+> - 告警规则、自定义指标和网关端点分组三份配置在 `docker/skywalking/`，以只读方式挂进 OAP。
+
+### Issue 12.2 — Java 服务接入
+`type:feature` `area:observability` `p0`
+- 7 个服务挂 Java agent（`Dockerfile.backend` 与本地启动脚本同步修改）；启用网关（WebFlux）所需插件；确认 RabbitMQ / Redis / MySQL 链路
+- 验收：结账请求可见 gateway → order → product → payment；支付回调 → MQ → order → notification 的异步链路能串起来
+
+> 实现说明：
+> - `Dockerfile.backend` 从官方 agent 镜像复制 agent，并启用 4 个 optional 插件：
+>   - springmvc-annotation-6.x：Spring 6 下端点按路由模板命名。
+>   - resttemplate-6.x：服务间调用透传 trace。
+>   - spring-cloud-gateway-4.x、spring-webflux-6.x：网关。
+> - 只有设置了 `SW_AGENT_COLLECTOR_BACKEND_SERVICES` 才挂 agent，不配就和以前一样启动。
+> - `scripts/rebuild-services.ps1` 同步修改。
+> - 网关按真实 URL 命名端点，订单号、slug 会让端点数无限增长。
+>   - `docker/skywalking/endpoint-name-grouping.yml` 把它们归成 `/api/products/{var}` 这类模板。
+>   - 同一层的字面量规则必须写在 `{var}` 之前，原因见文件注释。
+> - 本地实测（OAP / BanyanDB / agent 同版本的二进制直接运行，7 个服务挂 agent）：
+>   - 7 个服务都注册到了 OAP。
+>   - 结账链路 gateway → order → cart / product（Lua、Redisson、MySQL）→ payment 完整可见。
+>   - 30 分钟后延迟队列触发的关单也挂在同一条链路上。
+>   - 支付回调 → `order.paid` → order（确认库存、清空购物车）+ notification 在同一条链路里。
+>   - 网关端点分组生效，OAP 里出现的是 `/api/products/{var}`、`/api/orders/{var}`。
+>   - 链路截图和调用树见 `docs/PERF_PRODUCT_LIST.md`。
+> - 未完成：本地没有 Docker 环境，compose 只做了 `docker compose config` 校验，镜像没有实际构建。
+
+### Issue 12.3 — 日志关联 traceId
+`type:feature` `area:observability` `p1`
+- logback 输出 traceId（SkyWalking apm-toolkit），日志上报 OAP，可从 trace 跳转到对应日志
+
+> 实现说明：
+> - common 模块提供共享的 `logback-spring.xml`：
+>   - 控制台每行带 `[TID:...]`。
+>   - 同时通过 gRPC 把日志上报 OAP。
+>   - 没挂 agent 时显示 `TID:N/A`，不影响启动。
+> - `TraceIdResponseFilter` 把 traceId 写进响应头 `X-Trace-Id`：
+>   - 网关会原样转发这个头。
+>   - 用户报错时提供这个值，就能直接定位到链路和日志。
+> - 本地实测：响应头里的 traceId 与日志里的 `TID` 一致；按 traceId 查日志，能查到多个服务的日志。
+
+### Issue 12.4 — 告警
+`type:feature` `area:observability` `p1`
+- 慢接口、错误率、死信队列积压的告警规则
+
+> 实现说明：
+> - `docker/skywalking/alarm-settings.yml` 使用 OAP 10 的 MQE 表达式，规则包括：
+>   - 服务：错误率、平均响应时间。
+>   - 端点：p99、平均响应时间、错误率。
+>   - 慢 SQL。
+>   - 死信队列积压。
+> - 死信队列积压指标：
+>   - SkyWalking 不直接采集 RabbitMQ 队列深度，所以由订单服务用 agent meter API 上报 `order_dlq_backlog`（3 个死信队列的消息数之和）。
+>   - `meter-analyzer-config/stickybeak.yaml` 把它转成 `meter_stickybeak_dlq_backlog`。
+>   - 告警条件：大于 0 就告警，30 分钟内不重复。
+> - 本地实测：往 `order.status.dlq` 放 1 条消息，约 1 分钟后触发告警，截图见 `docs/PERF_PRODUCT_LIST.md`。
+
+### Issue 12.5 — 用链路数据做一次真实优化（即 9.5）
+`type:feature` `p1`
+- 用现有并发压测脚本压结账接口，按 trace 定位真实瓶颈并优化，优化前后数据与截图写入 docs
+- 验收：有可复现的优化前后对比
+
+> 实现说明：
+> - 优化对象从结账改成了商品列表。结账在热点商品上按设计就是串行的（Lua 预扣、Redisson 锁、AT 全局锁），流量也远小于浏览。
+> - 问题：链路显示商品列表有 N+1 查询。
+>   - 一页 42–50 条 SQL，每条单独借还一次连接。
+>   - 并发时等连接占了大部分耗时。
+> - 修复：改成批量补全，一页固定 6 条 SQL。
+> - 效果（同机，`wrk -t4 -c32`，绕过缓存）：
+>   - 吞吐 64 → 191 req/s。
+>   - p50 476 → 157ms。
+>   - p99 1.57s → 392ms。
+> - 方法、数据与截图见 `docs/PERF_PRODUCT_LIST.md`。
+
+---
+
+## Sprint 13 — Python AI Agent + RAG（第三步）
+
+**目标：** 买家导购 / 订单查询 / 售后问答助手上线：流式对话、写操作需用户确认、售后回答有据可查。 **Tag:** `v2.0.0`
+
+> 选型：Python 3.12 + FastAPI + LangGraph + LangChain；模型用通义千问（DashScope），DeepSeek 备选，通过配置切换。
+> 架构：Java 业务中台 + Python AI 服务；agent 注册进 Nacos，经网关统一鉴权与限流。
+> 向量库：复用 Elasticsearch（与 11.2 商品搜索共用集群、不同索引）。数据量在千到万条级别，且需要关键词 + 向量混合检索，ES 两者都原生支持；向量规模到千万级或需要 GPU 索引时再考虑 Milvus。
+
+### Issue 13.1 — Python 服务骨架
+`type:chore` `area:agent` `p0`
+- `stickybeak-agent/`（uv 管理依赖）；Nacos 注册（nacos-sdk-python）；网关新增路由 `/api/agent/**` → `lb://stickybeak-agent`；SkyWalking Python agent；Dockerfile；CI 增加 ruff + pytest
+- 验收：经网关访问 `/api/agent/health` 返回 200；SkyWalking 中能看到 Java 网关 → Python agent 的跨语言链路
+
+> 实现说明：
+> - `stickybeak-agent/`：uv 管理依赖并锁定（`uv.lock`），Python 3.12。
+> - Nacos 注册用 nacos-sdk-python 的 v2 异步接口；没配 `NACOS_ADDR` 时用 `SERVICE_URLS` 静态地址。
+> - 网关路由 `agent`（`lb://stickybeak-agent`，Sentinel 20 QPS）。
+> - Dockerfile 用 uv 分层安装；compose 三套都加了 agent；CI 新增 ruff + pytest。
+> - SkyWalking Python agent 两个坑：1.3.0 的 wheel 漏打了 `skywalking.protocol`，1.2.x 在 Python 3.12 上插件全部加载失败。现在从 1.3.0 源码包安装（`no-binary-package`）。
+> - 本地实测：经网关 `/api/agent/health` 返回 200，未登录调 `/api/agent/chat` 返回 401。SkyWalking 中可见两段跨进程链路：网关 `/api/agent/chat` → Python FastAPI `/agent/chat`，Python httpx → 商品服务 `GET:/products`，都有 CROSS_PROCESS 引用。
+
+### Issue 13.2 — 模型接入与降级
+`type:feature` `area:agent` `p0`
+- 模型名与 key 走环境变量 / Nacos 配置；超时与重试；模型不可用时返回友好提示
+- 验收：断开模型 API 时商城其余功能正常
+
+> 实现说明：
+> - 通义（DashScope）和 DeepSeek 都用 OpenAI 兼容接口（ChatOpenAI）接入，换模型只改环境变量。
+> - 每个模型单独设超时与重试；主模型超时、限流或 5xx 时 `with_fallbacks` 切到备用模型。
+> - 结构化输出用 function calling，因为 DashScope 兼容模式不支持 json_schema。
+> - 本地实测（本机网络到模型 API 不通，正好验证降级）：助手 SSE 返回"暂时不可用"，同时经网关的商品列表、我的订单正常返回 200。
+
+### Issue 13.3 — LangGraph 编排与工具
+`type:feature` `area:agent` `p0`
+- 状态图：意图路由 → 导购 / 订单查询 / 售后问答
+- 工具：`search_products` `get_product` `list_my_orders` `get_order` `add_to_cart` `cancel_order`，调用现有 Java 服务
+- 用户身份取自网关注入的 `X-User-Id`，不由模型传参
+- 写操作用 LangGraph `interrupt` 暂停，前端确认后恢复；多轮对话状态 checkpoint 持久化
+- 验收：查询他人订单被拒；未确认时写操作不执行；刷新页面后对话可继续
+
+> 实现说明：
+> - 状态图：route（结构化输出）→ shopping / orders 子 agent（各自只绑定自己的工具）/ after_sales / other。
+> - 用户身份通过 `RunnableConfig` 注入工具，不出现在工具参数里。
+> - 写工具先进 `confirm` 节点：卡片内容由服务端查询，用 `interrupt` 暂停，`Command(resume=...)` 恢复。
+> - 等待确认时用户直接发新消息，悬空的工具调用会补一条"未执行"结果，避免模型接口报错。
+> - 对话状态存 MySQL（langgraph-checkpoint-mysql，库 `stickybeak_agent`）。
+> - 本地实测（真实 Java 服务 + MariaDB，模型用脚本替身）：
+>   - 查他人订单：订单服务返回 403，工具回复"查不到"。
+>   - 取消订单：确认前数据库仍是 pending；新建连接池和图（模拟重启）后，从 MySQL 恢复出等待确认的操作，确认后订单变为 cancelled。
+> - 实测中发现 PyMySQL 1.2 与 aiomysql 0.3 不兼容（写入 bytes 报错），已固定 PyMySQL 1.1.x。
+
+### Issue 13.4 — RAG 售后知识库
+`type:feature` `area:agent` `p0`
+- 语料：退换货、物流时效、跨境关税、商品保养、品牌故事（中英双语）
+- 入库：切分 → 向量化（通义 text-embedding 系列，或开源 bge-m3）→ ES 索引（`dense_vector` 字段 + IK 分词文本字段）；离线入库脚本 + 增量更新
+- 检索：kNN 向量检索 + BM25 关键词检索 → 应用层 RRF 融合 → 重排序（如 gte-rerank / bge-reranker）→ 生成带引用来源的回答
+- 验收：知识库覆盖不到的问题明确说"不知道"而不是编造；回答附来源
+
+> 实现说明：
+> - 语料：`knowledge/{zh,en}/` 7 个主题、中英文各 32 个片段，按二级标题切分。退货期限、运费等运营政策是示例值。
+> - 入库：增量，按内容哈希比对，只向量化新增或改动的片段，删除已不存在的片段；启动时自动执行一次。
+> - 检索：kNN 与 BM25 各取 20 条，应用层 RRF 融合（ES 8.14 的 RRF 需要付费许可），gte-rerank 重排后按阈值过滤，按提问语言过滤语料。
+> - 没有相关片段时直接回答"不知道"并给出客服邮箱，不调用模型；ES 不可用时回答"知识库暂不可用"。
+> - 已验证：只用内存 BM25（不调用模型），评测集 13 条有期望来源的售后问题都能在前 4 条里检索到期望文档。
+> - 未完成：本机无法访问 ES 镜像和 DashScope，ES 上的 dense_vector / IK 索引、真实向量与重排都还没实测。
+
+### Issue 13.5 — 流式输出与前端
+`type:feature` `area:frontend` `area:agent` `p0`
+- SSE 流式输出；网关与 nginx 对 `/api/agent/` 关闭缓冲
+- 前端聊天组件：中英双语、写操作确认卡片、引用来源展示
+- 验收：首字延迟实测并记录
+
+> 实现说明：
+> - SSE 事件：meta、token、tool、sources、confirm、error、done。`done` 带首字延迟和总耗时，同时写日志。
+> - 网关逐块转发；nginx 对 `/api/agent/` 关闭缓冲，agent 也返回 `X-Accel-Buffering: no`。
+> - 前端右下角聊天抽屉：
+>   - 中英双语，回答逐字显示，显示工具状态（"正在查询订单…"）。
+>   - 写操作显示确认卡片，确认加购后刷新购物车角标；售后回答下方展示引用来源。
+>   - 对话 ID 存在 localStorage，刷新后恢复对话和待确认的卡片。
+> - 测试：Playwright 5 条旅程 × 桌面 / 移动端，覆盖确认、拒绝、来源和刷新恢复；vitest 覆盖 SSE 解析与状态 reducer。
+> - 本地实测：经网关的响应头为 `text/event-stream` + `x-accel-buffering: no`，事件逐条到达。
+> - 未完成：首字延迟需要真实模型，本机无法访问模型 API，待配置 key 后实测。
+
+### Issue 13.6 — 安全与成本
+`type:feature` `area:agent` `p1`
+- 按用户限流与每日额度；工具返回内容只当数据（防提示词注入）；记录每次调用的 token 用量与耗时
+- 验收：超额返回 429；注入类测试用例不触发写操作
+
+> 实现说明：
+> - Redis 计数：每用户每分钟请求数、每日请求数、每日 token 数（按实际用量累加）。超出返回 429 和 `Retry-After`；Redis 不可用时返回 503，不放开额度。
+> - 每次模型调用写一行 JSON 日志：用户、对话、节点、模型、输入 / 输出 token、耗时。
+> - 防注入：
+>   - 工具结果包成 `{"data": ...}`，提示词声明其中的指令是数据；知识库原文不能闭合 `<documents>` 标签。
+>   - 子 agent 只绑定自己的工具；写操作必须经用户确认（结构上的兜底）。
+> - 本地实测：同一用户第 11 次请求返回 429（`retry-after: 36`）。
+
+### Issue 13.7 — 评测集
+`type:test` `area:agent` `p1`
+- 50 条测试对话：导购、订单查询、售后、越权、注入
+- 指标：意图准确率、工具调用正确率、RAG 召回率@k、回答忠实度；修改 prompt 或检索参数后必跑
+- 验收：评测脚本一键运行并输出报告
+
+> 实现说明：
+> - `eval/dataset.yaml` 共 50 条：导购 10、订单 10、售后 15、闲聊 3、越权 6、注入 6（其中一个商品描述里藏了注入指令）。
+> - `uv run python -m eval.run_eval` 输出 `report.md` 与 `results.json`。业务数据用固定 fixtures；知识库可选内存版或 ES。
+> - 指标：意图、工具调用、确认、召回率@k、忠实度（模型评审）、拒答、越权泄露；所有用例都断言"未确认的写操作没有执行"。
+> - 指标计算和评测流程有单测（用假模型）。
+> - 未完成：需要模型 key，本机无法访问模型 API，还没有真实模型的评测结果。
+
+---
+
+## Sprint 14 — MCP 接入（第四步）
+
+**目标：** 商城能力以 MCP Server 形式提供，agent 与外部 AI 客户端都通过 MCP 调用。 **Tag:** `v2.1.0`
+
+### Issue 14.1 — MCP Server
+`type:feature` `area:agent` `p0`
+- `stickybeak-mcp`（Python 官方 MCP SDK，Streamable HTTP 传输）；工具：`search_products` `get_product` `list_my_orders` `get_order` `search_faq`，以只读为主
+
+> 实现说明：
+> - 与 agent 同一个 Python 项目、同一个镜像，`python -m stickybeak_agent.mcp_server` 启动（:8089），在 Nacos 注册为 `stickybeak-mcp`。
+> - 用官方 SDK 的 FastMCP 实现，Streamable HTTP 无状态 + JSON 响应，可以直接放在网关和负载均衡后面。
+> - 5 个工具全部只读，并标注 `readOnlyHint`。写操作（加购、取消订单）不对外提供。
+> - `search_faq` 返回带出处的原文片段；内部错误（ES 地址等）不返回给调用方。
+> - 售后知识库的检索与入库从 agent 移到这里。
+> - 测试：MCP Server 在进程内运行（httpx ASGITransport），用官方客户端走真实协议。
+
+### Issue 14.2 — 鉴权
+`type:feature` `area:agent` `area:gateway` `p0`
+- 复用现有 JWT：经网关校验后注入身份；未登录只能使用公开工具
+
+> 实现说明：
+> - 网关路由 `mcp`（`/api/mcp` → `lb://stickybeak-mcp`，Sentinel 30 QPS），`/api/mcp` 为可选认证：
+>   - 带令牌：注入 `X-User-Id`。
+>   - 不带令牌：剥离伪造的身份头后放行，订单工具由 MCP Server 拒绝。
+> - MCP 令牌：网页登录的 access token 只有 15 分钟，不适合配进 AI 客户端。auth 服务新增 `POST/GET/DELETE /users/me/mcp-token`：
+>   - 签发 30 天、`scope=mcp` 的 JWT。
+>   - 每个用户只保留一个有效令牌（jti 存 Redis `auth:mcp:{userId}`），重新生成或撤销立即生效。
+> - 网关看到 `scope=mcp`：
+>   - 不是 `/api/mcp` 的请求返回 403，包括用它再签发令牌。
+>   - jti 与 Redis 不一致返回 401。
+> - 个人中心新增"AI 客户端接入（MCP）"卡片：生成、撤销令牌，复制客户端配置。
+> - 本地实测（真实网关、auth、order 服务）：
+>   - 匿名可以用商品工具，订单工具提示需要登录。
+>   - 带令牌可以查到自己的真实订单。
+>   - 令牌调 `/api/orders/my` 返回 403；撤销后再调 MCP 返回 401。
+
+### Issue 14.3 — agent 改为 MCP 客户端
+`type:feature` `area:agent` `p1`
+- 用 langchain-mcp-adapters 加载 MCP 工具，替换 13.3 中的进程内工具定义
+- 验收：13.7 评测集结果不下降
+
+> 实现说明：
+> - agent 启动后从 MCP Server 加载 5 个只读工具；MCP 服务没起来时每隔几秒重试，期间助手返回"暂不可用"。
+> - 进程内只保留两个写工具，它们依赖 confirm 节点的人工确认，不能对外。
+> - 售后检索也改为调用 MCP 的 `search_faq`。
+> - 用户身份：拦截器从当前运行配置取出用户 ID，写进 `X-User-Id`；工具参数里没有用户 ID。
+> - `MCP_URL=http://stickybeak-mcp/mcp`：主机名按 Nacos 解析（`DiscoveryTransport`，类似 Spring 的 `lb://`）。
+> - MCP 工具结果在发给模型前转成单行文本（部分 OpenAI 兼容接口不接受数组内容；单行也省 token）。
+> - 单测和评测都改为经进程内 MCP Server 调用，与生产链路一致。
+> - 本地实测：agent → MCP Server → Java 服务全部是真实服务；模型参数里伪造 `user_id` 也只能查到当前用户的订单。
+> - SkyWalking 里可以看到网关 → MCP（Python）→ 订单服务（Java）的完整链路。
+> - 未完成：评测集需要真实模型，本机无法访问模型 API，"结果不下降"还没法对比。工具定义（名称、参数、描述）与 Sprint 13 保持一致。
+
+### Issue 14.4 — 外部客户端演示
+`type:docs` `area:agent` `p1`
+- 用 Cherry Studio / Cursor 等 MCP 客户端连接商城查询商品与订单，录制 GIF 放入 README
+
+> 实现说明：
+> - `stickybeak-agent/README.md` 给出 Cursor、Cherry Studio、Claude Code、mcp-remote 的接入配置。
+> - 命令行演示脚本：`python -m stickybeak_agent.mcp_demo`，README 里附了本地经网关的实际输出。
+> - 未完成：GIF 需要在桌面端的 Cherry Studio / Cursor 里录制，本环境做不了，待补。
+
+---
+
 ## 里程碑
 
 | 里程碑 | Tag | 累计周 | 简历可用？ |
@@ -255,3 +634,8 @@
 | PWA | v0.7.0 | 15 | 是 |
 | **生产** | **v1.0.0** | **16+** | **顶级** |
 | 故事线 | v1.x | 按需 | 面试弹药 |
+| 安全修复 | v1.2.0 | +1 | 是 — 去掉硬伤 |
+| 能力补齐（Seata / ES / 退款 / 门禁） | v1.3.0 | +2 | 是 |
+| 全链路追踪 | v1.4.0 | +1 | 是 |
+| **AI Agent + RAG** | **v2.0.0** | **+2–3** | **是 — AI 方向** |
+| MCP | v2.1.0 | +1 | 是 |

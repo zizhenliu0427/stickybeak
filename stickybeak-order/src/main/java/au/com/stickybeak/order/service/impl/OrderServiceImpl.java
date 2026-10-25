@@ -4,6 +4,7 @@ import au.com.stickybeak.common.enums.OrderStatus;
 import au.com.stickybeak.common.event.OrderPaidEvent;
 import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.common.result.ResultCode;
+import au.com.stickybeak.common.tx.AfterCommit;
 import au.com.stickybeak.order.client.AuthClient;
 import au.com.stickybeak.order.client.CartClient;
 import au.com.stickybeak.order.client.PaymentClient;
@@ -13,16 +14,17 @@ import au.com.stickybeak.order.dto.AddressDTO;
 import au.com.stickybeak.order.dto.CreateOrderRequest;
 import au.com.stickybeak.order.entity.Order;
 import au.com.stickybeak.order.entity.OrderItem;
-import au.com.stickybeak.order.entity.OrderStatusHistory;
 import au.com.stickybeak.order.mapper.OrderItemMapper;
 import au.com.stickybeak.order.mapper.OrderMapper;
-import au.com.stickybeak.order.mapper.OrderStatusHistoryMapper;
+import au.com.stickybeak.order.service.CheckoutTransaction;
+import au.com.stickybeak.order.service.OrderResourceReleaser;
 import au.com.stickybeak.order.service.OrderService;
 import au.com.stickybeak.order.statemachine.OrderStateMachine;
 import au.com.stickybeak.order.vo.CheckoutResponseVO;
 import au.com.stickybeak.order.vo.OrderItemVO;
 import au.com.stickybeak.order.vo.OrderVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +40,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,39 +49,45 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
-    private final OrderStatusHistoryMapper orderStatusHistoryMapper;
     private final CartClient cartClient;
     private final PaymentClient paymentClient;
     private final AuthClient authClient;
     private final ProductClient productClient;
     private final OrderStateMachine orderStateMachine;
+    private final OrderResourceReleaser orderResourceReleaser;
+    private final CheckoutTransaction checkoutTransaction;
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
 
     public OrderServiceImpl(OrderMapper orderMapper,
                             OrderItemMapper orderItemMapper,
-                            OrderStatusHistoryMapper orderStatusHistoryMapper,
                             CartClient cartClient,
                             PaymentClient paymentClient,
                             AuthClient authClient,
                             ProductClient productClient,
                             OrderStateMachine orderStateMachine,
+                            OrderResourceReleaser orderResourceReleaser,
+                            CheckoutTransaction checkoutTransaction,
                             RabbitTemplate rabbitTemplate,
                             ObjectMapper objectMapper) {
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
-        this.orderStatusHistoryMapper = orderStatusHistoryMapper;
         this.cartClient = cartClient;
         this.paymentClient = paymentClient;
         this.authClient = authClient;
         this.productClient = productClient;
         this.orderStateMachine = orderStateMachine;
+        this.orderResourceReleaser = orderResourceReleaser;
+        this.checkoutTransaction = checkoutTransaction;
         this.rabbitTemplate = rabbitTemplate;
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 不加 @Transactional：分布式事务边界在 {@link CheckoutTransaction#placeOrder}，
+     * 前面的读购物车、地址、汇率与后面的支付会话都不应占着全局锁。
+     */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public CheckoutResponseVO checkout(Long userId, CreateOrderRequest req) {
         if (userId == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED);
@@ -124,46 +131,17 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // 4. Generate orderNo
+        // 日期 + 雪花 ID（"SO" + 8 + 19 位 = 29 位，列宽 32）。原先的 8 位随机后缀在日均几千单时就可能撞号，
+        // 撞号会让两张订单共用库存预占记录
         String datePrefix = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String suffix = String.format("%08d", Math.abs(UUID.randomUUID().hashCode() % 100000000));
-        String orderNo = "SO" + datePrefix + suffix;
+        String orderNo = "SO" + datePrefix + IdWorker.getId();
 
-        // 5. Deduct stock using 3-layer anti-overselling defense in product service
-        List<ProductClient.StockItemParam> stockItems = cart.getItems().stream()
-                .map(item -> new ProductClient.StockItemParam(item.getProductId(), item.getQty()))
-                .collect(Collectors.toList());
-        productClient.deductStock(orderNo, stockItems);
+        // 5. 扣库存 + 写订单：Seata 全局事务，失败时商品库与订单库一起回滚
+        checkoutTransaction.placeOrder(new CheckoutTransaction.PlaceOrderCommand(
+                userId, orderNo, cart.getItems(), addressSnapshotJson,
+                currency, totalAmount, payAmount, rate, req.getRemark()));
 
-        // 6. Create Order record
-        Order order = new Order();
-        order.setOrderNo(orderNo);
-        order.setUserId(userId);
-        order.setAddressSnapshot(addressSnapshotJson);
-        order.setTotalAmount(totalAmount);
-        order.setPayAmount(payAmount);
-        order.setCurrency(currency);
-        order.setExchangeRateAtPay(rate);
-        order.setStatus(OrderStatus.PENDING.getCode());
-        order.setRemark(req.getRemark());
-        orderMapper.insert(order);
-
-        // 7. Create OrderItem snapshots
-        for (CartClient.CartItemData item : cart.getItems()) {
-            OrderItem orderItem = new OrderItem();
-            orderItem.setOrderId(order.getId());
-            orderItem.setProductId(item.getProductId());
-            orderItem.setProductName(item.getName());
-            orderItem.setProductImage(item.getImageUrl());
-            orderItem.setPrice(item.getPrice());
-            orderItem.setQty(item.getQty());
-            orderItemMapper.insert(orderItem);
-        }
-
-        // 8. Record initial status history
-        OrderStatusHistory history = new OrderStatusHistory(order.getId(), "none", OrderStatus.PENDING.getCode(), userId, "user");
-        orderStatusHistoryMapper.insert(history);
-
-        // 9. Send delay message to RabbitMQ for 30-minute timeout auto-cancel (DLX)
+        // 6. 全局事务已提交。30 分钟未支付自动关单（DLX 延迟消息；丢失时由 OrderTimeoutSweeper 兜底）
         try {
             rabbitTemplate.convertAndSend(RabbitMQConfig.ORDER_DELAY_EXCHANGE, RabbitMQConfig.ORDER_DELAY_ROUTING_KEY, orderNo);
             log.info("Sent order delay message for order: {}", orderNo);
@@ -171,9 +149,10 @@ public class OrderServiceImpl implements OrderService {
             log.error("Failed to send delay message to RabbitMQ for order {}: {}", orderNo, e.getMessage());
         }
 
-        // 10. Call payment service to create checkout session
+        // 7. 创建支付会话（外部调用，不放进全局事务）；失败时订单无法支付，立即关闭并归还库存
+        PaymentClient.PaymentSessionResult sessionResult;
         try {
-            PaymentClient.PaymentSessionResult sessionResult = paymentClient.createCheckoutSession(
+            sessionResult = paymentClient.createCheckoutSession(
                     orderNo,
                     userId,
                     address.getEmail(),
@@ -182,19 +161,28 @@ public class OrderServiceImpl implements OrderService {
                     req.getPaymentMethod(),
                     "StickyBeak Order " + orderNo
             );
-
-            return new CheckoutResponseVO(
-                    orderNo,
-                    totalAmount,
-                    payAmount,
-                    currency,
-                    sessionResult.getCheckoutUrl(),
-                    sessionResult.getSessionId()
-            );
-        } catch (Exception e) {
-            log.error("Failed to create checkout session for order {}, rolling back stock: {}", orderNo, e.getMessage());
-            productClient.rollbackStock(orderNo);
+        } catch (RuntimeException e) {
+            log.error("Payment session creation failed for order {}, closing it: {}", orderNo, e.getMessage());
+            closeUnpayableQuietly(orderNo);
             throw e;
+        }
+
+        return new CheckoutResponseVO(
+                orderNo,
+                totalAmount,
+                payAmount,
+                currency,
+                sessionResult.getCheckoutUrl(),
+                sessionResult.getSessionId()
+        );
+    }
+
+    private void closeUnpayableQuietly(String orderNo) {
+        try {
+            checkoutTransaction.cancelUnpayable(orderNo);
+        } catch (Exception e) {
+            // 关单失败时订单保持待支付，30 分钟超时消息 / 扫描任务会再关一次
+            log.error("Failed to close unpayable order {}, the timeout will close it: {}", orderNo, e.getMessage());
         }
     }
 
@@ -272,74 +260,142 @@ public class OrderServiceImpl implements OrderService {
         if (userId != null && !userId.equals(order.getUserId())) {
             throw new BusinessException(ResultCode.FORBIDDEN);
         }
+        // 已付款订单的取消涉及退款，只能由客服 / 管理员处理
+        if (!OrderStatus.PENDING.getCode().equalsIgnoreCase(order.getStatus())) {
+            throw new BusinessException(ResultCode.ILLEGAL_STATE_TRANSITION,
+                    "Only unpaid orders can be cancelled; please contact support for paid orders");
+        }
 
-        // State machine validation and transition (pending -> cancelled)
+        String fromStatus = order.getStatus();
         orderStateMachine.transition(order, OrderStatus.CANCELLED, userId, "user");
-        orderMapper.updateById(order);
+        persistTransition(order, fromStatus);
 
-        // Rollback stock in product service
-        productClient.rollbackStock(orderNo);
-        log.info("Order {} successfully cancelled by user {} and stock rolled back", orderNo, userId);
+        // 提交后再释放：先让取消落库，避免"库存已归还但订单仍可支付"
+        AfterCommit.run(() -> orderResourceReleaser.releaseQuietly(orderNo));
+        log.info("Order {} cancelled by user {}", orderNo, userId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void handleOrderPaid(OrderPaidEvent event) {
+    public PaidOutcome markPaid(OrderPaidEvent event) {
         log.info("Handling OrderPaidEvent for order: {}", event.getOrderNo());
         Order order = orderMapper.selectOne(
                 new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, event.getOrderNo())
         );
-
         if (order == null) {
             log.warn("Order {} not found when processing OrderPaidEvent", event.getOrderNo());
-            return;
+            return PaidOutcome.NOT_FOUND;
         }
 
-        if (OrderStatus.PAID.getCode().equalsIgnoreCase(order.getStatus())) {
-            log.info("Order {} is already paid, skipping event.", order.getOrderNo());
-            return;
+        OrderStatus current = OrderStatus.fromCode(order.getStatus());
+        if (current == OrderStatus.PAID || current == OrderStatus.PROCESSING
+                || current == OrderStatus.SHIPPED || current == OrderStatus.COMPLETED
+                || current == OrderStatus.REFUNDING || current == OrderStatus.REFUNDED) {
+            log.info("Order {} is already {}, skipping paid transition", order.getOrderNo(), order.getStatus());
+            return PaidOutcome.ALREADY_PAID;
+        }
+        if (current != OrderStatus.PENDING) {
+            log.error("Order {} is {} but a payment arrived, refund required", order.getOrderNo(), order.getStatus());
+            return PaidOutcome.NOT_PAYABLE;
         }
 
-        // State machine transition: pending -> paid
+        String fromStatus = order.getStatus();
         orderStateMachine.transition(order, OrderStatus.PAID, null, "payment_webhook");
         if (event.getPayTime() != null) {
             order.setPayTime(event.getPayTime());
         }
-        orderMapper.updateById(order);
+        persistTransition(order, fromStatus);
+        return PaidOutcome.PAID_NOW;
+    }
 
-        // Confirm stock deduction
-        productClient.confirmStock(order.getOrderNo());
-
-        // Clear cart for buyer
+    @Override
+    public void completePaidOrder(String orderNo) {
+        Order order = orderMapper.selectOne(
+                new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, orderNo)
+        );
+        if (order == null) {
+            return;
+        }
+        productClient.confirmStock(orderNo);
         cartClient.clearCart(order.getUserId());
-        log.info("Order {} updated to paid, stock confirmed, and cart cleared.", order.getOrderNo());
+        log.info("Order {} paid: stock confirmed and cart cleared", orderNo);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void handleOrderTimeout(String orderNo) {
+    public TimeoutOutcome closeIfUnpaid(String orderNo) {
         log.info("Checking timeout for order: {}", orderNo);
         Order order = orderMapper.selectOne(
                 new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, orderNo)
         );
-
         if (order == null) {
             log.warn("Order {} not found on timeout check", orderNo);
-            return;
+            return TimeoutOutcome.NOT_FOUND;
         }
-
-        // Only auto-cancel if order is still pending
+        if (OrderStatus.CANCELLED.getCode().equalsIgnoreCase(order.getStatus())) {
+            return TimeoutOutcome.ALREADY_CLOSED;
+        }
         if (!OrderStatus.PENDING.getCode().equalsIgnoreCase(order.getStatus())) {
             log.info("Order {} is currently in status '{}', not pending. Skipping timeout cancellation.", orderNo, order.getStatus());
-            return;
+            return TimeoutOutcome.NOT_PENDING;
         }
 
-        // State machine transition: pending -> cancelled
+        String fromStatus = order.getStatus();
         orderStateMachine.transition(order, OrderStatus.CANCELLED, null, "system_timeout");
-        orderMapper.updateById(order);
+        persistTransition(order, fromStatus);
+        log.info("Order {} auto-cancelled on timeout", orderNo);
+        return TimeoutOutcome.CLOSED_NOW;
+    }
 
-        // Rollback stock in product service
-        productClient.rollbackStock(orderNo);
-        log.info("Order {} successfully auto-cancelled on timeout and stock rolled back", orderNo);
+    @Override
+    public void releaseOrderResources(String orderNo) {
+        orderResourceReleaser.release(orderNo);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public RefundOutcome markRefunded(String orderNo) {
+        Order order = orderMapper.selectOne(
+                new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, orderNo)
+        );
+        if (order == null) {
+            log.warn("Order {} not found when processing OrderRefundedEvent", orderNo);
+            return RefundOutcome.NOT_FOUND;
+        }
+        if (OrderStatus.REFUNDED.getCode().equalsIgnoreCase(order.getStatus())) {
+            return RefundOutcome.ALREADY_REFUNDED;
+        }
+        if (!OrderStatus.REFUNDING.getCode().equalsIgnoreCase(order.getStatus())) {
+            log.info("Order {} is {}, refund recorded without status change", orderNo, order.getStatus());
+            return RefundOutcome.NOT_REFUNDING;
+        }
+
+        String fromStatus = order.getStatus();
+        orderStateMachine.transition(order, OrderStatus.REFUNDED, null, "payment_webhook");
+        persistTransition(order, fromStatus);
+        log.info("Order {} refunded", orderNo);
+        return RefundOutcome.REFUNDED_NOW;
+    }
+
+    @Override
+    public void restockRefundedOrder(String orderNo) {
+        productClient.restockStock(orderNo);
+    }
+
+    @Override
+    public void refundPaidAfterCancel(String orderNo) {
+        log.warn("Order {} was paid after it was cancelled, refunding automatically", orderNo);
+        paymentClient.refund(orderNo, "Order was cancelled before the payment completed");
+    }
+
+    /**
+     * 条件更新落库。影响 0 行说明状态已被其他流程改掉（并发的支付 / 超时 / 取消），
+     * 抛出异常让本事务（含状态历史）回滚，由调用方重试或提示用户。
+     */
+    private void persistTransition(Order order, String expectedStatus) {
+        if (orderMapper.updateIfStatus(order, expectedStatus) == 0) {
+            throw new BusinessException(ResultCode.CONFLICT,
+                    "Order " + order.getOrderNo() + " was changed concurrently, please retry");
+        }
     }
 }

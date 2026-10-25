@@ -57,12 +57,14 @@ flowchart TB
 | 服务 | 职责 | 数据库 | 关键中间件 |
 |---|---|---|---|
 | `stickybeak-gateway` | 统一入口、JWT 校验转发、Sentinel 限流、CORS | — | Sentinel |
-| `stickybeak-auth` | 注册/登录/刷新 token、三角色 RBAC、地址管理 | `gdcup_auth` | Redis（token 黑名单） |
-| `stickybeak-product` | 商品 CRUD、分类/标签、图片、库存、ES 搜索 | `gdcup_product` | Redis 缓存、ES、Redisson 锁 |
-| `stickybeak-cart` | 游客/登录购物车、登录合并、心愿单 | `gdcup_cart` | Redis（购物车快照） |
-| `stickybeak-order` | 下单、订单状态机、订单历史、Seata 编排 | `gdcup_order` | RabbitMQ、Seata、Feign |
-| `stickybeak-payment` | 支付提供商抽象、Stripe Session、Webhook 幂等 | `gdcup_payment` | RabbitMQ |
+| `stickybeak-auth` | 注册/登录/刷新 token、三角色 RBAC、地址管理 | `stickybeak_auth` | Redis（token 黑名单） |
+| `stickybeak-product` | 商品 CRUD、分类/标签、图片、库存、ES 搜索 | `stickybeak_product` | Redis 缓存、ES、Redisson 锁 |
+| `stickybeak-cart` | 游客/登录购物车、登录合并、心愿单 | `stickybeak_cart` | Redis（购物车快照） |
+| `stickybeak-order` | 下单、订单状态机、订单历史、Seata AT 结账、退款 | `stickybeak_order` | RabbitMQ、Seata、RestTemplate（负载均衡） |
+| `stickybeak-payment` | 支付提供商抽象、Stripe Session、Webhook 幂等、退款 | `stickybeak_payment` | RabbitMQ |
 | `stickybeak-notification` | 订单确认/状态变更邮件，MQ 消费异步投递 | — | RabbitMQ、邮件 SMTP |
+| `stickybeak-agent`（Python） | AI 购物助手：LangGraph 意图路由、导购 / 订单工具（调用上面的 Java 服务）、售后 RAG、写操作确认 | `stickybeak_agent`（LangGraph checkpoint） | Redis（限流与额度）、ES（知识库索引）、通义千问 / DeepSeek |
+| `stickybeak-mcp`（Python） | MCP Server：商品、售后检索、本人订单 5 个只读工具，给自家 agent 与外部 AI 客户端用 | — | ES（知识库）、通义（向量化与重排） |
 | `stickybeak-admin`（可并入 order/product） | 管理后台聚合 API、销售分析 | 只读跨库 | Redis（分析结果缓存 5min） |
 | `stickybeak-common` | 共享模块：`Result<T>`、`ResultCode`、`BusinessException`、`GlobalExceptionHandler`、DTO/VO 基类 | — | — |
 
@@ -86,7 +88,7 @@ flowchart TB
 | Redis | 7 | 缓存 + Redisson 分布式锁 + token 黑名单 |
 | RabbitMQ | 3.x | 订单事件、邮件异步任务 |
 | Elasticsearch | 8.x | 商品全文检索 + 多条件筛选 |
-| Seata | 1.7.x AT | 下单跨库分布式事务（订单库 + 库存库） |
+| Seata | 2.0 AT | 下单跨库分布式事务（订单库 + 库存库），Redis 预扣由回滚 hook 按订单账本归还 |
 | Spring Security + JWT | — | 认证授权，access 15min + refresh 7d |
 | Knife4j | — | Swagger 增强版 API 文档 |
 | JUnit 5 + Mockito | — | 单元/集成测试 |

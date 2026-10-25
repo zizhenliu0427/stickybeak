@@ -7,9 +7,25 @@ ARG MODULE
 COPY . .
 RUN mvn -q -pl ${MODULE} -am package -DskipTests
 
+# SkyWalking Java agent。版本必须与 pom.xml 的 skywalking.version（apm-toolkit-*）一致
+FROM apache/skywalking-java-agent:9.7.0-java17 AS skywalking
+
 FROM eclipse-temurin:17-jre
 ARG MODULE
 ENV JAVA_OPTS=""
+COPY --from=skywalking /skywalking/agent /skywalking/agent
+# Spring Boot 3 / Spring 6 与 Spring Cloud Gateway 4 的插件在 optional-plugins 里，需要手动启用：
+#   springmvc-annotation-6.x —— 端点按路由模板命名（/products/{slug}），否则按真实 URL 命名，端点数会爆炸
+#   resttemplate-6.x         —— 订单服务调用其他服务时把 trace 上下文带过去
+#   spring-cloud-gateway-4.x / spring-webflux-6.x —— 网关（WebFlux）入口与转发
+# 对用不到的框架，插件的 witness 类不存在，不会生效
+RUN cd /skywalking/agent \
+    && for p in apm-springmvc-annotation-6.x-plugin apm-resttemplate-6.x-plugin \
+                apm-spring-cloud-gateway-4.x-plugin apm-spring-webflux-6.x-plugin; do \
+         cp optional-plugins/${p}-*.jar plugins/; \
+       done
 COPY --from=build /workspace/${MODULE}/target/${MODULE}-*.jar /app.jar
+# 服务名默认取模块名；设置 SW_AGENT_COLLECTOR_BACKEND_SERVICES（OAP gRPC 地址，如 oap:11800）才挂 agent
+ENV SW_AGENT_NAME=${MODULE}
 EXPOSE 8080
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app.jar"]
+ENTRYPOINT ["sh", "-c", "if [ -n \"$SW_AGENT_COLLECTOR_BACKEND_SERVICES\" ]; then AGENT='-javaagent:/skywalking/agent/skywalking-agent.jar'; fi; exec java $AGENT $JAVA_OPTS -jar /app.jar"]

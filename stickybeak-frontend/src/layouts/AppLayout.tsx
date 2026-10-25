@@ -12,7 +12,7 @@ import {
   DesktopOutlined,
 } from '@ant-design/icons';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { fetchMe, logout } from '../features/auth/authSlice';
+import { logout } from '../features/auth/authSlice';
 import { clearCart, mergeCartOnLogin, selectCartCount, selectCartTotalCents } from '../features/cart/cartSlice';
 import { fetchLiveExchangeRate, setCurrency } from '../features/currency/currencySlice';
 import type { Currency } from '../features/currency/currencySlice';
@@ -25,6 +25,7 @@ import { useI18n } from '../lib/i18n';
 import { productName } from '../lib/productCopy';
 import Price from '../components/Price';
 import OfflineBanner from '../components/OfflineBanner';
+import AgentChat from '../components/AgentChat';
 
 export default function AppLayout() {
   const cartCount = useAppSelector(selectCartCount);
@@ -34,7 +35,7 @@ export default function AppLayout() {
   const locale = useAppSelector((s) => s.locale.locale);
   const themeMode = useAppSelector((s) => s.theme.mode);
   const isDark = useAppSelector((s) => s.theme.isDark);
-  const { user, initialized } = useAppSelector((s) => s.auth);
+  const user = useAppSelector((s) => s.auth.user);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -56,13 +57,10 @@ export default function AppLayout() {
     navigate({ pathname: '/', hash: id });
   };
 
-  // 应用启动探测登录态并拉取实时汇率
+  // 拉取实时汇率（登录态探测在 main.tsx 启动时做，管理后台不经过这个布局）
   useEffect(() => {
-    if (!initialized) {
-      dispatch(fetchMe());
-    }
     dispatch(fetchLiveExchangeRate());
-  }, [dispatch, initialized]);
+  }, [dispatch]);
 
   // 监听操作系统深浅色设置变化（System 模式下即时自适应）
   useEffect(() => {
@@ -373,6 +371,9 @@ export default function AppLayout() {
             </ul>
           )}
         </Drawer>
+
+        {/* AI 购物助手（右下角浮动按钮 + 抽屉） */}
+        <AgentChat />
       </div>
     </ConfigProvider>
   );

@@ -24,9 +24,11 @@ import {
   CloseCircleOutlined,
   SyncOutlined,
   ReloadOutlined,
+  RollbackOutlined,
 } from '@ant-design/icons';
 import {
   getAdminOrders,
+  refundAdminOrder,
   updateAdminOrderStatus,
   type AdminOrder,
   type AdminOrderQueryParams,
@@ -111,6 +113,18 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const handleRefund = async (orderNo: string) => {
+    try {
+      await refundAdminOrder(orderNo);
+      message.success(`Refund requested for order ${orderNo}`);
+      fetchOrders(page, pageSize, filterStatus, searchOrderNo);
+    } catch (err: any) {
+      // 订单已进入退款中，可稍后点击"Retry Refund"重试
+      message.error(err?.message || 'Refund request failed, you can retry it later');
+      fetchOrders(page, pageSize, filterStatus, searchOrderNo);
+    }
+  };
+
   const handleShipSubmit = async () => {
     try {
       const values = await shipForm.validateFields();
@@ -144,6 +158,10 @@ export default function AdminOrdersPage() {
         return <Tag color="success">Completed</Tag>;
       case 'cancelled':
         return <Tag color="default">Cancelled</Tag>;
+      case 'refunding':
+        return <Tag color="orange">Refunding</Tag>;
+      case 'refunded':
+        return <Tag color="magenta">Refunded</Tag>;
       default:
         return <Tag>{status}</Tag>;
     }
@@ -252,6 +270,26 @@ export default function AdminOrdersPage() {
                 </Button>
               </Popconfirm>
             )}
+
+            {allowed.includes('refunding') && (
+              <Popconfirm
+                title="Refund Order"
+                description="Refund the full amount to the customer? Stock is returned once the refund is confirmed."
+                onConfirm={() => handleRefund(record.orderNo)}
+                okText="Yes, Refund"
+                cancelText="No"
+              >
+                <Button size="small" danger icon={<RollbackOutlined />}>
+                  Refund
+                </Button>
+              </Popconfirm>
+            )}
+
+            {record.status === 'refunding' && (
+              <Button size="small" icon={<RollbackOutlined />} onClick={() => handleRefund(record.orderNo)}>
+                Retry Refund
+              </Button>
+            )}
           </Space>
         );
       },
@@ -297,6 +335,8 @@ export default function AdminOrdersPage() {
               { value: 'shipped', label: 'Shipped' },
               { value: 'completed', label: 'Completed' },
               { value: 'cancelled', label: 'Cancelled' },
+              { value: 'refunding', label: 'Refunding' },
+              { value: 'refunded', label: 'Refunded' },
             ]}
           />
 

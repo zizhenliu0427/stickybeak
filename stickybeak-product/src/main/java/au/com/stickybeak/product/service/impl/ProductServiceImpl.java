@@ -5,19 +5,19 @@ import au.com.stickybeak.common.result.ResultCode;
 import au.com.stickybeak.product.dto.ProductQuery;
 import au.com.stickybeak.product.entity.*;
 import au.com.stickybeak.product.mapper.*;
-import au.com.stickybeak.product.service.ProductSearchService;
+import au.com.stickybeak.product.search.ProductSearchService;
 import au.com.stickybeak.product.service.ProductService;
 import au.com.stickybeak.product.vo.*;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -25,16 +25,15 @@ import java.util.stream.Collectors;
 @Service
 public class ProductServiceImpl implements ProductService {
 
-    private static final Logger log = LoggerFactory.getLogger(ProductServiceImpl.class);
-
     private final ProductMapper productMapper;
     private final ProductImageMapper productImageMapper;
     private final TagMapper tagMapper;
     private final ProductTagRelMapper productTagRelMapper;
     private final CategoryMapper categoryMapper;
-    private final ProductSearchService productSearchService;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
+    /** 关闭 ES（stickybeak.search.elasticsearch.enabled=false）时为空，搜索只走 MySQL */
+    private final Optional<ProductSearchService> productSearchService;
 
     private static final String CACHE_PREFIX = "product:";
     private static final long CACHE_TTL = 60; // seconds
@@ -44,39 +43,27 @@ public class ProductServiceImpl implements ProductService {
                               TagMapper tagMapper,
                               ProductTagRelMapper productTagRelMapper,
                               CategoryMapper categoryMapper,
-                              ProductSearchService productSearchService,
                               StringRedisTemplate stringRedisTemplate,
-                              ObjectMapper objectMapper) {
+                              ObjectMapper objectMapper,
+                              Optional<ProductSearchService> productSearchService) {
         this.productMapper = productMapper;
         this.productImageMapper = productImageMapper;
         this.tagMapper = tagMapper;
         this.productTagRelMapper = productTagRelMapper;
         this.categoryMapper = categoryMapper;
-        this.productSearchService = productSearchService;
         this.stringRedisTemplate = stringRedisTemplate;
         this.objectMapper = objectMapper;
-    }
-
-    /** 稳定的缓存 key（修复：原先直接用 query.hashCode() 是对象身份哈希，每次都不同，缓存从未命中） */
-    private String listCacheKey(ProductQuery query) {
-        return CACHE_PREFIX + "list:" + String.join("|",
-                String.valueOf(query.getCategory()),
-                String.valueOf(query.getTags()),
-                String.valueOf(query.getMinPrice()),
-                String.valueOf(query.getMaxPrice()),
-                String.valueOf(query.getSort()),
-                String.valueOf(query.getQ()),
-                String.valueOf(query.getPage()),
-                String.valueOf(query.getSize()));
+        this.productSearchService = productSearchService;
     }
 
     @Override
     public ProductListVO listProducts(ProductQuery query) {
+        // 显式 engine=es|mysql（压测 / 对比基准用）跳过缓存，免得测到的是 Redis
         boolean debugEngine = StringUtils.hasText(query.getEngine());
-        // 显式 engine 参数（压测/调试）跳过缓存，避免污染线上缓存
+        String cacheKey = debugEngine ? null : listCacheKey(query);
         if (!debugEngine) {
             try {
-                String cachedData = stringRedisTemplate.opsForValue().get(listCacheKey(query));
+                String cachedData = stringRedisTemplate.opsForValue().get(cacheKey);
                 if (StringUtils.hasText(cachedData)) {
                     return objectMapper.readValue(cachedData, ProductListVO.class);
                 }
@@ -85,85 +72,28 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
-        // 分类 slug → id；标签名 → tagIds（供 ES 过滤与 MySQL 兜底共用）
-        Long categoryId = null;
-        if (StringUtils.hasText(query.getCategory())) {
-            Category category = categoryMapper.selectOne(new LambdaQueryWrapper<Category>()
-                    .eq(Category::getSlug, query.getCategory()));
-            categoryId = category != null ? category.getId() : -1L;
-        }
-        List<Long> tagIds = null;
-        if (StringUtils.hasText(query.getTags())) {
-            tagIds = new ArrayList<>();
-            for (String tagName : query.getTags().split(",")) {
-                Tag tag = tagMapper.selectOne(new LambdaQueryWrapper<Tag>()
-                        .eq(Tag::getName, tagName.trim()));
-                if (tag != null) {
-                    tagIds.add(tag.getId());
-                }
+        // 关键词搜索优先走 ES（IK 分词 + 相关度排序 + 高亮）；ES 不可用时继续走下面的 MySQL LIKE
+        if (StringUtils.hasText(query.getQ()) && productSearchService.isPresent()
+                && !"mysql".equalsIgnoreCase(query.getEngine())) {
+            ProductListVO searched = searchWithElasticsearch(query, productSearchService.get());
+            if (searched != null) {
+                cacheList(cacheKey, searched);
+                return searched;
             }
         }
 
-        // 有关键词且未强制 mysql → 先走 ES（Sentinel 熔断/异常时返回 null 自动降级）
-        if (StringUtils.hasText(query.getQ()) && !"mysql".equalsIgnoreCase(query.getEngine())
-                && !Long.valueOf(-1L).equals(categoryId) && (tagIds == null || !tagIds.isEmpty())) {
-            Integer minCents = query.getMinPrice() == null ? null
-                    : query.getMinPrice().multiply(BigDecimal.valueOf(100)).intValue();
-            Integer maxCents = query.getMaxPrice() == null ? null
-                    : query.getMaxPrice().multiply(BigDecimal.valueOf(100)).intValue();
-            int pageNum = query.getPage() != null && query.getPage() > 0 ? query.getPage() : 1;
-            int pageSize = query.getSize() != null && query.getSize() > 0 ? query.getSize() : 12;
-
-            ProductSearchService.EsSearchResult esResult = productSearchService.search(
-                    query.getQ(), categoryId, tagIds, minCents, maxCents,
-                    query.getSort(), pageNum, pageSize);
-            if (esResult != null) {
-                ProductListVO result = buildFromEsHits(esResult, pageNum, pageSize);
-                if (!debugEngine) {
-                    writeCache(listCacheKey(query), result);
-                }
-                return result;
-            }
-            log.info("ES unavailable, falling back to MySQL LIKE for q={}", query.getQ());
-        }
-
-        ProductListVO result = listProductsViaMysql(query, categoryId, tagIds);
-        if (!debugEngine) {
-            writeCache(listCacheKey(query), result);
-        }
-        return result;
-    }
-
-    /** ES 命中 id 列表 → MySQL 取实体并保留 ES 相关性/排序顺序 */
-    private ProductListVO buildFromEsHits(ProductSearchService.EsSearchResult esResult, int pageNum, int pageSize) {
-        if (esResult.ids().isEmpty()) {
-            return ProductListVO.of(new ArrayList<>(), 0, pageNum, pageSize);
-        }
-        Map<Long, Product> byId = productMapper.selectBatchIds(esResult.ids()).stream()
-                .collect(Collectors.toMap(Product::getId, p -> p));
-        List<ProductVO> items = esResult.ids().stream()
-                .map(byId::get)
-                .filter(Objects::nonNull)
-                .map(this::enrichProduct)
-                .collect(Collectors.toList());
-        return ProductListVO.of(items, esResult.total(), pageNum, pageSize);
-    }
-
-    private void writeCache(String key, ProductListVO result) {
-        try {
-            stringRedisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(result),
-                    CACHE_TTL, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            // Ignore cache error
-        }
-    }
-
-    private ProductListVO listProductsViaMysql(ProductQuery query, Long categoryId, List<Long> tagIds) {
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Product::getStatus, 0);
 
-        if (categoryId != null) {
-            wrapper.eq(Product::getCategoryId, categoryId);
+        if (StringUtils.hasText(query.getCategory())) {
+            LambdaQueryWrapper<Category> catWrapper = new LambdaQueryWrapper<>();
+            catWrapper.eq(Category::getSlug, query.getCategory());
+            Category category = categoryMapper.selectOne(catWrapper);
+            if (category != null) {
+                wrapper.eq(Product::getCategoryId, category.getId());
+            } else {
+                wrapper.eq(Product::getCategoryId, -1L); // won't match
+            }
         }
 
         if (query.getMinPrice() != null) {
@@ -179,14 +109,25 @@ public class ProductServiceImpl implements ProductService {
                               .like(Product::getDescription, query.getQ()));
         }
 
-        if (tagIds != null) {
+        if (StringUtils.hasText(query.getTags())) {
+            String[] tags = query.getTags().split(",");
+            List<Long> tagIds = new ArrayList<>();
+            for (String tagName : tags) {
+                LambdaQueryWrapper<Tag> tagWrapper = new LambdaQueryWrapper<>();
+                tagWrapper.eq(Tag::getName, tagName.trim());
+                Tag tag = tagMapper.selectOne(tagWrapper);
+                if (tag != null) {
+                    tagIds.add(tag.getId());
+                }
+            }
+
             if (tagIds.isEmpty()) {
                 wrapper.eq(Product::getId, -1L); // won't match
             } else {
                 LambdaQueryWrapper<ProductTagRel> relWrapper = new LambdaQueryWrapper<>();
                 relWrapper.in(ProductTagRel::getTagId, tagIds);
                 List<ProductTagRel> rels = productTagRelMapper.selectList(relWrapper);
-
+                
                 List<Long> productIds = rels.stream()
                         .map(ProductTagRel::getProductId)
                         .distinct()
@@ -212,11 +153,12 @@ public class ProductServiceImpl implements ProductService {
                 wrapper.orderByDesc(Product::getPrice);
                 break;
             case "new":
+            case "relevance": // MySQL 回退路径没有相关度评分，按最新排序
             default:
                 wrapper.orderByDesc(Product::getCreateTime);
                 break;
         }
-        // Unique tie-breaker: create_time is often identical after bulk import.
+        // 唯一键兜底：批量导入后 create_time 常常相同，只按它排序时分页会重复 / 漏行
         wrapper.orderByDesc(Product::getId);
 
         int pageNum = query.getPage() != null && query.getPage() > 0 ? query.getPage() : 1;
@@ -225,15 +167,133 @@ public class ProductServiceImpl implements ProductService {
         Page<Product> page = new Page<>(pageNum, pageSize);
         productMapper.selectPage(page, wrapper);
 
-        List<ProductVO> items = page.getRecords().stream()
-                .map(this::enrichProduct)
-                .collect(Collectors.toList());
+        List<ProductVO> items = enrichProducts(page.getRecords());
 
         ProductListVO result = ProductListVO.of(items, page.getTotal(), pageNum, pageSize);
+        cacheList(cacheKey, result);
         return result;
     }
 
+    /**
+     * 列表缓存 key 由全部查询参数决定。ProductQuery 没有重写 hashCode，原先的 query.hashCode()
+     * 是对象身份哈希，导致缓存永远不命中、每次请求都写一个新 key。取摘要是为了限制关键词带来的 key 长度。
+     */
+    public static String listCacheKey(ProductQuery query) {
+        String canonical = String.join("|",
+                String.valueOf(query.getCategory()), String.valueOf(query.getTags()),
+                query.getMinPrice() == null ? "null" : query.getMinPrice().stripTrailingZeros().toPlainString(),
+                query.getMaxPrice() == null ? "null" : query.getMaxPrice().stripTrailingZeros().toPlainString(),
+                String.valueOf(query.getSort()), String.valueOf(query.getQ()),
+                String.valueOf(query.getPage()), String.valueOf(query.getSize()));
+        return CACHE_PREFIX + "list:" + DigestUtils.md5DigestAsHex(canonical.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void cacheList(String cacheKey, ProductListVO result) {
+        if (cacheKey == null) {
+            return;
+        }
+        try {
+            String json = objectMapper.writeValueAsString(result);
+            stringRedisTemplate.opsForValue().set(cacheKey, json, CACHE_TTL, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            // Ignore cache error
+        }
+    }
+
+    /**
+     * ES 只负责检索与排序，返回商品 ID；详情（图片、实时库存）仍从 MySQL 读取，保持与列表页一致。
+     * ES 不可用时返回 null，由调用方回退。
+     */
+    private ProductListVO searchWithElasticsearch(ProductQuery query, ProductSearchService searchService) {
+        int pageNum = query.getPage() != null && query.getPage() > 0 ? query.getPage() : 1;
+        int pageSize = query.getSize() != null && query.getSize() > 0 ? query.getSize() : 12;
+
+        Long categoryId = null;
+        if (StringUtils.hasText(query.getCategory())) {
+            Category category = categoryMapper.selectOne(
+                    new LambdaQueryWrapper<Category>().eq(Category::getSlug, query.getCategory()));
+            if (category == null) {
+                return ProductListVO.of(new ArrayList<>(), 0L, pageNum, pageSize);
+            }
+            categoryId = category.getId();
+        }
+        List<String> tags = StringUtils.hasText(query.getTags())
+                ? Arrays.stream(query.getTags().split(",")).map(String::trim).filter(StringUtils::hasText).toList()
+                : List.of();
+
+        Optional<ProductSearchService.Result> found = searchService.search(new ProductSearchService.Criteria(
+                query.getQ().trim(), categoryId, tags, query.getMinPrice(), query.getMaxPrice(),
+                query.getSort(), pageNum, pageSize));
+        if (found.isEmpty()) {
+            return null;
+        }
+
+        ProductSearchService.Result result = found.get();
+        if (result.ids().isEmpty()) {
+            return ProductListVO.of(new ArrayList<>(), result.total(), pageNum, pageSize);
+        }
+        Map<Long, Product> productsById = productMapper.selectBatchIds(result.ids()).stream()
+                .collect(Collectors.toMap(Product::getId, p -> p, (a, b) -> a));
+        // 按 ES 的排序输出；索引可能比数据库略旧，已下架的商品在这里过滤掉
+        List<Product> onSale = result.ids().stream()
+                .map(productsById::get)
+                .filter(p -> p != null && Integer.valueOf(0).equals(p.getStatus()))
+                .toList();
+        List<ProductVO> items = enrichProducts(onSale);
+        items.forEach(vo -> vo.setHighlightedName(result.highlightedNames().get(vo.getId())));
+        return ProductListVO.of(items, result.total(), pageNum, pageSize);
+    }
+
     private ProductVO enrichProduct(Product p) {
+        return enrichProducts(List.of(p)).get(0);
+    }
+
+    /**
+     * 批量补全分类、图片、标签：不管一页有多少个商品，都只发 4 条 SQL，输出顺序与输入一致。
+     * 之前按商品逐个查询（N+1），一页 12 个商品约 50 条 SQL、每条单独借还一次连接；
+     * SkyWalking 链路显示并发时大部分时间耗在等数据库连接上（优化前后数据见 docs/PERF_PRODUCT_LIST.md）。
+     */
+    private List<ProductVO> enrichProducts(List<Product> products) {
+        if (products == null || products.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Set<Long> productIds = products.stream().map(Product::getId).collect(Collectors.toSet());
+        Set<Long> categoryIds = products.stream().map(Product::getCategoryId)
+                .filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<Long, Category> categories = categoryIds.isEmpty() ? Map.of()
+                : categoryMapper.selectBatchIds(categoryIds).stream()
+                        .collect(Collectors.toMap(Category::getId, c -> c, (a, b) -> a));
+
+        // 封面排第一：前台卡片直接取 images[0]
+        Map<Long, List<ProductImage>> mediaByProduct = productImageMapper.selectList(new LambdaQueryWrapper<ProductImage>()
+                        .in(ProductImage::getProductId, productIds)
+                        .orderByAsc(ProductImage::getProductId)
+                        .orderByDesc(ProductImage::getIsCover)
+                        .orderByAsc(ProductImage::getSortOrder))
+                .stream()
+                .collect(Collectors.groupingBy(ProductImage::getProductId));
+
+        List<ProductTagRel> rels = productTagRelMapper.selectList(new LambdaQueryWrapper<ProductTagRel>()
+                .in(ProductTagRel::getProductId, productIds)
+                .orderByAsc(ProductTagRel::getId));
+        Set<Long> tagIds = rels.stream().map(ProductTagRel::getTagId).collect(Collectors.toSet());
+        Map<Long, String> tagNames = tagIds.isEmpty() ? Map.of()
+                : tagMapper.selectBatchIds(tagIds).stream()
+                        .collect(Collectors.toMap(Tag::getId, Tag::getName, (a, b) -> a));
+        Map<Long, List<String>> tagsByProduct = rels.stream()
+                .filter(rel -> tagNames.containsKey(rel.getTagId()))
+                .collect(Collectors.groupingBy(ProductTagRel::getProductId,
+                        Collectors.mapping(rel -> tagNames.get(rel.getTagId()), Collectors.toList())));
+
+        return products.stream()
+                .map(p -> toVO(p, categories.get(p.getCategoryId()),
+                        mediaByProduct.getOrDefault(p.getId(), new ArrayList<>()),
+                        tagsByProduct.getOrDefault(p.getId(), new ArrayList<>())))
+                .collect(Collectors.toList());
+    }
+
+    private static ProductVO toVO(Product p, Category category, List<ProductImage> mediaRows, List<String> tags) {
         ProductVO vo = new ProductVO();
         vo.setId(p.getId());
         vo.setName(p.getName());
@@ -246,51 +306,20 @@ public class ProductServiceImpl implements ProductService {
         vo.setSales(p.getSales());
         vo.setFeatured(p.getFeatured() != null && p.getFeatured() == 1);
         vo.setSourceNoteId(p.getSourceNoteId());
-
-        Category category = categoryMapper.selectById(p.getCategoryId());
         if (category != null) {
             vo.setCategory(category.getSlug());
             vo.setCategoryName(category.getName());
         }
-
-        LambdaQueryWrapper<ProductImage> imgWrapper = new LambdaQueryWrapper<>();
-        imgWrapper.eq(ProductImage::getProductId, p.getId())
-                .orderByDesc(ProductImage::getIsCover)
-                .orderByAsc(ProductImage::getSortOrder);
-        List<ProductImage> images = productImageMapper.selectList(imgWrapper);
-        if (images != null && !images.isEmpty()) {
-            List<ProductVO.MediaItem> media = images.stream()
-                    .map(i -> new ProductVO.MediaItem(i.getUrl(),
-                            i.getMediaType() == null ? "image" : i.getMediaType()))
-                    .collect(Collectors.toList());
-            vo.setMedia(media);
-            // images 只含图片（卡片/封面安全），视频走 media
-            vo.setImages(media.stream()
-                    .filter(m -> "image".equals(m.mediaType()))
-                    .map(ProductVO.MediaItem::url)
-                    .collect(Collectors.toList()));
-        } else {
-            vo.setImages(new ArrayList<>());
-            vo.setMedia(new ArrayList<>());
-        }
-
-        LambdaQueryWrapper<ProductTagRel> relWrapper = new LambdaQueryWrapper<>();
-        relWrapper.eq(ProductTagRel::getProductId, p.getId());
-        List<ProductTagRel> rels = productTagRelMapper.selectList(relWrapper);
-        if (rels != null && !rels.isEmpty()) {
-            List<Long> tagIds = rels.stream().map(ProductTagRel::getTagId).collect(Collectors.toList());
-            if (!tagIds.isEmpty()) {
-                List<Tag> tags = tagMapper.selectBatchIds(tagIds);
-                if (tags != null) {
-                    List<String> tagNames = tags.stream().map(Tag::getName).collect(Collectors.toList());
-                    vo.setTags(tagNames);
-                }
-            }
-        }
-        if (vo.getTags() == null) {
-            vo.setTags(new ArrayList<>());
-        }
-
+        List<ProductVO.MediaItem> media = mediaRows.stream()
+                .map(i -> new ProductVO.MediaItem(i.getUrl(), i.getMediaType() == null ? "image" : i.getMediaType()))
+                .collect(Collectors.toList());
+        vo.setMedia(media);
+        // images 只含图片（卡片 / 封面安全），视频走 media
+        vo.setImages(media.stream()
+                .filter(m -> "image".equals(m.mediaType()))
+                .map(ProductVO.MediaItem::url)
+                .collect(Collectors.toList()));
+        vo.setTags(new ArrayList<>(tags));
         return vo;
     }
 
@@ -323,7 +352,7 @@ public class ProductServiceImpl implements ProductService {
         if (products == null) {
             return new ArrayList<>();
         }
-        return products.stream().map(this::enrichProduct).collect(Collectors.toList());
+        return enrichProducts(products);
     }
 
     @Override
@@ -332,8 +361,7 @@ public class ProductServiceImpl implements ProductService {
         wrapper.eq(Product::getFeatured, 1);
         wrapper.eq(Product::getStatus, 0);
         wrapper.last("LIMIT 8");
-        List<Product> products = productMapper.selectList(wrapper);
-        return products.stream().map(this::enrichProduct).collect(Collectors.toList());
+        return enrichProducts(productMapper.selectList(wrapper));
     }
 
     @Override
@@ -351,7 +379,6 @@ public class ProductServiceImpl implements ProductService {
         wrapper.eq(Product::getStatus, 0);
         wrapper.last("LIMIT " + limit);
 
-        List<Product> products = productMapper.selectList(wrapper);
-        return products.stream().map(this::enrichProduct).collect(Collectors.toList());
+        return enrichProducts(productMapper.selectList(wrapper));
     }
 }

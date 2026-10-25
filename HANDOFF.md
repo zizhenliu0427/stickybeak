@@ -1,7 +1,8 @@
 # HANDOFF — StickyBeak 交接文档
 
 > 给下一个 AI 会话/协作者：读完本文 + `docs/` 三份文档即可无缝接手。
-> 最近更新：2026-10-25 · 全部 Sprint 完成，main = v1.1.0（含 Sprint 9 部分故事线）；develop 上另有 SKU 合并 + 前台编辑风改版（见文末两节）
+> 最近更新：2026-10-25 · main = v1.1.0；develop 已在本地合入 Sprint 10–14（PR #1–#5）以及 ES/MinIO/SKU 合并/前台改版，尚未推送
+> ⚠️ 2026-10-24 代码审查发现的待修问题见 [`docs/CODE_REVIEW_TODO.md`](docs/CODE_REVIEW_TODO.md)；需要 Docker / 模型 key / 桌面客户端的剩余验收见 [`HANDOFF_NEXT.md`](HANDOFF_NEXT.md)
 
 ## 项目是什么
 
@@ -20,8 +21,14 @@
 - **v0.7.0**（main）：Sprint 7 PWA（manifest + Service Worker + 移动端底部导航）
 - **v1.0.0**（main）：Sprint 8 生产发布（Playwright E2E + 覆盖率补测 + Knife4j + 部署文档）
 - **v1.1.0**（main / 当前发布）：Sprint 9 部分——Sentinel 网关限流、RabbitMQ 手动 ACK、AWS 就绪套件（CloudFormation/ECS/ECR）
-- 开发分支：`develop`（当前唯一工作分支，不再开 feature 分支）
-- ~~计划偏差备忘~~ ES 全文搜索已补齐（2026-09-17，Issue 2.4 + 故事线 9.2/9.4/9.5/9.6 全部落地）
+- **develop 本地追加（2026-09-17 ~ 10-25）**：故事线 9.2/9.4/9.5/9.6、类目对齐、MinIO 建品 + 视频、SKU 合并（44 个在售）、前台编辑风改版
+- **Sprint 10**（`feature/sprint-10-security-fixes`，待合并后打 `v1.2.0`）：修复 `docs/CODE_REVIEW_TODO.md` 中 P0–P2（支付回调、内部接口隔离、消息重试与死信、状态条件更新、生产配置）
+- **Sprint 11**（`feature/sprint-11-readme-capabilities`，基于 Sprint 10 分支，待合并后打 `v1.3.0`）：把 README 宣称的能力全部落地 —— Seata AT 结账事务、ES 商品搜索（IK + 高亮 + MySQL 回退）、退款全流程、JaCoCo 覆盖率门禁、网关 Knife4j 文档聚合、Playwright 桌面 + 移动端用户旅程、SES 邮件配置、`LICENSE`；顺带修复了"网关无法启动"（Sprint 9 引入）、"管理后台刷新一直转圈"、"商品列表缓存从不命中"
+- **Sprint 12**（`feature/sprint-12-skywalking`，基于 Sprint 11 分支，待合并后打 `v1.4.0`）：SkyWalking 全链路追踪 —— OAP 10.4 + BanyanDB + UI（:8088），7 个服务挂 agent 9.7，日志带 traceId 并上报、响应头 `X-Trace-Id`，告警规则（含死信队列积压自定义指标），网关端点分组；用链路定位并修复商品列表 N+1（`docs/PERF_PRODUCT_LIST.md`）
+- **Sprint 13**（`feature/sprint-13-ai-agent`，基于 Sprint 12 分支，待合并后打 `v2.0.0`）：Python AI 购物助手 `stickybeak-agent` —— FastAPI + LangGraph，导购 / 订单 / 售后 RAG，写操作 interrupt 确认，MySQL checkpoint，SSE 流式，Redis 限流与额度，SkyWalking 跨语言链路，前端聊天抽屉，50 条评测集（详见 `stickybeak-agent/README.md`）
+- **Sprint 14**（`feature/sprint-14-mcp`，基于 Sprint 13 分支，待合并后打 `v2.1.0`）：MCP Server `stickybeak-mcp`（5 个只读工具，Streamable HTTP，网关 `/api/mcp`），个人中心签发 30 天 `scope=mcp` 令牌（网关限制只能访问 MCP、可撤销），agent 改为通过 langchain-mcp-adapters 加载只读工具，Cursor / Cherry Studio / Claude Code 接入说明与命令行演示
+- 2026-10-25：PR #1–#5 已在本地合入 develop（与上面的本地追加一起解冲突；ES 搜索保留 Sprint 11.2 的实现，见 9.2 一节），待推送后关闭 PR、补打 tag
+- 开发分支：`develop`；功能分支：`feature/sprint-N-xxx`（Git Flow）
 
 ## Sprint 1 交付明细（均已 E2E 验证）
 
@@ -139,11 +146,9 @@
 - **9.1 Sentinel 限流**：`SentinelGatewayConfig`（网关层规则 + 单测）
 - **9.3 RabbitMQ 手动 ACK**：`OrderPaidListener` / `OrderTimeoutCloseListener` 改手动确认
 - **AWS 就绪（计划外）**：`docker/aws/cloudformation-vpc-ecs.yml`、ECS task 定义 ×2、`scripts/aws-ecr-push.sh`、`scripts/verify-aws-readiness.js`、CI 增强
-- **9.2 ES 全文搜索 + 基准**（2026-09-17 补）：
-  - product 服务接入 `spring-boot-starter-data-elasticsearch`，`ProductDocument`（IK 分词：name^3/description，价格存 cents）
-  - 检索链路：`GET /api/products?q=` → ES multi_match → 命中 id 回 MySQL 取实体；`engine=es|mysql` 调试参数（显式指定跳过缓存）
-  - 降级：`@SentinelResource` + 异常比例熔断（>50%/60s → 断 30s）自动回退 MySQL LIKE——已实测停 ES 容器后搜索正常
-  - 一致性：管理端变更 → MQ `product.changed` → `ProductIndexListener` 刷索引（无双写）；全量兜底 `POST /api/products/admin/reindex`
+- **9.2 ES 全文搜索 + 基准**（2026-09-17 补；2026-10-25 合并 PR 时实现换成 Sprint 11.2 的版本）：
+  - 本地与 PR #2 各写了一套 ES 搜索，合并时保留 PR #2 的 `product/search/*`（事务提交后重建文档 + 启动/每日全量对账 + 名称高亮，ES 异常时回退 MySQL LIKE）。原来的 MQ `product.changed` 同步和 Sentinel 熔断随之删除
+  - 保留下来的本地能力：`engine=es|mysql` 调试参数（显式指定时跳过缓存，基准脚本依赖它）、`POST /api/products/admin/reindex`（现在调用 `ProductIndexer.reindexAll()`）
   - ES 容器装 IK 插件，持久化靠 `docker/elasticsearch/Dockerfile`（compose 已改 build 方式）
   - 基准：`scripts/benchmark-search.cjs`（真实数据）+ `benchmark-search-scale.cjs`（10 万行合成）→ `docs/SEARCH_BENCHMARK.md`（诚实结论：小数据量持平，10 万行 MySQL 全扫 118ms vs ES 52ms）
 - **9.4 Nacos 多环境**（2026-09-17 补）：`ConfigDemoController` + `scripts/demo-nacos-multi-env.cjs` → `docs/NACOS_MULTI_ENV.md`（热刷新实测免重启；prod 命名空间隔离实测——prod 实例对 public 网关直接不可见）
@@ -151,7 +156,7 @@
   - 主案例：趋势查询覆盖索引 152ms→72ms（50 万行），生产迁移 `07-order-analytics-index.sql` 已应用
   - 番外反例：Top-N 聚合加索引反而 607→732ms（优化器翻转 join 顺序），正解是预聚合汇总表
 - **9.6 webhook 线程池**（2026-09-17 补）：`WebhookExecutorConfig`（core4/max8/queue200/CallerRuns 背压）+ 接收端「验签+幂等落档 → 异步处理」+ `GET /api/webhooks/pool-stats` 监控 → `docs/THREADPOOL_WEBHOOK.md`；60 并发实测 0 丢失 0 拒绝
-  - ⚠️ 行为变更：webhook 受理返回 `ACCEPTED`（原为处理完返回 `SUCCESS`），e2e 断言已同步更新
+  - 2026-10-25 合并 PR #1 后改为**可选**：默认同步处理（PR #1 的语义：失败回滚、返回 5xx，由 Stripe 重试），`WEBHOOK_ASYNC_ENABLED=true` 时才走线程池并返回 `ACCEPTED`。两种模式跑的是同一段校验逻辑（事件类型、金额、币种、退款回调），见 `WebhookServiceImpl`；`pool-stats` 只在异步模式注册，且需要管理员
 
 ## 数据源（真实商品数据，差异化亮点 · 2026-09-17 双 AI 对账核实）
 
@@ -166,7 +171,7 @@
 
 ## 2026-09-17 追加：管理端新建商品 + 图片/视频上传（MinIO 预签名直传）
 
-- **链路**：admin 前端 `ProductCreateDrawer` → `POST /products/admin/upload-url` 拿预签名 PUT URL → 浏览器直传 MinIO → `POST /products/admin` 建商品（`media[{url,mediaType}]` + 标签自动 upsert + slug 缺省自动生成 `p-{id}`）→ MQ 事件刷 ES
+- **链路**：admin 前端 `ProductCreateDrawer` → `POST /products/admin/upload-url` 拿预签名 PUT URL → 浏览器直传 MinIO → `POST /products/admin` 建商品（`media[{url,mediaType}]` + 标签自动 upsert + slug 缺省自动生成 `p-{id}`）→ 事务提交后刷 ES 文档
 - **媒体**：`t_product_image.media_type` = `image` | `video`（存量默认 image）。封面只能是图片；详情页画廊可播 mp4/mov/webm。卡片封面取第一张图，没有图时退化播视频首帧。
 - **MinIO 接线**：product 服务 `MinioConfig` 双 client（internal 管理 / presign 签发），`StorageServiceImpl` 启动时建 bucket `stickybeak` + 匿名读策略；允许 jpeg/png/webp/gif + mp4/mov/webm。容器 env：`MINIO_ENDPOINT=http://sb-minio:9000`、`MINIO_PUBLIC_ENDPOINT=http://localhost:9000`
 - **雪花 ID 精度**：`JacksonLongConfig` 全局 Long→String；前端实体 ID 一律 `string`。MP Page / 列表 `total` 等计数 Long 在 API 边界 `Number()` 归一化。存量小 id 与新建雪花 id 都安全。
@@ -250,6 +255,37 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 27. **MySQL 加索引不等于优化**：优化器可能因新索引翻转 join 顺序反而更慢（Top-N 案例实测 607→732ms），必须 EXPLAIN ANALYZE 复查；聚合类查询的终极解是预聚合汇总表
 31. **分页排序必须有唯一键兜底**：批量导入后 create_time 全相同，只按 create_time 排序时 MySQL 每页顺序不稳定，LIMIT/OFFSET 会重复/漏行 → 末尾追加 `ORDER BY id DESC`
 32. **前台封面取 `images[0]`，不看 `is_cover`**：改封面时要同时把封面行 sort_order 排到最前（`fix-cover-sort.sql`），后端图集查询也按 `is_cover DESC` 先排
+33. **内部接口（Sprint 10）**：只供服务间调用的接口标 `@InternalApi`，调用方 RestTemplate 必须挂 `InternalCallRequestInterceptor`（订单服务已挂），否则返回 403。网关会剥离外部请求的 `X-Internal-Call`，并对 `/api/products/stock/**` 写接口、`/api/payments/checkout-session|records`、`*/expire-session` 直接拒绝。网关的路径判断都基于**解码 + 规范化后**的路径。
+34. **mock 支付回调默认关闭**：本地 E2E 需 `PAYMENT_MOCK_WEBHOOK_ENABLED=true`（`rebuild-services.ps1` 与 `docker-compose.yml` 已设置）；mock 回调需要登录 cookie，且 `amount` 必须等于订单 `payAmount`，否则返回 `REJECTED`。
+35. **RabbitMQ 已声明队列的 arguments 不能改**（再次声明会 `PRECONDITION_FAILED`）：Sprint 10 的重试 / 死信全部用新队列（`order.*.retry.queue`、`order.*.dlq`），没有动 `order.status.queue` / `order.close.queue`。以后要改已有队列参数，需先在管理台删除旧队列或改名。
+36. **远程调用与 Redis 写入放到事务提交后**：用 `common` 的 `AfterCommit.run(...)`；没有事务时立即执行（单测里也是）。
+37. **`OrderMapper.updateIfStatus` 是 default 方法**：Mockito mock 默认返回 0（视为并发冲突并抛异常），单测里要显式 `when(...).thenReturn(1)`。
+38. **prod profile 没有默认 JWT 密钥**：`JWT_SECRET` 缺失 / 非 Base64 / 短于 256 bit 都会启动失败，生成：`openssl rand -base64 48`。
+39. **网关能否启动要靠 `GatewayContextTest` 守住**：Sprint 9 起网关因为重复定义 `sentinelGatewayFilter`（自动配置已注册同名 Bean）一直启动失败，而单测从不加载上下文，CI 是绿的。Sentinel 的 Filter / ExceptionHandler 交给 `SentinelSCGAutoConfiguration`，自定义 429 响应以 `BlockRequestHandler` Bean 提供。
+40. **Seata AT（Sprint 11）**：全局事务边界是 `CheckoutTransaction#placeOrder`，支付会话在全局提交之后创建（外部调用不要放进全局事务）。product / order 依赖 Seata Server（`SEATA_ADDR`，compose 里是 seata-server 2.0.0）；本地临时调试可 `SEATA_ENABLED=false`，但那样结账失败时商品库不会回滚。业务库要有 `undo_log` 表（`docker/mysql/init/07-seata-undo-log.sql`，老数据卷需手动执行一次）。
+41. **会改 `t_product` 库存行的本地写必须加 `@GlobalLock`**（关单释放、退款回补、后台改库存都已加）：否则与未完成的结账全局事务交错后，全局回滚做 after-image 校验失败，回滚会卡住需要人工处理。
+42. **Redis 预扣不受 undo_log 管理**：扣减 Lua 同时写订单账本 `stock:reservation:{orderNo}`；本地事务没提交由 `AfterCommit.onRollback` 归还，全局回滚由订单服务的 Seata `TransactionHook#afterRollback` 调 `/products/stock/redis-restore` 归还。归还脚本是原子"读 + 加回 + 删账本"，重复调用安全。Lua 里拼 key，只支持单节点 Redis。
+43. **网关剥离外部请求的 `TX_XID`**，否则外部请求可以把写操作挂进别人的全局事务。
+44. **商品搜索走 ES 失败会自动回退 MySQL**：`SEARCH_ES_ENABLED=false` 可整体关闭；索引需要 IK 插件（`docker/elasticsearch/Dockerfile` 构建镜像，插件下载地址在网络受限环境可能需要换成离线 zip）。ES 健康检查已关闭，ES 挂了商品服务仍是 UP。
+45. **Knife4j 文档只在网关 `/doc.html` 看**：网关路由只转发 `/api-docs/{svc}/v3/api-docs/**`，千万别改成 `/api-docs/{svc}/**`——这个前缀是公开的，会变成绕过鉴权的旁路。生产 `API_DOCS_ENABLED=false`。
+46. **Playwright 用例在浏览器里模拟接口**（`stickybeak-frontend/e2e/support/mockApi.ts`）：页面调用了没模拟的接口会让用例失败；PWA 的 Service Worker 会绕过 `page.route`，配置里已 `serviceWorkers: 'block'`。`@playwright/test` 版本固定，升级时 CI 会自动装对应的 Chromium。
+47. **SkyWalking agent 只在设置了 `SW_AGENT_COLLECTOR_BACKEND_SERVICES` 时挂载**（`Dockerfile.backend` 的 ENTRYPOINT）。agent 版本（Dockerfile）必须与 `pom.xml` 的 `skywalking.version`（apm-toolkit）一致，否则 traceId 打不出来。
+48. **Spring Boot 3 / 网关的 agent 插件在 `optional-plugins` 里**，必须复制到 `plugins/`：springmvc-annotation-6.x、resttemplate-6.x、spring-cloud-gateway-4.x、spring-webflux-6.x。少了 resttemplate 插件，订单调其他服务的链路会断开；少了 springmvc 插件，端点按真实 URL 命名。
+49. **网关端点分组规则（`docker/skywalking/endpoint-name-grouping.yml`）**：同一层按书写顺序取第一个命中的节点、不回溯，所以 `/api/orders/my` 这类字面量规则必须写在 `/api/orders/{var}` 之前。新增带路径变量的网关路由时记得补规则。
+50. **OAP 10.4 的健康检查是 `/healthcheck`**（`/internal/l7check` 返回 404）；告警规则用 MQE 表达式（`expression:`），旧版 `metrics-name` / `op` / `threshold` 写法不再生效。
+51. **本机直接跑 BanyanDB 要去掉代理环境变量**（`HTTPS_PROXY` 等）：Go 的 gRPC 客户端会把内部连接也走代理，报 `failed to re-connect to grpc server`。
+52. **支付回调里 `order.paid` 是在事务内发送的**，这是有意的：发送失败 → 事务回滚 → Stripe 重试；提交失败 → 下次回调再发一次，由消费方幂等兜住。改成提交后发送会在进程崩溃时丢消息。
+53. **商品列表 / 搜索 / 精选 / 相关商品都走 `enrichProducts` 批量补全**（一页固定 4 条补全 SQL，单测守住）。不要再在循环里按商品查分类、图片、标签。
+54. **AI 助手的用户身份只能来自网关的 `X-User-Id`**：工具通过 `RunnableConfig` 读取，不要把 user_id 做成工具参数（模型 / 注入的提示词就能冒充别人）。新增写操作工具时加进 `WRITE_TOOLS`，它才会先经过 confirm 节点。
+55. **SkyWalking Python agent**：1.3.0 的 wheel 漏打了 `skywalking.protocol`，1.2.x 在 Python 3.12 上插件全部加载失败（只创建模块不执行），所以 `pyproject.toml` 用 `no-binary-package` 从 1.3.0 源码包安装。升级前先确认 wheel 里有 `skywalking/protocol`。
+56. **PyMySQL 固定在 1.1.x**：1.2 把 `escape_bytes_prefixed` 换成了占位字符串，aiomysql 0.3 仍在调用它，checkpoint 写入 bytes 时直接报错（单测用内存 checkpointer 发现不了）。
+57. **DashScope 兼容模式**：结构化输出要用 `method="function_calling"`（不支持 json_schema）；`OpenAIEmbeddings` 要设 `check_embedding_ctx_length=False`（不接受 token id），text-embedding-v3 每批最多 10 条。
+58. **ES Python 客户端必须是 8.x**（`elasticsearch<9`）：9.x 客户端发 v9 兼容头，ES 8.14 会拒绝。
+59. **AI 助手的 thread_id 由服务端生成，格式 `{userId}-{32 位 hex}`**：接口按前缀校验归属，不要改成客户端随意传入。
+60. **MCP Server 只放只读工具**：写操作只能在自家 agent 里经用户确认后执行，不要加到 MCP（外部 AI 客户端可能不经用户确认就调用）。新增 MCP 工具要标 `readOnlyHint`，需要身份的用 `require_user(ctx)`。
+61. **MCP 令牌（`scope=mcp`）只能访问 `/api/mcp`**：网关按 scope 拦截，并比对 Redis `auth:mcp:{userId}` 里的当前 jti。新增给外部客户端的入口时，不要放宽这个限制。
+62. **`mcp` 固定在 1.x**：langchain-mcp-adapters 0.3 只支持 mcp<2。升级 MCP SDK 前先确认 adapters 的版本支持。
+63. **agent 依赖 MCP Server 才能工作**：启动时每隔几秒重试加载工具，期间 `/agent/health` 的 `mcpConnected=false`，聊天返回"暂不可用"。本地调试先起 `python -m stickybeak_agent.mcp_server`。
 
 ## 剩余项（全部非阻塞，按需）
 
@@ -268,6 +304,17 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 商品合集(collections) / 留子成就(achievement) / 生活标语(slogan) / 手机壳(phonecase)。
 - 对齐工具：`node scripts/align-categories.cjs`（dry-run）/ `--apply` 应用。**重跑导入后需再执行一次**
 - 对齐后 ES 需重建索引：admin 登录后 `POST /api/products/admin/reindex`
+
+## 下一步（第二阶段路线图，2026-10 制定）
+
+> 代码已全部完成；需要 Docker、模型 key 或桌面客户端才能做的剩余验收与待办见 **`HANDOFF_NEXT.md`**。
+
+按 `docs/SPRINT_ISSUES.md` 第二阶段路线图依次推进：
+1. **Sprint 10**（v1.2.0）修复 `docs/CODE_REVIEW_TODO.md` 中 P0–P2
+2. **Sprint 11**（v1.3.0）补齐 README 宣称的能力：Seata、ES 商品搜索、退款、JaCoCo 门禁、Knife4j、Playwright —— 代码已完成，待在完整 Docker 环境验收 Seata 回滚与 ES 搜索
+3. **Sprint 12**（v1.4.0）SkyWalking 全链路追踪 —— 代码已完成，链路 / 日志 / 告警 / 优化已在本机用同版本二进制验证，待在 Docker 环境构建镜像验收
+4. **Sprint 13**（v2.0.0）Python AI Agent（FastAPI + LangGraph）+ RAG（向量库用 ES）—— 代码已完成，已在本机连真实 Java 服务、MariaDB、Redis、SkyWalking 验证；真实模型评测与 ES 向量检索待配置 DashScope key 后实测
+5. **Sprint 14**（v2.1.0）MCP Server 与客户端接入 —— 代码已完成，经网关的匿名 / 令牌 / 撤销流程与跨语言链路已在本机验证；外部客户端的演示 GIF 待在桌面端录制
 
 ## 硬性规范（不要违反）
 

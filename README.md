@@ -2,13 +2,15 @@
 
 <div align="center">
 
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.1-brightgreen.svg?logo=springboot)](https://spring.io/projects/spring-boot)
-[![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2023.0.2-blue.svg)](https://spring.io/projects/spring-cloud)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.3.4-brightgreen.svg?logo=springboot)](https://spring.io/projects/spring-boot)
+[![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2023.0.3-blue.svg)](https://spring.io/projects/spring-cloud)
+[![Spring Cloud Alibaba](https://img.shields.io/badge/Spring%20Cloud%20Alibaba-2023.0.1.2-orange.svg)](https://github.com/alibaba/spring-cloud-alibaba)
 [![Java](https://img.shields.io/badge/Java-17%2B-orange.svg?logo=openjdk)](https://openjdk.org/)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg?logo=react)](https://react.dev/)
+[![Python](https://img.shields.io/badge/Python-3.12%20%C2%B7%20LangGraph-3776AB.svg?logo=python)](stickybeak-agent/README.md)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/Release-v1.0.0-success.svg)](https://github.com/zizhenliu0427/stickybeak/releases)
+[![Version](https://img.shields.io/badge/Version-v2.1.0-success.svg)](docs/SPRINT_ISSUES.md)
 
 **A Cloud-Native, High-Performance Microservices E-Commerce Platform for Australian Themed Souvenirs & Regional Specialities.**
 
@@ -20,13 +22,16 @@
 
 ## 🌟 Overview
 
-**Stickybeak** is an enterprise-grade distributed e-commerce system engineered with a modern cloud-native stack. Built from the ground up to address real-world cross-border commerce challenges, it integrates:
-- **Resilient Distributed Architecture**: Spring Cloud Alibaba (Nacos, Sentinel, Seata) providing robust service discovery, dynamic traffic shaping, and distributed transaction guarantees.
-- **Strict State Machine (FSM)**: Eliminates illegal order state transitions and race conditions during payment and fulfilment.
-- **Stripe Cross-Border Payment Engine**: Full sandbox integration supporting international credit cards, Alipay, and WeChat Pay, reinforced with cryptographic HMAC signature verification and database-backed idempotency.
-- **Event-Driven Asynchronous Fulfilment**: RabbitMQ topic exchanges and dead-letter delay queues (30-minute auto-cancellation, instant transactional email confirmations via Mailhog/SES).
-- **Dual-Front React 18 Application**: TailwindCSS-powered modern consumer storefront paired with an Ant Design 5 administrative management console.
-- **Enterprise Engineering Rigor**: JaCoCo code coverage auditing (>90% for state machine and webhooks) and automated Playwright E2E regression pipelines.
+**Stickybeak** is a distributed e-commerce system built on a modern cloud-native stack. It targets the hard parts of cross-border commerce — overselling under load, duplicate or lost payment notifications, and orders drifting out of sync across services:
+- **Distributed Architecture**: Spring Cloud Alibaba — Nacos service discovery & config, Sentinel gateway rate limiting, and Seata AT distributed transactions for checkout.
+- **Strict State Machine (FSM)**: Every order transition is validated and persisted with a conditional update, so concurrent payment, timeout and cancellation events cannot corrupt an order.
+- **Stripe Cross-Border Payments**: Hosted Checkout with cards, Alipay and WeChat Pay; webhook signature verification, amount/currency checks, database-backed idempotency, and full refunds through the Stripe Refund API.
+- **Event-Driven Fulfilment**: RabbitMQ topic exchange with manual ACK, retry queues and dead-letter queues; 30-minute auto-cancellation via a delay queue plus a sweeper; order confirmation emails over SMTP (MailHog locally, Amazon SES in production).
+- **Full-Text Search**: Elasticsearch 8 with the IK Chinese analyzer — weighted multi-field matching, highlighting and relevance sorting, with automatic fallback to MySQL.
+- **AI Shopping Assistant**: A Python service (FastAPI + LangGraph) that finds products, checks and cancels orders, and answers after-sales questions from a bilingual knowledge base (hybrid kNN + BM25 retrieval in Elasticsearch, RRF and reranking, cited answers). Answers stream over SSE, and every write needs the shopper's confirmation.
+- **MCP Server**: the shop's read-only capabilities (catalogue, help-article search, the shopper's own orders) are exposed over the Model Context Protocol, so the assistant and external AI clients such as Cursor or Cherry Studio use the same tools. Shoppers generate a 30-day token that only works on the MCP endpoint.
+- **Dual-Front React 18 Application**: TailwindCSS-powered consumer storefront (PWA) paired with an Ant Design 5 admin console.
+- **Engineering Rigor**: A JaCoCo coverage gate in `mvn verify` (≥ 90% line coverage enforced for the order state machine and Stripe webhook handling), Playwright journeys on desktop and mobile in CI, and full-stack API E2E scripts.
 
 ---
 
@@ -40,45 +45,41 @@
                                 (SSL, Gzip, SPA Routing, Static Assets)
                                                │
                                                ▼
-                         [ Spring Cloud Gateway Cluster (:8080) ]
-                           ├── JWT Token Auth & Claims Resolution
-                           ├── Redis Token Blacklist Revocation Filter
-                           ├── Knife4j OpenAPI 3.0 Unified Aggregation
-                           └── Sentinel Circuit Breaker & Rate Limiter
+                              [ Spring Cloud Gateway (:8080) ]
+                           ├── JWT Auth & Claims → X-User-* headers
+                           ├── Redis Token Blacklist Revocation
+                           ├── Internal-API & TX_XID header stripping
+                           ├── Knife4j OpenAPI 3.0 Aggregation (/doc.html)
+                           └── Sentinel Rate Limiting (HTTP 429 JSON)
                                                │
             ┌──────────────────┬───────────────┴───────────────┬──────────────────┐
             ▼                  ▼                               ▼                  ▼
      ┌──────────────┐   ┌──────────────┐                ┌──────────────┐   ┌──────────────┐
      │  Auth Svc    │   │ Product Svc  │                │  Cart Svc    │   │  Order Svc   │
      │   (:8081)    │   │   (:8082)    │                │   (:8083)    │   │   (:8084)    │
-     └──────┬───────┘   └──────┬───────┘                └──────┬───────┘   └──────┬───────┘
-            │                  │                               │                  │
-            │                  ├──────────────────────┐        │                  │
-            │                  ▼                      ▼        ▼                  │
-            │            [ Elasticsearch 8 ]    [ Redis 7 Cluster ]               │
-            │            (Full-text Search)     (Hot Cache & Carts)               │
-            │                                                                     │
-            └───────────────────────────┬─────────────────────────────────────────┘
-                                        │
-                                        ▼
-                                 [ MySQL 8.0 ]
-                       (Isolated Per-Service Schemas)
-                                        ▲
-                                        │ (Saga / AT Branch Coordinator)
-                               [ Seata Server (:8091) ]
-                                        ▲
-                                        │
-            ┌───────────────────────────┴───────────────────────────┐
-            ▼                                                       ▼
-     ┌──────────────┐                                        ┌──────────────┐
-     │ Payment Svc  │                                        │Notification  │
-     │   (:8085)    │                                        │   (:8086)    │
-     └──────┬───────┘                                        └──────▲───────┘
-            │                                                       │
-            ├──────────────► [ RabbitMQ Topic Exchange ] ───────────┘
-            │                (order.paid / order.cancel / DLX)
-            ▼
-     [ Stripe API & Webhooks ]
+     └──────┬───────┘   └──┬────────┬──┘                └──────┬───────┘   └──┬───────┬───┘
+            │              │        │                          │              │       │
+            │              │        ▼                          │              │       │
+            │              │  [ Elasticsearch 8 + IK ]         │              │       │
+            │              │  (search; MySQL fallback)         │              │       │
+            │              │                                   │              │       │
+            │              └────── Seata AT (checkout) ────────┼──────────────┘       │
+            │                 [ Seata Server 2.0 (:8091) ]     │                      │
+            ▼                       ▼                          ▼                      │
+     [ MySQL 8.0 — one schema per service ]     [ Redis 7 (single node): stock,       │
+                                                  carts, caches, token blacklist ]    │
+                                                                                      │
+     ┌──────────────┐   order.paid / order.refunded   ┌─────────────────────────────┐ │
+     │ Payment Svc  │────────────────────────────────►│ RabbitMQ (topic exchange,   │ │
+     │   (:8085)    │                                 │ delay queue, retry, DLQ)    │ │
+     └──────┬───────┘                                 └──────┬───────────────┬──────┘ │
+            │                     order.paid (email)         │               │        │
+            ▼                  ┌─────────────────────────────┘               └────────┘
+     [ Stripe API & Webhooks ] ▼                       order.paid / timeout close / refund
+                        ┌──────────────┐
+                        │ Notification │
+                        │   (:8086)    │
+                        └──────────────┘
 ```
 
 ---
@@ -86,22 +87,43 @@
 ## 💎 Key Architectural Highlights
 
 ### 1. Cross-Border Stripe Payment with Robust Idempotency
-- Cryptographically validates Stripe HMAC SHA-256 signatures with replay attack time-window protection (< 300s).
-- Backed by an atomic database constraint (`UK_stripe_event_id`), eliminating duplicate fulfilments caused by concurrent network retries.
-- Decouples downstream asynchronous tasks via RabbitMQ `order.paid` events.
+- Verifies Stripe webhook signatures (HMAC SHA-256 with the SDK's 300-second replay window) and checks the paid amount and currency against the payment record before fulfilling.
+- A unique key on the Stripe event ID (`uk_event_id`) turns concurrent retries of the same notification into no-ops.
+- Checkout sessions can only be created by the order service; the amount always comes from the order, never from the browser.
+- Full refunds: admin-initiated refunds call the Stripe Refund API with an idempotency key, the `charge.refunded` webhook confirms them, and a payment that arrives after the order was cancelled is refunded automatically.
 
 ### 2. Strict Finite State Machine (FSM)
-- Governs the complete order lifecycle: `PENDING_PAYMENT (1) -> PAID (2) -> SHIPPED (3) -> COMPLETED (4) / CANCELLED (5) / REFUNDED (6)`.
-- Rejects any illicit reverse or skipped transitions via strongly-typed `BusinessException` with zero database corruption.
+- Order lifecycle: `pending → paid → processing → shipped → completed`, `pending → cancelled`, and `paid / processing → refunding → refunded`.
+- Illegal or skipped transitions raise a `BusinessException`; every transition is written with `UPDATE … WHERE status = <expected>`, so a racing update fails instead of overwriting.
 
 ### 3. Distributed Transactions & Inventory Locks
-- Employs Redis atomic pre-deduction during checkout to protect against flash-sale overselling.
-- Backed by Seata for cross-service inventory reservation rollbacks and automatic compensation.
+- Three layers against overselling: Redis Lua atomic pre-deduction → Redisson lock per product → MySQL conditional update (`stock >= qty`).
+- Checkout runs in a **Seata AT global transaction** (`CheckoutTransaction`): the stock deduction in the product database and the order write in the order database commit or roll back together.
+- Redis pre-deductions are recorded in a per-order ledger and restored atomically when the transaction does not commit, including through a Seata rollback hook.
+- Local writes that touch the same stock rows (cancellations, refunds, admin stock edits) use `@GlobalLock`; the Stripe call happens after the global commit, so hot products are not locked during external I/O.
 
-### 4. Enterprise Observability & Documentation
-- **Knife4j / OpenAPI 3.0**: Centrally aggregated API catalog accessible directly via Gateway `/doc.html`.
-- **JaCoCo Audit**: Automated single-source code coverage thresholds integrated into Maven build phases.
-- **Dual-Platform E2E Pipelines**: Playwright headless automated journeys across desktop and mobile form-factors.
+### 4. Product Search
+- Elasticsearch 8 with the IK analyzer: weighted multi-field matching (name, category, tags, description), highlighted names and relevance or list sorting.
+- Admin changes are re-indexed after commit, and a full reconciliation runs at startup and daily. If Elasticsearch is down or disabled, search falls back to MySQL.
+
+### 5. AI Shopping Assistant (Python)
+- **LangGraph state graph**: an intent router hands off to a shopping agent, an order agent, a RAG after-sales node or small talk. Each agent only gets its own tools, and the tools call the existing Java services.
+- **Safe by construction**: the user ID comes from the gateway's `X-User-Id` and is injected into tools by the runtime, never as a model argument. Adding to the trolley or cancelling an order pauses the graph (`interrupt`) until the shopper confirms on a card built from server-side data. Conversations, including pending confirmations, are checkpointed in MySQL and survive refreshes and restarts.
+- **Grounded answers**: kNN (text-embedding-v3) and BM25 (IK) results are fused with RRF, reranked with gte-rerank and filtered by score. When nothing relevant is found the assistant says it doesn't know instead of guessing, and it cites its sources.
+- **MCP Server** (`stickybeak-mcp`): five read-only tools over Streamable HTTP behind the gateway at `/api/mcp`. Anonymous callers get the catalogue and help articles; order tools need a scoped MCP token from the profile page. The token is valid only on `/api/mcp`, can be revoked, and is replaced when a new one is issued. The assistant loads the same tools through langchain-mcp-adapters, and only the two confirmed write tools stay in-process.
+- **Operable**: Qwen with DeepSeek fallback through OpenAI-compatible APIs, per-user rate limits and daily token quotas in Redis, token and latency logging, SkyWalking traces across Java and Python, and a 50-case eval set ([details](stickybeak-agent/README.md)).
+
+![Assistant asking for confirmation before adding to the trolley](docs/images/agent/chat-confirm.png)
+
+![MCP token and client configuration on the profile page](docs/images/agent/mcp-token.png)
+
+### 6. Observability, API Docs & Quality Gates
+- **SkyWalking Tracing**: all 7 services run the SkyWalking Java agent, so one trace covers gateway → order → cart / product / payment and the asynchronous `order.paid` hand-off to order and notification. Responses carry an `X-Trace-Id` header, and logs carry the same trace ID and are shipped to OAP.
+- **Alerts**: slow and failing services or endpoints, slow SQL, and dead-letter queue backlog (a custom meter reported by the order service).
+- **Trace-driven tuning**: traces exposed an N+1 query on the product list; batching it raised throughput from 64 to 191 req/s and cut p99 from 1.57 s to 392 ms ([details](docs/PERF_PRODUCT_LIST.md)).
+- **Knife4j / OpenAPI 3.0**: each service publishes springdoc specs, aggregated at the gateway's `/doc.html`; service-to-service endpoints are labelled, and docs are switched off in production.
+- **JaCoCo Gate**: `mvn verify` fails when a module drops below its line-coverage floor.
+- **Playwright Journeys**: search, guest-to-checkout, order history and admin refunds run on Desktop Chrome and Pixel 7 in CI.
 
 ---
 
@@ -109,18 +131,19 @@
 
 ```
 stickybeak/
-├── stickybeak-gateway/        # Spring Cloud Gateway, JWT filter, Knife4j router
+├── stickybeak-gateway/        # Spring Cloud Gateway, JWT filter, Sentinel, Knife4j aggregation
 ├── stickybeak-auth/           # User authentication, RBAC, address book
 ├── stickybeak-product/        # Product catalog, categories, inventory, ES search
 ├── stickybeak-cart/           # Redis cart (guest + login merge), wishlist
-├── stickybeak-order/          # Order finite state machine, Seata saga, stock locks
-├── stickybeak-payment/        # Stripe sandbox, payment provider abstraction, webhook idempotency
-├── stickybeak-notification/   # Email notifications via RabbitMQ & MailHog
-├── stickybeak-common/         # Universal response wrapper, error codes, OpenAPI metadata
-├── stickybeak-frontend/       # React 18 + Vite + Redux Toolkit + Tailwind + AntD
+├── stickybeak-order/          # Order state machine, Seata AT checkout, timeouts & refunds
+├── stickybeak-payment/        # Stripe sandbox, payment provider abstraction, webhooks & refunds
+├── stickybeak-notification/   # Email notifications via RabbitMQ & SMTP (MailHog / SES)
+├── stickybeak-common/         # Response wrapper, error codes, internal-API guard, OpenAPI config
+├── stickybeak-agent/          # AI assistant + MCP Server: Python 3.12, FastAPI, LangGraph, MCP, RAG on ES, eval set
+├── stickybeak-frontend/       # React 18 + Vite + Redux Toolkit + Tailwind + AntD, Playwright e2e
 ├── docker/                    # Docker Compose files (local & prod), Nginx configs, MySQL DDL
 ├── docs/                      # Deployment guide, demo script, architecture, ER diagrams
-└── scripts/                   # Automated E2E verification & seed scripts
+└── scripts/                   # Full-stack E2E verification & seed scripts
 ```
 
 ---
@@ -135,7 +158,7 @@ stickybeak/
 ### Option A: Local Development Environment
 
 ```bash
-# 1. Start core infrastructure (MySQL, Redis, RabbitMQ, Nacos, Seata, MinIO, MailHog)
+# 1. Start core infrastructure (MySQL, Redis, RabbitMQ, Nacos, Seata, Elasticsearch, MinIO, MailHog)
 docker compose -f docker/docker-compose-infra.yml up -d
 
 # 2. Run backend microservices
@@ -160,6 +183,8 @@ docker compose -f docker/docker-compose.yml up -d --build
 ```
 Open **http://localhost** in your browser.
 
+> Existing MySQL volumes do not re-run the init scripts. After upgrading, apply `docker/mysql/init/07-seata-undo-log.sql` once (Seata `undo_log` tables).
+
 ---
 
 ## 🎛️ Management Consoles & Port Matrix
@@ -168,39 +193,62 @@ Open **http://localhost** in your browser.
 | :--- | :--- | :--- | :--- |
 | **Frontend Storefront & Admin** | 80 | `http://localhost/` | N/A |
 | **API Gateway** | 8080 | `http://localhost:8080` | N/A |
-| **Knife4j OpenAPI 3.0 Docs** | 8080 | `http://localhost:8080/doc.html` | Public |
+| **Knife4j OpenAPI 3.0 Docs** | 8080 | `http://localhost:8080/doc.html` | Public (disabled in prod) |
 | **Nacos Discovery & Config** | 8848 | `http://localhost:8848/nacos` | `nacos / nacos` |
+| **Seata Console** | 7091 | `http://localhost:7091` | `seata / seata` |
 | **RabbitMQ Management** | 15672 | `http://localhost:15672` | `guest / guest` |
 | **MailHog Inbox** | 8025 | `http://localhost:8025` | Public |
 | **MinIO Storage Console** | 9001 | `http://localhost:9001` | `minioadmin / minioadmin` |
-| **Elasticsearch** | 9200 | `http://localhost:9200` | Security disabled |
+| **Elasticsearch** | 9200 (full stack) / 19200 (infra compose) | `http://localhost:9200` | Security disabled |
+| **AI Assistant** | 8087 (internal) | `http://localhost:8080/api/agent/health` via the gateway | Needs `DASHSCOPE_API_KEY` or `DEEPSEEK_API_KEY` |
+| **MCP Server** | 8089 (internal) | `http://localhost:8080/api/mcp` via the gateway | Public tools anonymously; orders need an MCP token |
+| **SkyWalking UI** | 8088 | `http://localhost:8088` | Public |
+| **SkyWalking OAP** | 11800 (agent gRPC) / 12800 (HTTP, GraphQL) | `http://localhost:12800/healthcheck` | Storage: BanyanDB |
 
 ---
 
 ## 🧪 Testing & Quality Assurance
 
-### 1. Backend Unit & Coverage Testing
+### 1. Backend Unit Tests & Coverage Gate
 ```bash
-# Run complete test suite and generate JaCoCo coverage reports
+# Runs all tests, writes JaCoCo reports and enforces the coverage floors
 docker run --rm \
   -v "$(pwd):/workspace" \
   -v "stickybeak-m2:/root/.m2" \
   -w /workspace \
-  maven:3.9-eclipse-temurin-17 mvn test
+  maven:3.9-eclipse-temurin-17 mvn verify
 ```
-Inspect JaCoCo HTML reports at `stickybeak-<module>/target/site/jacoco/index.html`.
+Reports: `stickybeak-<module>/target/site/jacoco/index.html`. Current line coverage (floor enforced by the gate):
 
-### 2. Frontend Unit & Type Safety Testing
+| Module | Line coverage | Floor |
+| :--- | :--- | :--- |
+| gateway | 88.5% | 65% |
+| product | 62.5% | 55% |
+| notification | 54.0% | 50% |
+| cart | 53.9% | 50% |
+| order | 49.9% | 45% (`OrderStateMachine` 100%, floor 90%) |
+| payment | 45.2% | 35% (`WebhookServiceImpl` 97.2%, floor 90%) |
+| auth | 34.7% | 30% |
+
+### 2. Frontend Unit, Type Safety & Journey Tests
 ```bash
 cd stickybeak-frontend
-npm run typecheck    # TypeScript verification
+npm run typecheck    # TypeScript (app + e2e)
 npm run test         # Vitest unit test suite
 npm run build        # Production bundle compilation
+npm run e2e          # Playwright journeys, Desktop Chrome + Pixel 7 (API mocked in the browser)
 ```
 
-### 3. End-to-End (E2E) Regression Testing
+### 3. AI Assistant Tests & Eval
 ```bash
-# Automated end-to-end integration and security barrier test suite
+cd stickybeak-agent
+uv run ruff check . && uv run pytest -q   # graph, tools, RAG, API, quotas (scripted fake model, no API calls)
+uv run python -m eval.run_eval            # 50-case eval with a real model; writes eval/reports/<time>/report.md
+```
+
+### 4. Full-Stack End-to-End (E2E) Regression Testing
+```bash
+# Against a running Docker Compose stack: buyer flow, webhook idempotency, admin operations, RBAC
 node scripts/test-sprint8-e2e.js
 ```
 
@@ -227,5 +275,5 @@ Need to present Stickybeak for a technical interview, team review, or stakeholde
 
 ## 📄 License & Attribution
 
-This project is licensed under the **Apache License 2.0**.
+This project is licensed under the **[Apache License 2.0](LICENSE)**.
 Created with passion by the Stickybeak Engineering Team.
