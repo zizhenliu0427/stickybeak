@@ -308,9 +308,23 @@
 > - Redis 预扣不受 undo_log 管理：Lua 扣减时按订单记账（`stock:reservation:{orderNo}`），本地事务没提交时由 `AfterCommit.onRollback` 归还；全局回滚时由订单服务注册的 Seata `TransactionHook#afterRollback` 调 `/products/stock/redis-restore` 归还。归还脚本"读账本 + 加回 + 删账本"是原子的，重复调用只生效一次。hook 在扣库存之前注册，覆盖"扣库存请求超时但商品服务其实扣了"的情况。
 > - AT 写隔离：关单释放、退款回补、后台改库存这些不在全局事务里的本地写，会改到可能被未完成全局事务锁住的 `t_product` 行，已加 `@GlobalLock`，否则全局回滚时 after-image 校验失败、回滚卡住。
 > - 网关剥离外部请求的 `TX_XID` 头，防止外部请求把写操作挂进别人的全局事务。
-> - Seata Server 升级到 2.0.0（与 SCA 2023.0.1.2 的客户端一致），file 存储、直连（不走注册中心）；`undo_log` 见 `docker/mysql/init/07-seata-undo-log.sql`。
+> - Seata 客户端是 SCA 2023.0.1.2 自带的 2.0.0；TC（Seata Server）用 2.3.0（原因见下方实测），file 存储、直连（不走注册中心）；`undo_log` 见 `docker/mysql/init/07-seata-undo-log.sql`。
 > - 已知取舍：热点商品的结账在行级全局锁上串行（持锁时间 = 扣库存分支提交到全局提交，约几十毫秒），这是选 AT 而不是 TCC 的代价；全局回滚后若归还 Redis 的调用失败，Redis 库存只会偏少（不会超卖），后台改库存或 key 过期后从 MySQL 重新预热。
-> - 未完成：本地无 Docker 环境，"订单写库失败 → 库存自动回滚"与热点压测还没在真实 Seata Server 上跑过。
+> - Docker 环境实测（2026-10-25，`docker compose -f docker/docker-compose.yml`）：
+>   - 回滚：`scripts/test-seata-rollback.cjs` 给 `t_order` 临时加 CHECK 约束让写订单失败 → TC 全局回滚 → 商品分支按 undo_log 回滚（日志 `PhaseTwo_Rollbacked`）→ Redis 预扣经 `afterRollback` 归还。MySQL 库存、销量、Redis 库存、预占流水、订单、undo_log、订单账本全部还原；去掉约束后同一购物车正常下单。
+>   - 热点压测：`scripts/bench-hot-checkout.cjs`，30 个买家同时买同一个商品，每轮结束后全部取消，3–4 轮取平均（同一台机器，全部服务在 Docker 里并挂着 SkyWalking agent）：
+>
+>     | 环境 | 吞吐 | p50 | p95 | 成功率 |
+>     |---|---|---|---|---|
+>     | Seata 关（`SEATA_ENABLED=false`） | 69.3 单/秒 | 312 ms | 425 ms | 100% |
+>     | Seata AT 开（TC 2.0.0） | 32.6 单/秒 | 601 ms | 899 ms | 100% |
+>     | Seata AT 开（TC 2.3.0） | 34.9 单/秒 | 528 ms | 842 ms | 100% |
+>
+>     开 AT 后同一热点商品的吞吐约降一半：扣库存分支提交后 `t_product` 那一行的全局锁要等全局提交才释放，并发结账在这把锁上排队（TC 日志里大量全局锁冲突重试）。
+>   - 压测发现并修复的问题：
+>     1. **Seata TC 2.0.0 的锁泄漏**（2.1.0、2.2.0 同样，反编译 `FileLocker` 确认）：非自动提交的分支注册遇到锁冲突时，先释放已拿到的锁，但随后还会继续循环拿剩下的行锁，这些锁不属于任何注册成功的分支，全局提交后也不释放。我们的分支锁顺序是 `t_product:{id};t_stock_hold:{id}`，热点行冲突后 `t_stock_hold` 行锁泄漏；之后这些预占的取消 / 超时归还（带 `@GlobalLock`）永远拿不到锁，库存一直处于"已预占"，直到重启 TC。实测一次压测后有 112 笔预占（218 件库存）卡住。2.3.0 的 `FileLocker` 冲突后直接跳出循环，已修复，所以 TC 升级到 `apache/seata-server:2.3.0`（2.0.0 客户端实测兼容，回滚验收与 Sprint 5/6/8 全链路脚本都通过）；升级后重跑压测无残留。
+>     2. 补偿类写（关单释放、退款回补）等全局锁的默认时长约 300 ms（10 ms × 30 次），热点时基本等不到；放宽到 20 ms × 100 次 ≈ 2 秒（`InventoryServiceImpl`）。
+>     3. 用户取消时归还库存失败，原来要等 30 分钟后的超时消息才重试；改为立即投进 `order.close.retry.queue`，约 10 秒后由关单监听器重试（`OrderResourceReleaser#releaseQuietly`）。
 
 ### Issue 11.2 — Elasticsearch 商品搜索（即 9.2）
 `type:feature` `area:product` `p0`
@@ -322,8 +336,22 @@
 > 实现说明（与原计划的差异）：
 > - 增量同步没有走 RabbitMQ：商品写入方只有 product 服务自己，后台改价 / 改库存 / 上下架在事务提交后发 Spring 事件（`ProductChangedEvent`），由 `ProductIndexer` 重建该商品文档；启动时 + 每天 03:30 全量对账，顺带清理已逻辑删除的文档。跨服务、或写入方变多时再换 MQ / Canal（binlog）。
 > - ES 只负责检索、相关度排序和高亮，返回商品 ID；详情、图片、实时库存仍从 MySQL 读。ES 不可用或关闭（`SEARCH_ES_ENABLED=false`）时自动回退 MySQL `LIKE`，商城不受影响。
-> - 下单引起的销量 / 库存变化只在全量对账时进入 ES，所以搜索结果按"销量"排序最多滞后一天；列表上展示的数字来自 MySQL，不受影响。
-> - 未完成：本地无 Docker 环境，IK 插件镜像构建与 `LIKE` / ES 耗时对比还没实测。
+> - 下单引起的销量 / 库存变化只在全量对账时进入 ES，所以搜索结果按"销量"排序最多滞后一天；列表上展示的数字来自 MySQL，不受影响。暂不改成实时：那样每笔结账都要在热路径上写一次 ES，而且 Seata 全局回滚时索引不会跟着回滚。
+> - 合并说明：develop 上另有一套本地实现（故事线 9.2，RabbitMQ 同步 + Sentinel 熔断），合并 PR 时保留了本套，删除了那一套；基准脚本依赖的 `engine=es|mysql` 调试参数（显式指定时跳过缓存）移植了过来。
+> - Docker 环境实测（2026-10-25）：
+>   - IK 镜像构建成功（`get.infini.cloud` 的插件地址可用）；`scripts/es-search-test.cjs` 直连 ES 与经网关的结果一致，名称高亮正常。
+>   - 耗时对比：`scripts/benchmark-search.cjs`，每个关键词 30 次，经网关，含 JSON 开销：
+>
+>     | 关键词 | ES avg / p95 | MySQL `LIKE` avg / p95 |
+>     |---|---|---|
+>     | 扣死 | 62.7 / 111.8 ms | 49.9 / 54.4 ms |
+>     | 火车 | 63.5 / 68.5 ms | 54.5 / 60.4 ms |
+>     | 海鸥 | 56.6 / 60.8 ms | 49.2 / 63.5 ms |
+>     | UNSW | 59.7 / 79.7 ms | 53.1 / 69.8 ms |
+>
+>     商品表只有 269 行，MySQL 全表扫描很便宜，ES 多一次网络往返反而慢 10–20%；与 `docs/SEARCH_BENCHMARK.md` 里 10 万行合成数据时 ES 才明显领先的结论一致。
+>   - 新鲜度：`scripts/test-search-freshness.cjs`，测的是搜索可见（`_search`，受 refresh 影响），不是实时的 `_doc` GET。改价后 9–131 ms 可见；上架后 14–958 ms 可搜到（ES 默认 1 秒 refresh）；下架后约 15 ms 就搜不到（MySQL 回表时按状态过滤）。
+>   - 停掉 ES 容器后搜索自动回退 MySQL `LIKE`，商品服务健康检查仍是 UP。
 
 ### Issue 11.3 — 退款流程
 `type:feature` `area:payment` `area:order` `p0`
@@ -394,7 +422,8 @@
 >   - 支付回调 → `order.paid` → order（确认库存、清空购物车）+ notification 在同一条链路里。
 >   - 网关端点分组生效，OAP 里出现的是 `/api/products/{var}`、`/api/orders/{var}`。
 >   - 链路截图和调用树见 `docs/PERF_PRODUCT_LIST.md`。
-> - 未完成：本地没有 Docker 环境，compose 只做了 `docker compose config` 校验，镜像没有实际构建。
+> - Docker 环境实测（2026-10-25）：`Dockerfile.backend` 构建成功（agent 9.7.0 + 4 个可选插件），7 个 Java 服务和 `stickybeak-agent`、`stickybeak-mcp` 都出现在 OAP 里；结账链路 gateway → order → cart → product（Redis Lua / Redisson / MySQL）→ auth → RabbitMQ → payment 完整；网关端点按模板分组（`/api/orders/{var}`、`/api/products/admin/{var}/price`）。
+> - Docker 环境发现并修复：OAP 镜像里没有 curl，compose 里 OAP 的健康检查一直是 unhealthy，改为 bash `/dev/tcp` 探测；全栈 compose 的 ES / Nacos gRPC 宿主端口改成与 infra 一致的 19200 / 19848（9200、9848 在 Windows 动态排除段内，绑定失败）；补了根目录 `.dockerignore`（Windows 上装的 `node_modules` 复制进 Linux 前端镜像会构建失败）；`Dockerfile.backend` 加 BuildKit Maven 缓存，7 个镜像共用依赖。
 
 ### Issue 12.3 — 日志关联 traceId
 `type:feature` `area:observability` `p1`
@@ -425,6 +454,7 @@
 >   - `meter-analyzer-config/stickybeak.yaml` 把它转成 `meter_stickybeak_dlq_backlog`。
 >   - 告警条件：大于 0 就告警，30 分钟内不重复。
 > - 本地实测：往 `order.status.dlq` 放 1 条消息，约 1 分钟后触发告警，截图见 `docs/PERF_PRODUCT_LIST.md`。
+> - Docker 环境复测（2026-10-25）：同样触发；指标挂在服务实例上（MAL 规则用 `instance(...)`），按服务查询会是空的。Seata 锁泄漏那段时间，"商品服务成功率低于 95%""关单消费者 P99 超过 2 秒"两条告警也真实触发了。
 
 ### Issue 12.5 — 用链路数据做一次真实优化（即 9.5）
 `type:feature` `p1`
@@ -465,6 +495,7 @@
 > - Dockerfile 用 uv 分层安装；compose 三套都加了 agent；CI 新增 ruff + pytest。
 > - SkyWalking Python agent 两个坑：1.3.0 的 wheel 漏打了 `skywalking.protocol`，1.2.x 在 Python 3.12 上插件全部加载失败。现在从 1.3.0 源码包安装（`no-binary-package`）。
 > - 本地实测：经网关 `/api/agent/health` 返回 200，未登录调 `/api/agent/chat` 返回 401。SkyWalking 中可见两段跨进程链路：网关 `/api/agent/chat` → Python FastAPI `/agent/chat`，Python httpx → 商品服务 `GET:/products`，都有 CROSS_PROCESS 引用。
+> - Docker 环境实测（2026-10-25）：镜像构建成功（`ghcr.io/astral-sh/uv:0.11.32` 存在，`apache-skywalking` 源码包能在镜像里构建）。发现与 Nacos 同时启动时注册失败直接退出（Java 服务会重试，Python 不会），改为每 2 秒重试、最多约 1 分钟；MCP Server 启动时知识库入库同样改为 ES 未就绪时隔 5 秒重试。修复后 `/api/agent/health` 返回 `mcpConnected: true`，日志 `knowledge base ingest: {'total': 66, 'upserted': 66, ...}`（未配模型 key，只写 BM25 文本）。
 
 ### Issue 13.2 — 模型接入与降级
 `type:feature` `area:agent` `p0`
@@ -616,7 +647,8 @@
 > 实现说明：
 > - `stickybeak-agent/README.md` 给出 Cursor、Cherry Studio、Claude Code、mcp-remote 的接入配置。
 > - 命令行演示脚本：`python -m stickybeak_agent.mcp_demo`，README 里附了本地经网关的实际输出。
-> - 未完成：GIF 需要在桌面端的 Cherry Studio / Cursor 里录制，本环境做不了，待补。
+> - Docker 环境实测（2026-10-25，命令行客户端经网关）：匿名可搜索商品和 FAQ，订单工具提示需要登录；个人中心签发的 MCP 令牌能查到本人订单；该令牌访问 `/api/orders/my` 或再签发令牌返回 403；撤销后 MCP 请求返回 401。
+> - 未完成：GIF 需要在桌面端的 Cherry Studio / Cursor 里录制，待补。
 
 ---
 

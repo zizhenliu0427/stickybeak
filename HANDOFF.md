@@ -1,7 +1,7 @@
 # HANDOFF — StickyBeak 交接文档
 
 > 给下一个 AI 会话/协作者：读完本文 + `docs/` 三份文档即可无缝接手。
-> 最近更新：2026-10-25 · main = v1.1.0；develop 已在本地合入 Sprint 10–14（PR #1–#5）以及 ES/MinIO/SKU 合并/前台改版，尚未推送
+> 最近更新：2026-10-26 · main = v1.1.0；develop 已在本地合入 Sprint 10–14（PR #1–#5）以及 ES/MinIO/SKU 合并/前台改版，并在完整 Docker 环境验收，尚未推送
 > ⚠️ 2026-10-24 代码审查发现的待修问题见 [`docs/CODE_REVIEW_TODO.md`](docs/CODE_REVIEW_TODO.md)；需要 Docker / 模型 key / 桌面客户端的剩余验收见 [`HANDOFF_NEXT.md`](HANDOFF_NEXT.md)
 
 ## 项目是什么
@@ -28,6 +28,7 @@
 - **Sprint 13**（`feature/sprint-13-ai-agent`，基于 Sprint 12 分支，待合并后打 `v2.0.0`）：Python AI 购物助手 `stickybeak-agent` —— FastAPI + LangGraph，导购 / 订单 / 售后 RAG，写操作 interrupt 确认，MySQL checkpoint，SSE 流式，Redis 限流与额度，SkyWalking 跨语言链路，前端聊天抽屉，50 条评测集（详见 `stickybeak-agent/README.md`）
 - **Sprint 14**（`feature/sprint-14-mcp`，基于 Sprint 13 分支，待合并后打 `v2.1.0`）：MCP Server `stickybeak-mcp`（5 个只读工具，Streamable HTTP，网关 `/api/mcp`），个人中心签发 30 天 `scope=mcp` 令牌（网关限制只能访问 MCP、可撤销），agent 改为通过 langchain-mcp-adapters 加载只读工具，Cursor / Cherry Studio / Claude Code 接入说明与命令行演示
 - 2026-10-25：PR #1–#5 已在本地合入 develop（与上面的本地追加一起解冲突；ES 搜索保留 Sprint 11.2 的实现，见 9.2 一节），待推送后关闭 PR、补打 tag
+- 2026-10-25 ~ 26：完整 Docker 环境验收（全栈 compose 构建 + Sprint 5/6/8 全链路脚本 + Seata 回滚 / 热点压测 + ES 对比与新鲜度 + SkyWalking 链路与告警 + MCP 令牌流程），顺带修复 Seata TC 锁泄漏等问题（见坑 64–72）与 HANDOFF_NEXT 的 P2 待办；结果写在 `docs/SPRINT_ISSUES.md` 各 Issue 的实现说明里
 - 开发分支：`develop`；功能分支：`feature/sprint-N-xxx`（Git Flow）
 
 ## Sprint 1 交付明细（均已 E2E 验证）
@@ -286,6 +287,15 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 61. **MCP 令牌（`scope=mcp`）只能访问 `/api/mcp`**：网关按 scope 拦截，并比对 Redis `auth:mcp:{userId}` 里的当前 jti。新增给外部客户端的入口时，不要放宽这个限制。
 62. **`mcp` 固定在 1.x**：langchain-mcp-adapters 0.3 只支持 mcp<2。升级 MCP SDK 前先确认 adapters 的版本支持。
 63. **agent 依赖 MCP Server 才能工作**：启动时每隔几秒重试加载工具，期间 `/agent/health` 的 `mcpConnected=false`，聊天返回"暂不可用"。本地调试先起 `python -m stickybeak_agent.mcp_server`。
+64. **Seata TC 2.0–2.2 的 file 锁存储会泄漏行锁 → TC 用 2.3.0**：分支注册遇到锁冲突时先释放已拿到的锁，却继续循环拿剩下的行锁，这些锁不属于任何注册成功的分支、全局提交后也不释放。热点商品并发结账后 `t_stock_hold` 行锁泄漏，取消 / 超时 / 退款回补（带 `@GlobalLock`）永远拿不到锁，库存卡在"已预占"直到重启 TC。症状：TC 日志反复出现 `Global lock on [t_stock_hold:N] is holding by <一个早已提交的 xid>`。客户端仍是 SCA 自带的 2.0.0，与 TC 2.3.0 实测兼容。
+65. **补偿写的全局锁等待要放宽**：`@GlobalLock` 默认只等约 300 ms，热点商品那一行几乎一直被某个结账持有；关单释放、退款回补已改成 20 ms × 100 次。用户取消时归还失败会立即投进 `order.close.retry.queue`（约 10 秒后重试），不再等 30 分钟后的超时消息。
+66. **`SEATA_ENABLED=false` 是真的关掉**：order / product 启动日志里不再有 TM / RM 注册，结账不经过 TC；热点压测里开 / 关 AT 的吞吐差约一倍（数据见 SPRINT_ISSUES 11.1）。
+67. **全栈 compose 在 Windows 上**：ES / Nacos gRPC 宿主端口用 19200 / 19848（与 infra 一致）；根目录 `.dockerignore` 必须排除 `node_modules`（Windows 原生依赖进 Linux 前端镜像会构建失败）；OAP 镜像没有 curl，健康检查用 bash `/dev/tcp`。
+68. **Python 服务与中间件同时启动**：Nacos 注册与知识库入库都会重试（`ServiceResolver.start`、`_ingest_in_background`），不要改回失败即退出——Java 服务自带重试，Python 不会。
+69. **`JacksonLongConfig` 把所有 Long 序列化成字符串**（防 JS 精度丢失）：Python agent 拿到的 `total`、`id` 都是字符串，计数要转数字（`java_api.search_products`）；Playwright 的模拟后端也按字符串 ID 返回，否则和真实接口不一致。
+70. **webhook 线程池是可选模式**：默认同步处理（失败回滚、Stripe 重试）；`WEBHOOK_ASYNC_ENABLED=true` 才走线程池并返回 `ACCEPTED`，两种模式跑同一段校验逻辑。E2E 脚本两种返回值都接受。
+71. **测 ES 新鲜度要用 `_search`**：`_doc` GET 是实时的，搜索要等 refresh（默认 1 秒）。下架后基本立刻搜不到，是因为 MySQL 回表时按上架状态过滤了。
+72. **压测脚本准备数据时会撞上网关 Sentinel 限流**（auth 60 QPS、order 100 QPS），返回 code 429；准备阶段要退避重试，别把 429 当成业务失败。SkyWalking 的死信积压指标挂在服务实例上（MAL `instance(...)`），按服务查是空的。
 
 ## 剩余项（全部非阻塞，按需）
 
@@ -311,10 +321,10 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 
 按 `docs/SPRINT_ISSUES.md` 第二阶段路线图依次推进：
 1. **Sprint 10**（v1.2.0）修复 `docs/CODE_REVIEW_TODO.md` 中 P0–P2
-2. **Sprint 11**（v1.3.0）补齐 README 宣称的能力：Seata、ES 商品搜索、退款、JaCoCo 门禁、Knife4j、Playwright —— 代码已完成，待在完整 Docker 环境验收 Seata 回滚与 ES 搜索
-3. **Sprint 12**（v1.4.0）SkyWalking 全链路追踪 —— 代码已完成，链路 / 日志 / 告警 / 优化已在本机用同版本二进制验证，待在 Docker 环境构建镜像验收
+2. **Sprint 11**（v1.3.0）补齐 README 宣称的能力：Seata、ES 商品搜索、退款、JaCoCo 门禁、Knife4j、Playwright —— 已在 Docker 环境验收 Seata 回滚、热点压测、ES 搜索；剩 Stripe 测试模式真实退款
+3. **Sprint 12**（v1.4.0）SkyWalking 全链路追踪 —— 已在 Docker 环境验收（镜像构建、链路、端点分组、告警）
 4. **Sprint 13**（v2.0.0）Python AI Agent（FastAPI + LangGraph）+ RAG（向量库用 ES）—— 代码已完成，已在本机连真实 Java 服务、MariaDB、Redis、SkyWalking 验证；真实模型评测与 ES 向量检索待配置 DashScope key 后实测
-5. **Sprint 14**（v2.1.0）MCP Server 与客户端接入 —— 代码已完成，经网关的匿名 / 令牌 / 撤销流程与跨语言链路已在本机验证；外部客户端的演示 GIF 待在桌面端录制
+5. **Sprint 14**（v2.1.0）MCP Server 与客户端接入 —— Docker 环境下经网关的匿名 / 令牌 / 越权 403 / 撤销 401 已验证；外部客户端的演示 GIF 待在桌面端录制
 
 ## 硬性规范（不要违反）
 

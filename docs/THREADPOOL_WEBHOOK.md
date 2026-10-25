@@ -4,6 +4,12 @@
 > 监控端点：`GET /api/webhooks/pool-stats`
 > 实测日期：2026-09-17
 
+> **2026-10-25 更新（合并 Sprint 10–14 后）**：线程池改为可选模式，默认关闭。
+> - 默认同步处理（Sprint 10 的语义）：处理失败时事务回滚、返回 5xx，由 Stripe 按自己的退避策略重试，事件不会因为进程崩溃而丢。
+> - `WEBHOOK_ASYNC_ENABLED=true` 时才走本文的线程池：验签 + 幂等落档后，在事务提交后把**同一段**校验逻辑（事件类型、金额、币种、退款回调）交给 `webhookTaskExecutor`，立即返回 `ACCEPTED`；代价是失败不再触发 Stripe 重试，只留档 `processed=2`。
+> - 下文的 `WebhookEventProcessor` 已并入 `WebhookServiceImpl`；`pool-stats` 只在异步模式下注册，且需要管理员登录。
+> - mock 回调现在需要 `PAYMENT_MOCK_WEBHOOK_ENABLED=true`、买家登录，金额必须等于订单实付，演示脚本需按这些规则调整后再跑。
+
 ## 设计
 
 Stripe 官方最佳实践：webhook 接收端应尽快返回 2xx，重活异步做。
