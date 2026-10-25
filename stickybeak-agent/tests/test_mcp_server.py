@@ -85,3 +85,22 @@ async def test_search_faq_does_not_leak_internal_errors():
         result = await session.call_tool("search_faq", {"question": "退款"})
     assert result.isError
     assert "temporarily unavailable" in result.content[0].text and "9200" not in result.content[0].text
+
+
+async def test_startup_ingest_retries_until_elasticsearch_is_up(monkeypatch):
+    from stickybeak_agent import mcp_server
+
+    calls = []
+
+    async def flaky_ingest(store, chunks, embeddings):
+        calls.append(len(chunks))
+        if len(calls) < 3:
+            raise ConnectionError("Cannot connect to host elasticsearch:9200")
+        return {"total": 0, "upserted": 0, "deleted": 0, "embedded": False}
+
+    monkeypatch.setattr(mcp_server, "ingest", flaky_ingest)
+    monkeypatch.setattr(mcp_server, "load_corpus", lambda: [])
+
+    await mcp_server._ingest_in_background(store=None, embeddings=None, attempts=5, retry_delay=0)
+
+    assert len(calls) == 3

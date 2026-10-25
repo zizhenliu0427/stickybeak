@@ -60,7 +60,8 @@ class JavaApi:
         if sort:
             params["sort"] = sort
         data = await self._call(PRODUCT, "GET", "/products", params=params)
-        return {"total": data.get("total"), "items": [product_brief(p) for p in data.get("items", [])]}
+        # Java 端把 Long 一律序列化成字符串（防 JS 精度丢失），total 是计数，转回整数
+        return {"total": int(data.get("total") or 0), "items": [product_brief(p) for p in data.get("items", [])]}
 
     async def get_product(self, slug_or_id: str) -> dict:
         path = f"/products/id/{slug_or_id}" if slug_or_id.isdigit() else f"/products/{slug_or_id}"

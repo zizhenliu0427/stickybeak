@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import random
 import socket
@@ -41,7 +42,8 @@ class ServiceResolver:
     def nacos_enabled(self) -> bool:
         return bool(self._settings.nacos_addr)
 
-    async def start(self) -> None:
+    async def start(self, attempts: int = 30, retry_delay: float = 2.0) -> None:
+        """注册到 Nacos。和 Nacos 同时启动（compose / ECS）时它往往还没就绪，所以失败后按间隔重试，而不是直接退出。"""
         if not self.nacos_enabled:
             log.info("NACOS_ADDR not set, using static service urls %s", self._static)
             return
@@ -50,16 +52,24 @@ class ServiceResolver:
         builder = ClientConfigBuilder().server_address(self._settings.nacos_addr).log_level("WARNING")
         if self._settings.nacos_username:
             builder = builder.username(self._settings.nacos_username).password(self._settings.nacos_password)
-        self._naming = await NacosNamingService.create_naming_service(builder.build())
-        await self._naming.register_instance(
-            RegisterInstanceParam(
-                service_name=self._service,
-                ip=self._ip,
-                port=self._port,
-                metadata={"lang": "python"},
-            )
+        instance = RegisterInstanceParam(
+            service_name=self._service,
+            ip=self._ip,
+            port=self._port,
+            metadata={"lang": "python"},
         )
-        log.info("registered %s at %s:%s in Nacos", self._service, self._ip, self._port)
+        for attempt in range(1, attempts + 1):
+            try:
+                if self._naming is None:
+                    self._naming = await NacosNamingService.create_naming_service(builder.build())
+                await self._naming.register_instance(instance)
+                log.info("registered %s at %s:%s in Nacos", self._service, self._ip, self._port)
+                return
+            except Exception as exc:  # gRPC 还没连上时抛 NacosException(client not connected)
+                if attempt == attempts:
+                    raise
+                log.warning("Nacos registration attempt %s/%s failed: %s", attempt, attempts, exc)
+                await asyncio.sleep(retry_delay)
 
     async def stop(self) -> None:
         if self._naming is None:

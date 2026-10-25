@@ -201,11 +201,21 @@ def create_app(settings: Settings | None = None) -> Starlette:
     return Starlette(routes=[Route("/mcp/health", health), Mount("/", app=mcp_app)], lifespan=lifespan)
 
 
-async def _ingest_in_background(store: KnowledgeStore, embeddings) -> None:
-    try:
-        log.info("knowledge base ingest: %s", await ingest(store, load_corpus(), embeddings))
-    except Exception as e:  # ES 未就绪等：不影响服务启动，稍后可手动运行 python -m stickybeak_agent.rag.ingest
-        log.warning("knowledge base ingest failed: %s", e)
+async def _ingest_in_background(
+    store: KnowledgeStore, embeddings, attempts: int = 12, retry_delay: float = 5.0
+) -> None:
+    """不阻塞服务启动。和 ES 一起启动（compose）时 ES 往往还没就绪，隔几秒重试；入库是增量的，重复执行安全。"""
+    for attempt in range(1, attempts + 1):
+        try:
+            log.info("knowledge base ingest: %s", await ingest(store, load_corpus(), embeddings))
+            return
+        except Exception as e:
+            if attempt == attempts:
+                # 仍可稍后手动运行 python -m stickybeak_agent.rag.ingest
+                log.warning("knowledge base ingest failed after %s attempts: %s", attempts, e)
+                return
+            log.warning("knowledge base ingest attempt %s/%s failed: %s", attempt, attempts, e)
+            await asyncio.sleep(retry_delay)
 
 
 def main() -> None:

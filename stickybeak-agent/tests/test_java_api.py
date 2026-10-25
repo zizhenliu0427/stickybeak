@@ -72,3 +72,15 @@ async def test_product_search_keeps_only_fields_the_model_needs():
         "tags": ["UNSW"],
         "image": "/a.jpg",
     }
+
+
+async def test_product_search_total_is_a_number_even_though_java_sends_longs_as_strings():
+    def handler(request: httpx.Request) -> httpx.Response:
+        item = {"id": "1000002", "slug": "bus-unsw", "name": "UNSW", "priceCents": 3990, "stock": 0}
+        return httpx.Response(200, json={"code": 0, "data": {"total": "1", "items": [item]}})
+
+    api = JavaApi(ServiceResolver(Settings(service_urls="stickybeak-product=http://product:8082")), client(handler))
+    result = await api.search_products("UNSW", None, None, None, 3)
+
+    assert result["total"] == 1
+    assert result["items"][0]["id"] == "1000002"
