@@ -86,6 +86,11 @@ export async function getMyOrders(status?: string): Promise<OrderVO[]> {
   return get<OrderVO[]>('/orders/my', query);
 }
 
+/** 待支付订单重新取支付链接：不重新下单，后端会让旧的支付会话失效 */
+export async function resumePayment(orderNo: string): Promise<CheckoutResponseVO> {
+  return post<CheckoutResponseVO>(`/orders/${orderNo}/pay`, {});
+}
+
 export async function cancelOrder(orderNo: string): Promise<void> {
   return post<void>(`/orders/${orderNo}/cancel`, {});
 }

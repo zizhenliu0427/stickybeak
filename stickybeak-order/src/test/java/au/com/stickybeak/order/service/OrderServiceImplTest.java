@@ -367,4 +367,45 @@ class OrderServiceImplTest {
         orderService.refundPaidAfterCancel("SO_R5");
         verify(paymentClient).refund(eq("SO_R5"), anyString());
     }
+
+    @Test
+    void resumePaymentIssuesANewSessionForTheSameOrder() {
+        Order order = order("SO_P1", OrderStatus.PENDING);
+        order.setTotalAmount(new BigDecimal("19.90"));
+        order.setPayAmount(new BigDecimal("19.90"));
+        order.setCurrency("AUD");
+        order.setAddressSnapshot("{\"email\":\"jane@example.com\"}");
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        when(paymentClient.createCheckoutSession(eq("SO_P1"), eq(200L), eq("jane@example.com"),
+                eq(new BigDecimal("19.90")), eq("AUD"), isNull(), any()))
+                .thenReturn(new PaymentClient.PaymentSessionResult("SO_P1", "cs_new", "https://checkout.stripe.com/new", "stripe"));
+
+        CheckoutResponseVO result = orderService.resumePayment("SO_P1", 200L);
+
+        assertEquals("SO_P1", result.getOrderNo());
+        assertEquals("https://checkout.stripe.com/new", result.getCheckoutUrl());
+        // 不重新下单、不重复占库存
+        verify(productClient, never()).deductStock(any(), anyList());
+        verify(orderMapper, never()).insert(any(Order.class));
+    }
+
+    @Test
+    void resumePaymentRejectsSomeoneElsesOrder() {
+        when(orderMapper.selectOne(any())).thenReturn(order("SO_P2", OrderStatus.PENDING));
+
+        BusinessException e = assertThrows(BusinessException.class, () -> orderService.resumePayment("SO_P2", 999L));
+
+        assertEquals(403, e.getCode());
+        verifyNoInteractions(paymentClient);
+    }
+
+    @Test
+    void resumePaymentRejectsOrdersThatAreNoLongerPending() {
+        when(orderMapper.selectOne(any())).thenReturn(order("SO_P3", OrderStatus.CANCELLED));
+
+        BusinessException e = assertThrows(BusinessException.class, () -> orderService.resumePayment("SO_P3", 200L));
+
+        assertEquals(1004, e.getCode());
+        verifyNoInteractions(paymentClient);
+    }
 }

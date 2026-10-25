@@ -49,6 +49,12 @@ public interface OrderService {
 
     void cancelOrder(String orderNo, Long userId);
 
+    /**
+     * 为自己的待支付订单重新取支付链接（「我的订单」里的立即支付），不重新下单、不重复占库存。
+     * 支付服务会先让该订单的旧会话失效，保证同一时刻只有一个可付款的会话。
+     */
+    CheckoutResponseVO resumePayment(String orderNo, Long userId);
+
     /** 事务内把订单推进为 paid（条件更新），不做远程调用 */
     PaidOutcome markPaid(OrderPaidEvent event);
 

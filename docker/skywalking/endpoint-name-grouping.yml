@@ -15,6 +15,7 @@ grouping:
       - /api/orders/admin/{var}/refund
       - /api/orders/{var}
       - /api/orders/{var}/cancel
+      - /api/orders/{var}/pay
       - /api/products/featured
       - /api/products/batch
       - /api/products/admin/page

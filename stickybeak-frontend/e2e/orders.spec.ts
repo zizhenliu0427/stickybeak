@@ -27,4 +27,19 @@ test.describe('Orders', () => {
     await expect(page.locator('.ant-tag', { hasText: 'Refunded' })).toBeVisible();
     expect(backend.unmatched).toEqual([]);
   });
+
+  test('pay now continues paying the same pending order instead of placing a new one', async ({ page }) => {
+    const backend = await mockBackend(page, {
+      user: BUYER,
+      orders: [order('SO202610240009', 'pending')],
+    });
+
+    await page.goto('/orders');
+    await page.getByRole('button', { name: 'Pay Now' }).click();
+
+    await expect(page).toHaveURL(/\/checkout\/success\?order_no=SO202610240009/);
+    expect(backend.payRequests).toEqual(['SO202610240009']);
+    expect(backend.checkoutRequests).toEqual([]);
+    expect(backend.unmatched).toEqual([]);
+  });
 });

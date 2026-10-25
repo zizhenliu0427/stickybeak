@@ -276,6 +276,41 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public CheckoutResponseVO resumePayment(String orderNo, Long userId) {
+        if (userId == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+        Order order = orderMapper.selectOne(
+                new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, orderNo)
+        );
+        if (order == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "Order not found");
+        }
+        if (!userId.equals(order.getUserId())) {
+            throw new BusinessException(ResultCode.FORBIDDEN);
+        }
+        if (!OrderStatus.PENDING.getCode().equalsIgnoreCase(order.getStatus())) {
+            throw new BusinessException(ResultCode.ORDER_ALREADY_CLOSED, "Only unpaid orders can be paid");
+        }
+
+        String email = null;
+        try {
+            AddressDTO address = objectMapper.readValue(order.getAddressSnapshot(), AddressDTO.class);
+            email = address.getEmail();
+        } catch (Exception e) {
+            log.warn("Unreadable address snapshot on order {}, paying without a receipt email: {}", orderNo, e.getMessage());
+        }
+
+        // 支付方式传 null：支付服务沿用下单时选的方式
+        PaymentClient.PaymentSessionResult session = paymentClient.createCheckoutSession(
+                orderNo, userId, email, order.getPayAmount(), order.getCurrency(), null,
+                "StickyBeak Order " + orderNo);
+        log.info("Issued a new payment session for pending order {}", orderNo);
+        return new CheckoutResponseVO(orderNo, order.getTotalAmount(), order.getPayAmount(), order.getCurrency(),
+                session.getCheckoutUrl(), session.getSessionId());
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public PaidOutcome markPaid(OrderPaidEvent event) {
         log.info("Handling OrderPaidEvent for order: {}", event.getOrderNo());

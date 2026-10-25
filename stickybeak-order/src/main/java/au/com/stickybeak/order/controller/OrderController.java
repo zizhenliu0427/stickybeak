@@ -70,6 +70,18 @@ public class OrderController {
         return Result.ok();
     }
 
+    /** 待支付订单重新取支付链接（不重新下单） */
+    @PostMapping("/{orderNo}/pay")
+    public Result<CheckoutResponseVO> resumePayment(
+            @PathVariable String orderNo,
+            @RequestHeader(value = HEADER_USER_ID, required = false) String userIdHeader) {
+        Long userId = parseUserId(userIdHeader);
+        if (userId == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+        return Result.ok(orderService.resumePayment(orderNo, userId));
+    }
+
     private Long parseUserId(String userIdHeader) {
         if (StringUtils.hasText(userIdHeader)) {
             try {

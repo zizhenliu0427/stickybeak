@@ -120,6 +120,8 @@ export interface MockBackend {
   cart: CartLine[];
   orders: MockOrder[];
   checkoutRequests: Record<string, unknown>[];
+  /** 「立即支付」重新取支付链接的订单号（不应产生新的下单请求） */
+  payRequests: string[];
   refundRequests: string[];
   /** AI 助手：用户发出的消息、确认 / 拒绝的记录、当前对话（刷新页面后恢复用） */
   agentMessages: string[];
@@ -264,6 +266,7 @@ export async function mockBackend(page: Page, initial: Partial<MockBackend> = {}
     cart: [],
     orders: [],
     checkoutRequests: [],
+    payRequests: [],
     refundRequests: [],
     agentMessages: [],
     agentResumes: [],
@@ -401,6 +404,24 @@ export async function mockBackend(page: Page, initial: Partial<MockBackend> = {}
             currency: 'AUD',
             checkoutUrl: `${url.origin}/checkout/success?order_no=${created.orderNo}&session_id=cs_test_e2e`,
             sessionId: 'cs_test_e2e',
+          }),
+        );
+      }
+      const pay = path.match(/^\/orders\/([^/]+)\/pay$/);
+      if (method === 'POST' && pay) {
+        backend.payRequests.push(pay[1]);
+        const target = backend.orders.find((o) => o.orderNo === pay[1]);
+        if (!target || target.status !== 'pending') {
+          return json({ code: 1004, message: 'Only unpaid orders can be paid', data: null });
+        }
+        return json(
+          ok({
+            orderNo: target.orderNo,
+            totalAmount: target.totalAmount,
+            payAmount: target.payAmount,
+            currency: target.currency,
+            checkoutUrl: `${url.origin}/checkout/success?order_no=${target.orderNo}&session_id=cs_test_resume`,
+            sessionId: 'cs_test_resume',
           }),
         );
       }
