@@ -1,0 +1,3633 @@
+{
+  "listings": 265,
+  "confirmedSkus": 44,
+  "collectionOnlySkus": 3,
+  "needsConfirmSkus": 2,
+  "buckets": {
+    "SINGLE": 91,
+    "COMBO": 77,
+    "MISFILE": 1,
+    "LOOKBOOK": 94,
+    "TUTORIAL": 1,
+    "PHONECASE": 1
+  },
+  "skus": [
+    {
+      "id": "COL-SPE",
+      "family": "超市价签",
+      "name": "Coles SPECIAL 无糖可乐 2 for $5.20",
+      "print": "Coca-Cola Zero Sugar · Any 2 for $5.20",
+      "conf": "confirmed",
+      "listingCount": 48,
+      "exampleIds": [
+        1000001,
+        1000005,
+        1000023,
+        1000037,
+        1000065,
+        1000071,
+        1000076,
+        1000078
+      ]
+    },
+    {
+      "id": "COL-HALF",
+      "family": "超市价签",
+      "name": "Coles 1/2 PRICE 抹茶冰淇淋 $6",
+      "print": "Connoisseur Matcha Green Tea&White Choc · WAS $12",
+      "conf": "confirmed",
+      "listingCount": 48,
+      "exampleIds": [
+        1000005,
+        1000023,
+        1000037,
+        1000065,
+        1000071,
+        1000076,
+        1000078,
+        1000082
+      ]
+    },
+    {
+      "id": "COL-DOWN",
+      "family": "超市价签",
+      "name": "Coles DOWN DOWN 橄榄油 $16",
+      "print": "Classic Mild Olive Oil 1 litre",
+      "conf": "confirmed",
+      "listingCount": 3,
+      "exampleIds": [
+        1000010,
+        1000017,
+        1000019
+      ]
+    },
+    {
+      "id": "COL-CLR",
+      "family": "超市价签",
+      "name": "Coles REDUCED TO CLEAR 脱脂奶 $3.10",
+      "print": "Reduced Fat Milk 2 litre",
+      "conf": "confirmed",
+      "listingCount": 3,
+      "exampleIds": [
+        1000010,
+        1000017,
+        1000019
+      ]
+    },
+    {
+      "id": "WOW-QS",
+      "family": "超市价签",
+      "name": "Woolies Quick Sale 烤鸡 $6.38",
+      "print": "Country Style Roast Chicken",
+      "conf": "confirmed",
+      "listingCount": 4,
+      "exampleIds": [
+        1000010,
+        1000015,
+        1000017,
+        1000019
+      ]
+    },
+    {
+      "id": "WOW-CLR",
+      "family": "超市价签",
+      "name": "Woolies Clearance 购物袋 $2",
+      "print": "Classic Tote Bag · SAVE $0",
+      "conf": "confirmed",
+      "listingCount": 4,
+      "exampleIds": [
+        1000010,
+        1000015,
+        1000017,
+        1000019
+      ]
+    },
+    {
+      "id": "WOW-SPE",
+      "family": "超市价签",
+      "name": "Woolies Special 姜汁啤酒 $5.20",
+      "print": "Brewed Drink Ginger Beer 4x375mL",
+      "conf": "confirmed",
+      "listingCount": 31,
+      "exampleIds": [
+        1000015,
+        1000023,
+        1000056,
+        1000065,
+        1000071,
+        1000078,
+        1000084,
+        1000115
+      ]
+    },
+    {
+      "id": "WOW-HALF",
+      "family": "超市价签",
+      "name": "Woolies 1/2 Price Tim Tam $2.50",
+      "print": "Arnotts Tim Tam Original 200g",
+      "conf": "confirmed",
+      "listingCount": 34,
+      "exampleIds": [
+        1000015,
+        1000023,
+        1000056,
+        1000065,
+        1000071,
+        1000078,
+        1000084,
+        1000115
+      ]
+    },
+    {
+      "id": "BIRD-STOP",
+      "family": "小鸟路牌",
+      "name": "NO STOPPING 葵花凤头鹦鹉",
+      "print": "红底 · 鹦鹉偷可颂",
+      "conf": "confirmed",
+      "listingCount": 16,
+      "exampleIds": [
+        1000012,
+        1000018,
+        1000027,
+        1000033,
+        1000036,
+        1000039,
+        1000042,
+        1000045
+      ]
+    },
+    {
+      "id": "BIRD-FEED",
+      "family": "小鸟路牌",
+      "name": "DO NOT FEED 银鸥",
+      "print": "黄三角 · 海鸥抢薯条",
+      "conf": "confirmed",
+      "listingCount": 10,
+      "exampleIds": [
+        1000014,
+        1000028,
+        1000033,
+        1000036,
+        1000039,
+        1000042,
+        1000045,
+        1000049
+      ]
+    },
+    {
+      "id": "BIRD-PELI",
+      "family": "小鸟路牌",
+      "name": "PELICAN PARKING 鹈鹕",
+      "print": "蓝底 PALICAN PARKING 8:30–5:30（印刷拼写如此）",
+      "conf": "confirmed",
+      "listingCount": 7,
+      "exampleIds": [
+        1000033,
+        1000036,
+        1000039,
+        1000042,
+        1000045,
+        1000049,
+        1000066
+      ]
+    },
+    {
+      "id": "BIRD-BIN",
+      "family": "小鸟路牌",
+      "name": "NO BIN CHICKEN 白鹮",
+      "print": "白底禁翻垃圾桶",
+      "conf": "confirmed",
+      "listingCount": 9,
+      "exampleIds": [
+        1000007,
+        1000033,
+        1000036,
+        1000039,
+        1000042,
+        1000045,
+        1000049,
+        1000060
+      ]
+    },
+    {
+      "id": "BUS-UNSW",
+      "family": "校园公交",
+      "name": "UNSW 站 2031164",
+      "print": "370 Coogee / 390X Bondi Jn / 348 PoW / 392 Little Bay",
+      "conf": "confirmed",
+      "listingCount": 19,
+      "exampleIds": [
+        1000002,
+        1000003,
+        1000013,
+        1000022,
+        1000032,
+        1000041,
+        1000044,
+        1000046
+      ]
+    },
+    {
+      "id": "BUS-USYD-A",
+      "family": "校园公交",
+      "name": "USYD City Rd 站 205038 · 旧线路",
+      "print": "423 / 426 / 428 / 430",
+      "conf": "confirmed",
+      "listingCount": 26,
+      "exampleIds": [
+        1000030,
+        1000032,
+        1000041,
+        1000046,
+        1000048,
+        1000053,
+        1000075,
+        1000091
+      ]
+    },
+    {
+      "id": "BUS-USYD-B",
+      "family": "校园公交",
+      "name": "USYD City Rd 站 205038 · 370版",
+      "print": "461X Burwood / 370 Coogee / 428 / 430",
+      "conf": "confirmed",
+      "listingCount": 10,
+      "exampleIds": [
+        1000032,
+        1000041,
+        1000046,
+        1000048,
+        1000053,
+        1000075,
+        1000091,
+        1000092
+      ]
+    },
+    {
+      "id": "BUS-UTS",
+      "family": "校园公交",
+      "name": "UTS Broadway 站 2022117",
+      "print": "412 Martin Place / 440 Bondi Jn / 430",
+      "conf": "confirmed",
+      "listingCount": 10,
+      "exampleIds": [
+        1000032,
+        1000041,
+        1000046,
+        1000048,
+        1000053,
+        1000075,
+        1000091,
+        1000092
+      ]
+    },
+    {
+      "id": "BUS-UQ-A",
+      "family": "校园公交",
+      "name": "UQ Lakes Stop A",
+      "print": "TransLink 蓝 · M2/169/179/29",
+      "conf": "confirmed",
+      "listingCount": 15,
+      "exampleIds": [
+        1000006,
+        1000032,
+        1000038,
+        1000041,
+        1000046,
+        1000048,
+        1000053,
+        1000075
+      ]
+    },
+    {
+      "id": "BUS-UQ-B",
+      "family": "校园公交",
+      "name": "UQ Lakes stop B",
+      "print": "TransLink 紫 · 66/139/M2/169",
+      "conf": "confirmed",
+      "listingCount": 17,
+      "exampleIds": [
+        1000006,
+        1000032,
+        1000038,
+        1000041,
+        1000046,
+        1000048,
+        1000053,
+        1000075
+      ]
+    },
+    {
+      "id": "BUS-UQ-CH",
+      "family": "校园公交",
+      "name": "UQ Chancellor's Place",
+      "print": "TransLink 深蓝 Zone D · 412/411/428/414",
+      "conf": "confirmed",
+      "listingCount": 16,
+      "exampleIds": [
+        1000006,
+        1000032,
+        1000038,
+        1000041,
+        1000046,
+        1000048,
+        1000053,
+        1000075
+      ]
+    },
+    {
+      "id": "BUS-ANU",
+      "family": "校园公交",
+      "name": "ANU ACT STOP 4529",
+      "print": "R3/R4/R7/R10/R2/R6",
+      "conf": "confirmed",
+      "listingCount": 13,
+      "exampleIds": [
+        1000032,
+        1000041,
+        1000046,
+        1000048,
+        1000053,
+        1000075,
+        1000088,
+        1000091
+      ]
+    },
+    {
+      "id": "BUS-MON",
+      "family": "校园公交",
+      "name": "Monash University",
+      "print": "862/733/900/601 · PTV 橙 A",
+      "conf": "confirmed",
+      "listingCount": 11,
+      "exampleIds": [
+        1000032,
+        1000041,
+        1000046,
+        1000048,
+        1000053,
+        1000075,
+        1000086,
+        1000091
+      ]
+    },
+    {
+      "id": "BUS-MQ",
+      "family": "校园公交",
+      "name": "Macquarie Centre 公交 211316",
+      "print": "197/410/550/611",
+      "conf": "confirmed",
+      "listingCount": 14,
+      "exampleIds": [
+        1000032,
+        1000041,
+        1000046,
+        1000048,
+        1000053,
+        1000075,
+        1000091,
+        1000092
+      ]
+    },
+    {
+      "id": "METRO-MQ",
+      "family": "校园公交",
+      "name": "Macquarie Uni 地铁站牌",
+      "print": "横条 Metro 线 · Sydneham→Macquarie Park",
+      "conf": "confirmed",
+      "listingCount": 12,
+      "exampleIds": [
+        1000032,
+        1000041,
+        1000046,
+        1000048,
+        1000053,
+        1000075,
+        1000091,
+        1000092
+      ]
+    },
+    {
+      "id": "TRAM-61",
+      "family": "墨尔本电车",
+      "name": "Melbourne Uni Swanston St · 6/1",
+      "print": "6 Flinders Street / 1 State Library",
+      "conf": "confirmed",
+      "listingCount": 24,
+      "exampleIds": [
+        1000004,
+        1000029,
+        1000032,
+        1000041,
+        1000046,
+        1000048,
+        1000053,
+        1000075
+      ]
+    },
+    {
+      "id": "TRAM-7216",
+      "family": "墨尔本电车",
+      "name": "Melbourne Uni Swanston St · 72/16",
+      "print": "72 Flinders Street / 16 Town Hall",
+      "conf": "confirmed",
+      "listingCount": 24,
+      "exampleIds": [
+        1000004,
+        1000029,
+        1000032,
+        1000041,
+        1000046,
+        1000048,
+        1000053,
+        1000075
+      ]
+    },
+    {
+      "id": "TRN-T8-MAC",
+      "family": "悉尼火车",
+      "name": "T8 Macarthur via Airport X",
+      "print": "机场线往 Macarthur",
+      "conf": "confirmed",
+      "listingCount": 6,
+      "exampleIds": [
+        1000087,
+        1000094,
+        1000099,
+        1000132,
+        1000155,
+        1000156
+      ]
+    },
+    {
+      "id": "TRN-T8-CC",
+      "family": "悉尼火车",
+      "name": "T8 City Circle via Airport X",
+      "print": "机场线往 City Circle",
+      "conf": "confirmed",
+      "listingCount": 5,
+      "exampleIds": [
+        1000087,
+        1000094,
+        1000099,
+        1000155,
+        1000156
+      ]
+    },
+    {
+      "id": "TRN-T9-GOR",
+      "family": "悉尼火车",
+      "name": "T9 Gordon via Central",
+      "print": "Epping…Central · Platform 2",
+      "conf": "confirmed",
+      "listingCount": 12,
+      "exampleIds": [
+        1000008,
+        1000051,
+        1000090,
+        1000096,
+        1000099,
+        1000100,
+        1000117,
+        1000132
+      ]
+    },
+    {
+      "id": "TRN-T9-HOR",
+      "family": "悉尼火车",
+      "name": "T9 Hornsby via Central",
+      "print": "与 Gordon 成对出现的另一向",
+      "conf": "confirmed",
+      "listingCount": 10,
+      "exampleIds": [
+        1000008,
+        1000051,
+        1000090,
+        1000096,
+        1000099,
+        1000100,
+        1000117,
+        1000142
+      ]
+    },
+    {
+      "id": "TRN-T9-WYN",
+      "family": "悉尼火车",
+      "name": "T9 Wynyard 晚点梗",
+      "print": "Depart 3hr 30min / Hornsby 5hr",
+      "conf": "confirmed",
+      "listingCount": 2,
+      "exampleIds": [
+        1000035,
+        1000158
+      ]
+    },
+    {
+      "id": "TRN-T7",
+      "family": "悉尼火车",
+      "name": "T7 Olympic Park 演唱会专列",
+      "print": "Tay Tay Express · Accor/Giant/Qudos/Engie",
+      "conf": "confirmed",
+      "listingCount": 5,
+      "exampleIds": [
+        1000124,
+        1000132,
+        1000145,
+        1000148,
+        1000155
+      ]
+    },
+    {
+      "id": "TRN-T2-CC",
+      "family": "悉尼火车",
+      "name": "T2 City Circle via Museum",
+      "print": "四件套封面之一",
+      "conf": "confirmed",
+      "listingCount": 2,
+      "exampleIds": [
+        1000132,
+        1000155
+      ]
+    },
+    {
+      "id": "TRN-T2-PAR",
+      "family": "悉尼火车",
+      "name": "T2 Parramatta",
+      "print": "仅十件合集冰箱照",
+      "conf": "collection-only",
+      "listingCount": 2,
+      "exampleIds": [
+        1000099,
+        1000156
+      ]
+    },
+    {
+      "id": "TRN-T4-BON",
+      "family": "悉尼火车",
+      "name": "T4 Bondi Junction",
+      "print": "仅十件合集冰箱照",
+      "conf": "collection-only",
+      "listingCount": 2,
+      "exampleIds": [
+        1000099,
+        1000156
+      ]
+    },
+    {
+      "id": "TRN-T4-WAT",
+      "family": "悉尼火车",
+      "name": "T4 Waterfall",
+      "print": "仅十件合集冰箱照",
+      "conf": "collection-only",
+      "listingCount": 2,
+      "exampleIds": [
+        1000099,
+        1000156
+      ]
+    },
+    {
+      "id": "SGN-ALC",
+      "family": "交通指示牌",
+      "name": "ALCOHOL FREE AREA",
+      "print": "白底禁酒标",
+      "conf": "confirmed",
+      "listingCount": 7,
+      "exampleIds": [
+        1000079,
+        1000128,
+        1000159,
+        1000248,
+        1000249,
+        1000251,
+        1000252
+      ]
+    },
+    {
+      "id": "SGN-SPD",
+      "family": "交通指示牌",
+      "name": "YOUR SPEED WILL BE CHECKED",
+      "print": "白底蓝相机方牌",
+      "conf": "confirmed",
+      "listingCount": 5,
+      "exampleIds": [
+        1000151,
+        1000254,
+        1000258,
+        1000263,
+        1000264
+      ]
+    },
+    {
+      "id": "SGN-WW",
+      "family": "交通指示牌",
+      "name": "WRONG WAY GO BACK",
+      "print": "红底白字",
+      "conf": "confirmed",
+      "listingCount": 5,
+      "exampleIds": [
+        1000151,
+        1000250,
+        1000256,
+        1000257,
+        1000259
+      ]
+    },
+    {
+      "id": "SGN-ROO",
+      "family": "交通指示牌",
+      "name": "袋鼠警告菱形牌",
+      "print": "黄底黑袋鼠",
+      "conf": "confirmed",
+      "listingCount": 2,
+      "exampleIds": [
+        1000260,
+        1000262
+      ]
+    },
+    {
+      "id": "BTN-BLU",
+      "family": "交通指示牌",
+      "name": "过马路按钮 · 蓝底白箭头",
+      "print": "3D 黑壳圆钮",
+      "conf": "confirmed",
+      "listingCount": 3,
+      "exampleIds": [
+        1000153,
+        1000157,
+        1000162
+      ]
+    },
+    {
+      "id": "BTN-WHT",
+      "family": "交通指示牌",
+      "name": "过马路按钮 · 白底箭头",
+      "print": "3D 黑壳，封面成对出现",
+      "conf": "confirmed",
+      "listingCount": 3,
+      "exampleIds": [
+        1000153,
+        1000157,
+        1000162
+      ]
+    },
+    {
+      "id": "SGN-HELL",
+      "family": "交通指示牌",
+      "name": "MAY GO TO HELL 小红牌",
+      "print": "接触片里多次出现，无单独上新帖",
+      "conf": "needs-confirm",
+      "listingCount": 0,
+      "exampleIds": []
+    },
+    {
+      "id": "SGN-NSW",
+      "family": "交通指示牌",
+      "name": "SPEED CAMERAS USED IN NSW",
+      "print": "封面是实景路牌，印刷磁贴待确认",
+      "conf": "needs-confirm",
+      "listingCount": 1,
+      "exampleIds": [
+        1000264
+      ]
+    },
+    {
+      "id": "ACH-COOK",
+      "family": "留子成就",
+      "name": "新手厨师",
+      "print": "触发烟雾警报器 · 86.4%",
+      "conf": "confirmed",
+      "listingCount": 4,
+      "exampleIds": [
+        1000024,
+        1000054,
+        1000057,
+        1000059
+      ]
+    },
+    {
+      "id": "ACH-FISH",
+      "family": "留子成就",
+      "name": "浑水摸鱼",
+      "print": "计重土豆时加入生姜 · 25.6%",
+      "conf": "confirmed",
+      "listingCount": 3,
+      "exampleIds": [
+        1000024,
+        1000054,
+        1000059
+      ]
+    },
+    {
+      "id": "ACH-DEAL",
+      "family": "留子成就",
+      "name": "精打细算",
+      "print": "打折商品 · 49.8%",
+      "conf": "confirmed",
+      "listingCount": 3,
+      "exampleIds": [
+        1000024,
+        1000054,
+        1000059
+      ]
+    },
+    {
+      "id": "ACH-FARE",
+      "family": "留子成就",
+      "name": "慈禧已付",
+      "print": "逃票梗 · 70.6%",
+      "conf": "confirmed",
+      "listingCount": 3,
+      "exampleIds": [
+        1000024,
+        1000054,
+        1000059
+      ]
+    },
+    {
+      "id": "ACH-ROOM",
+      "family": "留子成就",
+      "name": "天崩开局",
+      "print": "无家具房间 · 10.5%",
+      "conf": "confirmed",
+      "listingCount": 3,
+      "exampleIds": [
+        1000024,
+        1000054,
+        1000059
+      ]
+    },
+    {
+      "id": "SLG-NW",
+      "family": "生活标语",
+      "name": "NO WORRIES",
+      "print": "彩色字母拼贴",
+      "conf": "confirmed",
+      "listingCount": 3,
+      "exampleIds": [
+        1000077,
+        1000081,
+        1000085
+      ]
+    }
+  ],
+  "assignments": [
+    {
+      "productId": 1000001,
+      "noteId": "690dbb420000000003036bcc",
+      "name": "本周新品上线啦！ 扣死超市special冰箱贴",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000002,
+      "noteId": "6915925e000000000d03dbf1",
+      "name": "UNSW新南公交路牌冰箱贴！",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000003,
+      "noteId": "6aa90cec000000002502da59",
+      "name": "🚌UNSW新南公交车站冰箱贴",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000004,
+      "noteId": "6aa516ba0000000011033ba5",
+      "name": "叮叮🔔 ｜ 🇦🇺墨大电车1️⃣路和1️⃣6️⃣路进站",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000005,
+      "noteId": "6aa4d07b000000002802eda8",
+      "name": "🇦🇺Coles冰箱贴太会玩‼️‼️",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000006,
+      "noteId": "6aa29f22000000002502f103",
+      "name": "🇦🇺UQ｜你别太会做冰箱贴了啊‼️",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000007,
+      "noteId": "6aa2781a000000002802fc40",
+      "name": "这里的垃圾桶不能翻🈲",
+      "category": "观鸟日常",
+      "skus": [
+        "BIRD-BIN"
+      ],
+      "bucket": "MISFILE"
+    },
+    {
+      "productId": 1000008,
+      "noteId": "6a9d59cd000000002802c923",
+      "name": "🟥悉尼火车T9｜周末抽风必延误",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T9-GOR",
+        "TRN-T9-HOR"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000009,
+      "noteId": "6a9d1819000000001001ce1d",
+      "name": "9🈷️澳洲冰箱贴推荐‼️｜ 不一样的澳洲味",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000010,
+      "noteId": "6a9bc0c60000000025037dd4",
+      "name": "9🈷️上新‼️‼️｜扣死超市新冰箱贴周边😆",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-DOWN",
+        "COL-CLR",
+        "WOW-QS",
+        "WOW-CLR"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000011,
+      "noteId": "6a9b833f000000002802f2f9",
+      "name": "悉尼留子都懂‼️ 悉尼bus的含金量🚌",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000012,
+      "noteId": "6a96c1da0000000026015621",
+      "name": "🇦🇺葵师傅：还得免费小面包好吃😋",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000013,
+      "noteId": "6a902a33000000002003369e",
+      "name": "🇦🇺UNSW｜你别太会做冰箱贴了啊🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000014,
+      "noteId": "6a8ffee900000000210312d8",
+      "name": "🇦🇺博物馆竟然有这么活的鸟｜薯条刺客🍟",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-FEED"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000015,
+      "noteId": "6a8fe4ca000000001803c830",
+      "name": "🟩澳洲窝窝屎超市周边又上新啦‼️‼️",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-QS",
+        "WOW-CLR",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000016,
+      "noteId": "6a8d83f5000000001803cb3f",
+      "name": "🇦🇺澳洲冰箱贴分享｜土澳元素满满‼️‼️",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000017,
+      "noteId": "6a86f307000000002702a373",
+      "name": "本周上新来啦‼️｜澳洲超市冰箱贴大合集🛒",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-DOWN",
+        "COL-CLR",
+        "WOW-QS",
+        "WOW-CLR"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000018,
+      "noteId": "6a86c4af0000000033031f2b",
+      "name": "🦜葵葵：葵爱吃 葵得到🥐",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000019,
+      "noteId": "6a844b860000000025005d90",
+      "name": "🇦🇺🛒土澳超市冰箱贴上新啦｜悉尼🈶‼️‼️",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-DOWN",
+        "COL-CLR",
+        "WOW-QS",
+        "WOW-CLR"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000020,
+      "noteId": "6a8015be000000002402f595",
+      "name": "超逼真的澳洲纪念品🇦🇺｜把公交路牌扒下来",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000021,
+      "noteId": "6a7c81a30000000025006ea7",
+      "name": "🇦🇺澳洲元素冰箱贴分享‼️｜土澳味满满",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000022,
+      "noteId": "6a7843fe0000000008013518",
+      "name": "🇦🇺澳洲大学公交冰箱贴🚌｜UNSW来了",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000023,
+      "noteId": "6a74516f00000000080128ff",
+      "name": "🇦🇺澳洲留子都懂‼️ 浓浓土澳味的超市冰箱",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000024,
+      "noteId": "6a71d6a4000000002500568f",
+      "name": "这些事情你都做过哪些🤣｜留子成就图鉴",
+      "category": "留子成就",
+      "skus": [
+        "ACH-COOK",
+        "ACH-FISH",
+        "ACH-DEAL",
+        "ACH-FARE",
+        "ACH-ROOM"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000025,
+      "noteId": "6a71b1280000000006006bfd",
+      "name": "🇦🇺请把这些冰箱贴推给澳洲留子们🙌",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000026,
+      "noteId": "6a6ec380000000002402c4b2",
+      "name": "🇦🇺真土澳特色🤣 悉尼City🈶‼️‼️",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000027,
+      "noteId": "6a6c6a38000000002403fcfc",
+      "name": "🚫葵葵：葵不懂人话，葵只想吃🥐",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000028,
+      "noteId": "6a6b164f0000000022032f2e",
+      "name": "🍟右划看我们把薯条刺客做成了冰箱贴🤣",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-FEED"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000029,
+      "noteId": "6a69cc39000000000101ee4b",
+      "name": "🇦🇺澳洲大学电车冰箱贴🚃｜墨大来了👈",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000030,
+      "noteId": "6a61ee87000000000401e470",
+      "name": "🇦🇺悉尼大学公交冰箱贴🚌🚌🚌🚌🚌🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000031,
+      "noteId": "6a5ca552000000000401d81b",
+      "name": "🇦🇺澳洲冰箱贴｜🥐🚏🚌🛒土澳元素真的多‼️",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000032,
+      "noteId": "6a5c7a35000000000301db9c",
+      "name": "🇦🇺澳洲大学公交冰箱贴大合集🚌🚌🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW",
+        "BUS-USYD-A",
+        "BUS-USYD-B",
+        "BUS-UTS",
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH",
+        "BUS-ANU",
+        "BUS-MON",
+        "BUS-MQ",
+        "METRO-MQ",
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000033,
+      "noteId": "6a58a57500000000010307dd",
+      "name": "🇦🇺悉尼能买到的贪吃土著小鸟🐦冰箱贴‼️‼️",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP",
+        "BIRD-FEED",
+        "BIRD-PELI",
+        "BIRD-BIN"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000034,
+      "noteId": "6a5218c2000000001602658c",
+      "name": "悉尼🈶的土澳生活元素满满的冰箱贴🇦🇺",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000035,
+      "noteId": "6a4f939a000000001c0258c2",
+      "name": "🚂永不晚点的悉尼火车-其实是冰箱贴‼️",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T9-WYN"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000036,
+      "noteId": "6a4f67be00000000150242bf",
+      "name": "上新啦‼️｜🇦🇺澳洲土著小鸟登陆悉尼🐦",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP",
+        "BIRD-FEED",
+        "BIRD-PELI",
+        "BIRD-BIN"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000037,
+      "noteId": "6a4657820000000017009a6b",
+      "name": "一周去5次扣死超市的朋友看到这个会‼️",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000038,
+      "noteId": "6a462dd7000000001502475a",
+      "name": "🇦🇺澳洲大学冰箱贴🚌｜qs40的UQ来了👈",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000039,
+      "noteId": "6a40ea13000000001702f7ae",
+      "name": "🇦🇺澳洲土著抢食系列冰箱贴🐦",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP",
+        "BIRD-FEED",
+        "BIRD-PELI",
+        "BIRD-BIN"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000040,
+      "noteId": "6a3fbed2000000001503c2f2",
+      "name": "🇦🇺独属于留子们的回忆🚌🚃🚇",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000041,
+      "noteId": "6a3cf47b0000000017009ff4",
+      "name": "🇦🇺澳洲大学路牌冰箱贴🚌🚃｜澳八大‼️‼️",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW",
+        "BUS-USYD-A",
+        "BUS-USYD-B",
+        "BUS-UTS",
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH",
+        "BUS-ANU",
+        "BUS-MON",
+        "BUS-MQ",
+        "METRO-MQ",
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000042,
+      "noteId": "6a365de500000000170289e1",
+      "name": "看‼️‼️这才是真土澳特色🇦🇺",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP",
+        "BIRD-FEED",
+        "BIRD-PELI",
+        "BIRD-BIN"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000043,
+      "noteId": "6a350eec000000001603ca8c",
+      "name": "🇦🇺下课回家的班车永远不准时🚌",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000044,
+      "noteId": "6a33df47000000001603d4c6",
+      "name": "🇦🇺澳洲大学冰箱贴｜UNSW第一☝️",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000045,
+      "noteId": "6a33ba110000000016027b9a",
+      "name": "🇦🇺我的冰箱贴是澳洲特产🦜",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP",
+        "BIRD-FEED",
+        "BIRD-PELI",
+        "BIRD-BIN"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000046,
+      "noteId": "6a2d06a4000000001503ef98",
+      "name": "🚌🚃🚇｜超全的土澳大学冰箱贴‼️‼️",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW",
+        "BUS-USYD-A",
+        "BUS-USYD-B",
+        "BUS-UTS",
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH",
+        "BUS-ANU",
+        "BUS-MON",
+        "BUS-MQ",
+        "METRO-MQ",
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000047,
+      "noteId": "6a2a8044000000001702c92a",
+      "name": "🇦🇺澳洲生活和学习元素满满的冰箱贴🤣",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000048,
+      "noteId": "6a1ff186000000003601d946",
+      "name": "🇦🇺澳洲八大公交路牌冰箱贴‼️",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW",
+        "BUS-USYD-A",
+        "BUS-USYD-B",
+        "BUS-UTS",
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH",
+        "BUS-ANU",
+        "BUS-MON",
+        "BUS-MQ",
+        "METRO-MQ",
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000049,
+      "noteId": "6a16b71d000000003601f93b",
+      "name": "🐦把贪吃的小鸟做成冰箱贴啦🤣",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP",
+        "BIRD-FEED",
+        "BIRD-PELI",
+        "BIRD-BIN"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000050,
+      "noteId": "6a1566ee0000000038023a1c",
+      "name": "🐦🚌🛒｜充满澳洲生活符号的冰箱贴‼️‼️",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000051,
+      "noteId": "6a1023a90000000036030aa3",
+      "name": "🇦🇺悉尼火车线路双向路牌冰箱贴‼️",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T9-GOR",
+        "TRN-T9-HOR"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000052,
+      "noteId": "6a06f98900000000380218b5",
+      "name": "🇦🇺澳洲生活小细节满满的冰箱贴‼️‼️",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000053,
+      "noteId": "6a0594fb000000003603135d",
+      "name": "🇦🇺澳洲八大学校公交路牌冰箱贴集齐啦‼️",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW",
+        "BUS-USYD-A",
+        "BUS-USYD-B",
+        "BUS-UTS",
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH",
+        "BUS-ANU",
+        "BUS-MON",
+        "BUS-MQ",
+        "METRO-MQ",
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000054,
+      "noteId": "69f1cc0c000000003701cda0",
+      "name": "🇦🇺留子成就进度达成💯‼️",
+      "category": "留子成就",
+      "skus": [
+        "ACH-COOK",
+        "ACH-FISH",
+        "ACH-DEAL",
+        "ACH-FARE",
+        "ACH-ROOM"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000055,
+      "noteId": "69f0b7290000000038020115",
+      "name": "走过3年的路🚌，一块冰箱贴就够了",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000056,
+      "noteId": "69f03754000000003601ccf3",
+      "name": "去wws超过100次的人看到这个冰箱贴会✅",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000057,
+      "noteId": "69edfe75000000003601f118",
+      "name": "留子必备技能：让烟雾警报器🚨闭嘴",
+      "category": "留子成就",
+      "skus": [
+        "ACH-COOK"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000058,
+      "noteId": "69edbb7d000000003701e385",
+      "name": "右滑看我们将蒜苗鸡做成冰箱贴🥐",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000059,
+      "noteId": "69ec6053000000003601a906",
+      "name": "🇦🇺留子成就冰箱贴1.0上线啦🤣你做过哪些",
+      "category": "留子成就",
+      "skus": [
+        "ACH-COOK",
+        "ACH-FISH",
+        "ACH-DEAL",
+        "ACH-FARE",
+        "ACH-ROOM"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000060,
+      "noteId": "69eb5a81000000003701e364",
+      "name": "🇦🇺此冰箱贴灵感来自真实 他真会扒垃圾桶",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-BIN"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000061,
+      "noteId": "69e9e683000000001f031803",
+      "name": "🇦🇺把澳洲的生活小细节做成冰箱贴啦🐦🚌🛒",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000062,
+      "noteId": "69e82323000000001a020268",
+      "name": "🇦🇺来点蓝色元素的冰箱贴吧🤣｜🟦🚌🚏",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000063,
+      "noteId": "69e76773000000001a027f09",
+      "name": "这里不可以偷吃‼️｜大葵：那我去牌子上吃🥐",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000064,
+      "noteId": "69e74f4d000000001a020f92",
+      "name": "不知道，反正码头的薯条最好吃🍟",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-FEED"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000065,
+      "noteId": "69e47a1c0000000021039187",
+      "name": "🇦🇺澳洲冰箱贴大合集｜邻居🐦_巴士🚌_超市",
+      "category": "商品合集",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000066,
+      "noteId": "69e20982000000002103af46",
+      "name": "⚠️小鸟路牌冰箱贴1.0来啦｜🇦🇺四大天王",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP",
+        "BIRD-FEED",
+        "BIRD-PELI",
+        "BIRD-BIN"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000067,
+      "noteId": "69e1945a000000001a023bd5",
+      "name": "葵❗️ 这里不能停🈲 但是可以吃可颂🥐",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000068,
+      "noteId": "69df6941000000001a02401e",
+      "name": "🇦🇺小鸟路牌冰箱贴上线啦 🥐大葵偷可颂",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000069,
+      "noteId": "69de2f13000000001a0336eb",
+      "name": "🇦🇺｜🦜大葵不识字但爱吃🥐冰箱贴",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000070,
+      "noteId": "69de1342000000002102e3b4",
+      "name": "NO STOPPING‼️葵不懂 葵只想吃点可颂解解馋",
+      "category": "小鸟冰箱贴",
+      "skus": [
+        "BIRD-STOP"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000071,
+      "noteId": "69d4d4ac0000000021011d27",
+      "name": "🇦🇺澳洲冰箱贴大合集｜超市🛒_路牌🚏_生活",
+      "category": "商品合集",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000072,
+      "noteId": "69ce4044000000001a029970",
+      "name": "🇦🇺充满土澳和悉尼元素的冰箱贴来啦‼️",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000073,
+      "noteId": "69cb9f3100000000210382de",
+      "name": "🇦🇺蓝色系澳洲路牌合集｜🚌🚇",
+      "category": "交通指示牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000074,
+      "noteId": "69c00126000000001a029cc4",
+      "name": "🇦🇺土澳元素冰箱贴大全🤩｜🏫🚌🚃🥤🍫",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000075,
+      "noteId": "69bfe60e000000001a032499",
+      "name": "🇦🇺澳洲校园路牌冰箱贴大合集｜🚌🚃🚇",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW",
+        "BUS-USYD-A",
+        "BUS-USYD-B",
+        "BUS-UTS",
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH",
+        "BUS-ANU",
+        "BUS-MON",
+        "BUS-MQ",
+        "METRO-MQ",
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000076,
+      "noteId": "69bf9bad000000001a0325e8",
+      "name": "🇦🇺澳洲超市冰箱贴｜扣死_窝窝屎🥤🍻",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000077,
+      "noteId": "69be98700000000021038be6",
+      "name": "🇦🇺本周新品｜不要紧，有办法‼️",
+      "category": "生活标语",
+      "skus": [
+        "SLG-NW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000078,
+      "noteId": "69be7151000000001a02b005",
+      "name": "🇦🇺澳洲冰箱贴大合集｜超市🥤_路牌🚏_生活",
+      "category": "商品合集",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000079,
+      "noteId": "69be3c5c000000001a0313b0",
+      "name": "酒鬼冰箱贴来咯😆｜🍻🍷",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-ALC"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000080,
+      "noteId": "69bbd931000000001a02b8f4",
+      "name": "🇦🇺土澳元素满满的冰箱贴大合集😆",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000081,
+      "noteId": "69ba960a000000001a02143a",
+      "name": "🇦🇺本周新品｜不要紧，有办法‼️",
+      "category": "生活标语",
+      "skus": [
+        "SLG-NW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000082,
+      "noteId": "69ba7da2000000001a0243a5",
+      "name": "🇦🇺澳洲超市冰箱贴｜扣死_窝窝屎🥤🍻",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000083,
+      "noteId": "69b9330b000000001a0293f1",
+      "name": "🇦🇺澳洲公交路牌冰箱贴｜🚌🚃🚇",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000084,
+      "noteId": "69b7f8c000000000210110ef",
+      "name": "认准这几个标签，进超市直奔🥤🍫🍦🍻",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000085,
+      "noteId": "69b7d65500000000210106c5",
+      "name": "本周新品来啦‼️｜noworries不要紧",
+      "category": "生活标语",
+      "skus": [
+        "SLG-NW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000086,
+      "noteId": "69ad3e33000000001d024ce9",
+      "name": "🇦🇺莫那什大学｜公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-MON"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000087,
+      "noteId": "69ad0f41000000001d027d2e",
+      "name": "🇦🇺澳洲悉尼火车冰箱贴🚂｜T8 T9 T4双向😆",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T8-MAC",
+        "TRN-T8-CC"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000088,
+      "noteId": "69acf70500000000150304a7",
+      "name": "🇦🇺ANU澳国立｜公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-ANU"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000089,
+      "noteId": "69ab86bc000000001b017c8b",
+      "name": "🈲🍷冰箱贴｜酒精免费区域😆",
+      "category": "交通指示牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000090,
+      "noteId": "69aad7db000000001600a03b",
+      "name": "悉尼T9火车来啦😆｜开往Hornsby和Gordon",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T9-GOR",
+        "TRN-T9-HOR"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000091,
+      "noteId": "69aaabc8000000001b01c8b4",
+      "name": "🇦🇺｜原来我们做了那么多公交路牌冰箱贴😆",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW",
+        "BUS-USYD-A",
+        "BUS-USYD-B",
+        "BUS-UTS",
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH",
+        "BUS-ANU",
+        "BUS-MON",
+        "BUS-MQ",
+        "METRO-MQ",
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000092,
+      "noteId": "69a80341000000001d02615d",
+      "name": "🇦🇺澳洲八大学校｜路牌冰箱贴🚌🚃🚇",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW",
+        "BUS-USYD-A",
+        "BUS-USYD-B",
+        "BUS-UTS",
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH",
+        "BUS-ANU",
+        "BUS-MON",
+        "BUS-MQ",
+        "METRO-MQ",
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000093,
+      "noteId": "69a6cec3000000001d012669",
+      "name": "本周上新‼️‼️｜🇦🇺莫那什大学路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-MON"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000094,
+      "noteId": "69a6b34e000000001600944f",
+      "name": "🇦🇺悉尼火车冰箱贴🚂｜T8机场线✈️",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T8-MAC",
+        "TRN-T8-CC"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000095,
+      "noteId": "69a660db000000001d0139e1",
+      "name": "🇦🇺莫纳什大学公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-MON"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000096,
+      "noteId": "69a64079000000001d027d17",
+      "name": "🇦🇺悉尼火车路牌冰箱贴🚂｜双向T9",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T9-GOR",
+        "TRN-T9-HOR"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000097,
+      "noteId": "69a59912000000001503b461",
+      "name": "🇦🇺堪培拉_ANU澳国立公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-ANU"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000098,
+      "noteId": "69a58561000000001b01f2a9",
+      "name": "🇦🇺悉尼公交路牌冰箱贴🚌｜USYD_麦考瑞",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-MQ",
+        "BUS-USYD-A"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000099,
+      "noteId": "69a5627c000000001d0272e4",
+      "name": "🇦🇺悉尼火车路牌冰箱贴大合集来啦🚂",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T8-MAC",
+        "TRN-T8-CC",
+        "TRN-T9-GOR",
+        "TRN-T9-HOR",
+        "TRN-T2-PAR",
+        "TRN-T4-BON",
+        "TRN-T4-WAT"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000100,
+      "noteId": "69a3dda7000000001600a8c3",
+      "name": "🇦🇺澳洲元素冰箱贴｜公交🚌地铁🚇火车🚉",
+      "category": "校园公交路牌",
+      "skus": [
+        "TRN-T9-GOR",
+        "TRN-T9-HOR"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000101,
+      "noteId": "69a2a539000000001b016f65",
+      "name": "🇦🇺UNSW新南｜公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000102,
+      "noteId": "69a28135000000001600b915",
+      "name": "🇦🇺澳洲校园路牌冰箱贴｜🚌🚃🚇🚂",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000103,
+      "noteId": "69a24cc6000000001d010169",
+      "name": "🇦🇺ANU澳国立大学｜公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-ANU"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000104,
+      "noteId": "69a10ac1000000001b01e66e",
+      "name": "🇦🇺UQ昆士兰大学｜公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000105,
+      "noteId": "69a05c2a000000001d0134d8",
+      "name": "🇦🇺麦考瑞大学地铁🚇 公交🚌路牌冰箱贴",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-MQ",
+        "METRO-MQ"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000106,
+      "noteId": "69a01f790000000015038dcb",
+      "name": "🇦🇺澳国立ANU｜公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-ANU"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000107,
+      "noteId": "69a01cf80000000015030c62",
+      "name": "🇦🇺澳洲超市｜ 🥤扣死与窝窝屎超市冰箱贴🍦",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000108,
+      "noteId": "699fc261000000001b01e099",
+      "name": "🇦🇺澳洲堪培拉公交路牌🚌｜ANU路牌来啦",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-ANU"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000109,
+      "noteId": "699f95950000000015021b53",
+      "name": "🇦🇺麦考瑞大学公交🚌➕地铁🚇路牌终于来咯",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-MQ",
+        "METRO-MQ"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000110,
+      "noteId": "699ed078000000001d010310",
+      "name": "🇦🇺澳洲路牌冰箱贴大合集😆｜🚌🚃🚇🚂",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000111,
+      "noteId": "699e4b52000000001b01622e",
+      "name": "🇦🇺麦考瑞大学MU｜地铁路牌冰箱贴🚇",
+      "category": "校园公交路牌",
+      "skus": [
+        "METRO-MQ"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000112,
+      "noteId": "699bbfb1000000001b014e31",
+      "name": "🇦🇺土澳超市｜扣死wws冰箱贴🥤🍫",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000113,
+      "noteId": "699a70cd000000001d025956",
+      "name": "🇦🇺澳洲校园公交路牌｜🚌🚃🚇",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000114,
+      "noteId": "699983c4000000001b0140e0",
+      "name": "🇦🇺土澳元素满满的冰箱贴🤩｜🦘🚌🥤🍫",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000115,
+      "noteId": "69940ee1000000001b0167ca",
+      "name": "🇦🇺澳洲冰箱贴大合集🤩｜路牌 超市 学校",
+      "category": "商品合集",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000116,
+      "noteId": "69900a66000000001b01745a",
+      "name": "🇦🇺澳洲超市｜❤️520的扣死和woolies🤩",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000117,
+      "noteId": "698c267000000000150234c6",
+      "name": "🇦🇺悉尼能买到的独特冰箱贴😍",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T9-GOR",
+        "TRN-T9-HOR"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000118,
+      "noteId": "698712600000000016009d06",
+      "name": "💜紫色版昆士兰大学公交路牌冰箱贴来啦🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UQ-B"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000119,
+      "noteId": "6986d6ff000000001600916f",
+      "name": "🇦🇺｜昆士兰大学公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000120,
+      "noteId": "698695c9000000001b014515",
+      "name": "🇦🇺澳洲好物｜麦考瑞公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-MQ"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000121,
+      "noteId": "6985bba5000000001b01f304",
+      "name": "🇦🇺悉尼公交路牌冰箱贴｜悉大City Rd🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000122,
+      "noteId": "6985ab42000000001d0118df",
+      "name": "🇦🇺澳洲好物｜超市冰箱贴🥤🍫🍻🍦",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000123,
+      "noteId": "69846b67000000002202305c",
+      "name": "来啦‼️ UQ昆士兰大学公交路牌冰箱贴💜",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000124,
+      "noteId": "69843d9d000000002200bb6b",
+      "name": "🚂悉尼火车冰箱贴_T7（演唱会专列版）",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T7"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000125,
+      "noteId": "6984309e000000002200b37b",
+      "name": "1/2的扣死和woolies｜澳洲超市🇦🇺",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-HALF",
+        "WOW-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000126,
+      "noteId": "69831a670000000021033a40",
+      "name": "🇦🇺昆士兰大学UQ｜🪻紫色版公交路牌冰箱贴",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UQ-B"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000127,
+      "noteId": "6981afe3000000002203b4cd",
+      "name": "72_16路电车🚃｜墨尔本电车冰箱贴🇦🇺",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000128,
+      "noteId": "69818ee70000000022033be3",
+      "name": "🇦🇺酒鬼冰箱贴｜🈲🍷",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-ALC"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000129,
+      "noteId": "69815ef4000000002202f68a",
+      "name": "🇦🇺USYD公交路牌🚌｜冰箱贴",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000130,
+      "noteId": "69801d6b000000002203089f",
+      "name": "🇦🇺扣死和woolies超市｜Special版🤩",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000131,
+      "noteId": "697c82ff000000002102bd2a",
+      "name": "🇦🇺麦考瑞大学公交站牌冰箱贴🚌｜Macquarie",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-MQ"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000132,
+      "noteId": "697c7a13000000002103d4a2",
+      "name": "🇦🇺悉尼火车路牌冰箱贴🚈｜T9_T7",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T7",
+        "TRN-T9-GOR",
+        "TRN-T2-CC",
+        "TRN-T8-MAC"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000133,
+      "noteId": "697c5091000000002103cd6a",
+      "name": "🇦🇺USYD_City Rd｜悉大公交路牌冰箱贴",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000134,
+      "noteId": "697c17970000000021033ff4",
+      "name": "扣死超市_woolies超市｜冰箱贴周边",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000135,
+      "noteId": "697b39b3000000002102a664",
+      "name": "来咯‼️｜麦考瑞大学公交🚌_地铁🚈路牌冰箱贴",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-MQ",
+        "METRO-MQ"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000136,
+      "noteId": "697af773000000002202ec07",
+      "name": "🇦🇺墨大电车站牌冰箱贴🚃｜Flinders Street",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000137,
+      "noteId": "6979dcd4000000002103f34d",
+      "name": "来啦‼️‼️｜UQ Chancellor公交站牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UQ-CH"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000138,
+      "noteId": "69799ec40000000022009f67",
+      "name": "🇦🇺悉尼大学公交站牌冰箱贴🚌｜City Rd",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000139,
+      "noteId": "697957c300000000220315d5",
+      "name": "🇦🇺扣死和woolies超市｜冰箱贴🤩",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000140,
+      "noteId": "69788bba000000002103c123",
+      "name": "🇦🇺昆士兰大学｜UQ公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000141,
+      "noteId": "69785a42000000002103d67e",
+      "name": "🇦🇺悉尼大学公交站牌冰箱贴🚌｜City Rd",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000142,
+      "noteId": "6978156e000000002203166e",
+      "name": "🇦🇺澳洲好物｜悉尼火车路牌冰箱贴🚂",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T9-GOR",
+        "TRN-T9-HOR"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000143,
+      "noteId": "697754d00000000022022e35",
+      "name": "DIY低成本澳洲发声马路按钮冰箱贴（附教程）",
+      "category": "交通指示牌",
+      "skus": [],
+      "bucket": "TUTORIAL"
+    },
+    {
+      "productId": 1000144,
+      "noteId": "69772ed5000000002200be0b",
+      "name": "终于来啦‼️ ｜UQ公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UQ-A",
+        "BUS-UQ-B",
+        "BUS-UQ-CH"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000145,
+      "noteId": "6976da6b000000002102b316",
+      "name": "今天是Blink专列🚃｜悉尼火车冰箱贴",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T7"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000146,
+      "noteId": "6975e41f0000000022021b50",
+      "name": "悉大CityRd公交站🚌，同学们可以带回家了🥹",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000147,
+      "noteId": "69759b46000000002203a44a",
+      "name": "🥤超市冰箱贴销量1700+啦‼️‼️",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000148,
+      "noteId": "69758695000000002203b438",
+      "name": "🇦🇺澳洲冰箱贴｜🚂火车T7_泰勒专列",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T7"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000149,
+      "noteId": "697490eb000000002202237f",
+      "name": "🇦🇺啊啊啊 谁懂这冰箱贴的可爱！",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000150,
+      "noteId": "697460b900000000220201c7",
+      "name": "🚃墨尔本大学电车冰箱贴【1/6/16/72号线】",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000151,
+      "noteId": "697449d40000000021030024",
+      "name": "🇦🇺澳洲冰箱贴｜超速超速🚗 掉头掉头🈲",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-WW",
+        "SGN-SPD"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000152,
+      "noteId": "69742adf00000000210296e2",
+      "name": "🇦🇺UNSW｜新南路牌冰箱贴‼️‼️",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000153,
+      "noteId": "6973728400000000220217d9",
+      "name": "🇦🇺🚥｜过马路按钮不同版本的差别有多大",
+      "category": "交通指示牌",
+      "skus": [
+        "BTN-BLU",
+        "BTN-WHT"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000154,
+      "noteId": "69734f8b000000002202059e",
+      "name": "🇦🇺澳洲超市周边｜冰箱贴 🥤🍦",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000155,
+      "noteId": "69733d4d000000002103d292",
+      "name": "🇦🇺来啦！ 🚂悉尼火车T9_T8_T2_T7正式上线",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T7",
+        "TRN-T8-MAC",
+        "TRN-T8-CC",
+        "TRN-T9-GOR",
+        "TRN-T2-CC"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000156,
+      "noteId": "6972ed93000000002202fc15",
+      "name": "🇦🇺悉尼🚄🉑定制版火车冰箱贴来‼️‼️",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T8-MAC",
+        "TRN-T8-CC",
+        "TRN-T9-GOR",
+        "TRN-T9-HOR",
+        "TRN-T2-PAR",
+        "TRN-T4-BON",
+        "TRN-T4-WAT"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000157,
+      "noteId": "6972025d0000000022033e5d",
+      "name": "🇦🇺土澳冰箱贴新成员-过马路按钮冰箱贴🔘",
+      "category": "交通指示牌",
+      "skus": [
+        "BTN-BLU",
+        "BTN-WHT"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000158,
+      "noteId": "69718719000000002200888e",
+      "name": "🇦🇺悉尼晚点挤死人火车冰箱贴🚄",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T9-WYN"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000159,
+      "noteId": "6970f3920000000021029be1",
+      "name": "🇦🇺澳洲🈲🍷冰箱贴， 酒鬼们不要贪杯哦🍻",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-ALC"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000160,
+      "noteId": "697098190000000022021c44",
+      "name": "本周上新来啦‼️ 🚄悉尼火车路牌冰箱贴",
+      "category": "火车地铁路牌",
+      "skus": [
+        "TRN-T9-GOR",
+        "TRN-T9-HOR"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000161,
+      "noteId": "696f5ccf000000002102bad5",
+      "name": "🇦🇺澳洲超市｜ 冰箱贴‼️‼️",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000162,
+      "noteId": "696eda1f0000000021028693",
+      "name": "🇦🇺可以吸在冰箱上的澳洲过马路按钮🔘‼️‼️",
+      "category": "交通指示牌",
+      "skus": [
+        "BTN-BLU",
+        "BTN-WHT"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000163,
+      "noteId": "696dfada000000002202390f",
+      "name": "🇦🇺墨尔本电车🚃，你最喜欢谁？",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000164,
+      "noteId": "696da28b000000002200b698",
+      "name": "🇦🇺澳洲 woolies超市冰箱贴🤣",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000165,
+      "noteId": "696d99c3000000002203ae21",
+      "name": "🇦🇺UNSW公交路牌冰箱贴🚌‼️‼️ 370来了快走",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000166,
+      "noteId": "696c80d8000000002203024c",
+      "name": "🇦🇺澳洲超市｜ coles wws冰箱贴大合集🥤🍦",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000167,
+      "noteId": "696c5e080000000022033d72",
+      "name": "🇦🇺澳洲电车🚃和公交🚌，你更喜欢哪个？",
+      "category": "商品合集",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000168,
+      "noteId": "696b4d550000000022030889",
+      "name": "🇦🇺我们的冰箱贴完全复刻了USYD公交站！",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000169,
+      "noteId": "696af86f00000000210322c5",
+      "name": "🇦🇺澳洲扣死超市冰箱贴🦘",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000170,
+      "noteId": "696a0aab000000002202e0ba",
+      "name": "🇦🇺终于上线啦🤣 悉大和新南公交信息冰箱",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW",
+        "BUS-USYD-A"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000171,
+      "noteId": "6968ad22000000002102af7b",
+      "name": "🇦🇺原来我们做过了那么多冰箱贴😆",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000172,
+      "noteId": "69686ffe000000002103e151",
+      "name": "🇦🇺悉大怎么会有那么好看的冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000173,
+      "noteId": "696852f8000000002200b453",
+      "name": "🇦🇺澳洲超市｜🟩woolies超市冰箱贴",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000174,
+      "noteId": "696711b8000000002103e767",
+      "name": "🇦🇺悉尼大学公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000175,
+      "noteId": "6967019c000000002202d427",
+      "name": "🇦🇺澳洲超市｜超市冰箱贴来啦",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000176,
+      "noteId": "6965f3b700000000220200fc",
+      "name": "🇦🇺墨大冰箱贴｜墨尔本大学电车🚃冰箱贴",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000177,
+      "noteId": "6964e4fc0000000022022e0a",
+      "name": "🇦🇺澳洲超市｜扣死【🍦】【🥤】冰箱贴",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000178,
+      "noteId": "6964e26e000000002103e41f",
+      "name": "🇦🇺USYD｜悉尼大学公交路牌冰箱贴‼️‼️",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000179,
+      "noteId": "6961fd9e000000002203075f",
+      "name": "🇦🇺澳洲超市｜窝窝屎超市冰箱贴",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000180,
+      "noteId": "6961af3f000000002103f1a2",
+      "name": "🇦🇺UNSW｜新南路牌冰箱贴🚏也太可爱啦😍",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000181,
+      "noteId": "696084ee000000002200a120",
+      "name": "🇦🇺澳洲超市｜扣死超市冰箱贴‼️‼️",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000182,
+      "noteId": "69607906000000002103eccf",
+      "name": "🇦🇺来悉尼不能错过的冰箱贴🤩 #澳洲好物",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000183,
+      "noteId": "695f7e2500000000220098c1",
+      "name": "🇦🇺好喝的🍻+好看的冰箱贴🤩 ｜冰箱贴",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000184,
+      "noteId": "695f6ff9000000002200baff",
+      "name": "🇦🇺墨尔本的小伙伴有福啦！｜🚃冰箱贴",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000185,
+      "noteId": "695e49070000000022033f95",
+      "name": "🇦🇺来悉尼不能错过的冰箱贴‼️‼️",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000186,
+      "noteId": "695e315700000000220215a2",
+      "name": "🇦🇺谁能拒绝扣死超市‼️｜扣死冰箱贴",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000187,
+      "noteId": "695cde8f0000000022030223",
+      "name": "🇦🇺悉尼的小伙伴可以买到我们的冰箱贴了🤩",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000188,
+      "noteId": "695cdb74000000002200bb3a",
+      "name": "🇦🇺澳洲超市｜窝窝屎超市冰箱贴，有大有小！",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000189,
+      "noteId": "695ba7fe0000000022030399",
+      "name": "我们的冰箱贴回🇦🇺澳洲了！！！",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000190,
+      "noteId": "695a37a00000000022032e7e",
+      "name": "买到一个好玩的冰箱贴🤣｜窝窝屎超市冰箱贴",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000191,
+      "noteId": "695a2b170000000022039101",
+      "name": "好圆润的….冰箱贴｜🇦🇺扣死超市冰箱贴",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000192,
+      "noteId": "69578f7b000000002202edfd",
+      "name": "那么亮眼🤩的冰箱贴，我居然有四个🤣",
+      "category": "商品合集",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000193,
+      "noteId": "695650ab0000000021032f96",
+      "name": "本周上新来啦！ 🇦🇺墨尔本电车路牌新款🚃",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000194,
+      "noteId": "695646ce0000000021033692",
+      "name": "新年第一个新品来啦！窝窝屎小号冰箱贴🥤",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000195,
+      "noteId": "6954ea860000000022023900",
+      "name": "🇦🇺澳洲冰箱贴｜悉尼巴士🚌和墨尔本电车🚃",
+      "category": "商品合集",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000196,
+      "noteId": "6953a5c10000000022023056",
+      "name": "🇦🇺给大几万人看过的扣死超市冰箱贴🥹",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000197,
+      "noteId": "69524d19000000002103ea73",
+      "name": "🇦🇺土澳超市｜扣死超市&窝窝屎超市冰箱贴！",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000198,
+      "noteId": "694f4b9e0000000022008d05",
+      "name": "扣死冰箱贴新玩法解锁🔜 iphone磁吸好物🤩",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000199,
+      "noteId": "694d03aa0000000021029df7",
+      "name": "🎄土澳特色手机壳🤣",
+      "category": "手机壳",
+      "skus": [],
+      "bucket": "PHONECASE"
+    },
+    {
+      "productId": 1000200,
+      "noteId": "694bee65000000000d037fe6",
+      "name": "把坐过的公交🚌贴在冰箱上🌟",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000201,
+      "noteId": "694bd8cb000000001902790a",
+      "name": "扣死超市不仅有special还有1/2",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-HALF"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000202,
+      "noteId": "694bbe77000000001b032bd1",
+      "name": "把土澳回忆做成一枚枚冰箱贴😊",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000203,
+      "noteId": "6946854a000000000d00ef50",
+      "name": "冰箱贴设计｜🇦🇺墨大电车牌🚃",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000204,
+      "noteId": "69453da5000000000d03b880",
+      "name": "本周新品！ 扣死超市1/2冰箱贴😍",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-HALF"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000205,
+      "noteId": "6943cbe2000000000d035814",
+      "name": "本周新品来啦 扣死超市半价冰箱贴！！！",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-HALF"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000206,
+      "noteId": "694203dc0000000019024879",
+      "name": "🇦🇺窝窝屎超市冰箱贴｜",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000207,
+      "noteId": "694135b60000000019026d66",
+      "name": "电车有电车的快乐！ 🚃",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000208,
+      "noteId": "694129480000000019025c8c",
+      "name": "🇦🇺扣死超市冰箱贴！",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000209,
+      "noteId": "693ea181000000000d03cd2a",
+      "name": "🇦🇺澳洲的超市真的太好逛了！ 🟥与🟩",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000210,
+      "noteId": "693a90cc000000000d03f493",
+      "name": "冰箱贴｜🇦🇺澳洲悉尼公交路牌设计🚌",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000211,
+      "noteId": "693958fb000000001b026526",
+      "name": "悉大公交路牌也太好看了😍",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000212,
+      "noteId": "69394523000000000d034e03",
+      "name": "🇦🇺来自墨尔本的电车🚃现在可以贴冰箱上啦",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000213,
+      "noteId": "693810b4000000000d038830",
+      "name": "本周上新！ 墨尔本电车路牌冰箱贴上线啦",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000214,
+      "noteId": "69377680000000000d036b80",
+      "name": "扣死超市的可乐！ 豹警官很开心🥳",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000215,
+      "noteId": "6936ad64000000001b03362a",
+      "name": "豹警官也喜欢woolies巧克力🍫",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-HALF"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000216,
+      "noteId": "6934da98000000000d00c17f",
+      "name": "送给UTS同学的礼物🎁",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UTS"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000217,
+      "noteId": "6932e95d000000001b0248ea",
+      "name": "是的 我从超市扣了一个券回家",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000218,
+      "noteId": "6932b3dd000000000d03c9fa",
+      "name": "🇦🇺巨巨巨可爱的🚌巴士牌冰箱贴来啦！！！",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000219,
+      "noteId": "69323773000000001b032a37",
+      "name": "悉尼大学公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000220,
+      "noteId": "69317c9c000000000d00ffa8",
+      "name": "灵感来自超市里😎",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000221,
+      "noteId": "693038c4000000000d03471a",
+      "name": "🚃墨大电车路牌冰箱贴来啦！",
+      "category": "电车路牌",
+      "skus": [
+        "TRAM-61",
+        "TRAM-7216"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000222,
+      "noteId": "692ffb24000000001b030a4f",
+      "name": "我们把扣死和woolies做成了冰箱贴😆",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000223,
+      "noteId": "692fe6840000000019025ed5",
+      "name": "悉大公交路牌冰箱贴新成员！ 370 461X",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-B"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000224,
+      "noteId": "692ec26a000000000d03bc8e",
+      "name": "USYD的370线来啦！ 悉大直通车🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-B"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000225,
+      "noteId": "692c5d47000000001b0270a2",
+      "name": "🇦🇺校园公交🚌路牌冰箱贴系列已经上线啦",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000226,
+      "noteId": "692ae0fa000000001b022e6f",
+      "name": "悉尼公车路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000227,
+      "noteId": "692abefe000000001902438a",
+      "name": "扣死超市冰箱贴",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000228,
+      "noteId": "692ab1f4000000001b0274fc",
+      "name": "窝窝死超市冰箱贴",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000229,
+      "noteId": "69282b270000000019026db2",
+      "name": "USYD公交路牌冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000230,
+      "noteId": "69280537000000001b03227d",
+      "name": "我们把公交路牌做成了冰箱贴🚌",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000231,
+      "noteId": "6926e0860000000019026b9d",
+      "name": "本周的新品来啦！ UTS公交路牌冰箱贴！",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UTS"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000232,
+      "noteId": "6926de3e000000001b02677b",
+      "name": "本周新品上线啦 USYD公交路牌冰箱贴！",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000233,
+      "noteId": "69259709000000001b027dde",
+      "name": "🇦🇺woolies超市｜澳洲超市周边冰箱贴",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000234,
+      "noteId": "69254798000000000d03c8e5",
+      "name": "新南直通车来啦 UNSW巴士路牌冰箱贴！",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-UNSW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000235,
+      "noteId": "69243b62000000001b031d93",
+      "name": "🔴红超市和🟢绿超市本周来了！",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF",
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000236,
+      "noteId": "6922fff7000000000d034657",
+      "name": "扣死与窝窝死超市冰箱贴上线了！",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000237,
+      "noteId": "6922bf70000000000d00fc72",
+      "name": "扣死超市special冰箱贴",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000238,
+      "noteId": "6921258c000000001b0248dd",
+      "name": "USYD巴士冰箱贴马上就来！",
+      "category": "校园公交路牌",
+      "skus": [
+        "BUS-USYD-A"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000239,
+      "noteId": "6920294f000000000d00e943",
+      "name": "好看的coles与woolies打折冰箱贴来了！",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000240,
+      "noteId": "6919c470000000001b02026b",
+      "name": "终于来了！ 澳洲窝窝死超市1/2冰箱贴！",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-HALF"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000241,
+      "noteId": "6914510d000000001b021086",
+      "name": "冰箱贴上新啦！ 370快满了 赶紧走！！！",
+      "category": "校园公交路牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000242,
+      "noteId": "6912009c000000000300cf78",
+      "name": "窝窝死（woolies）冰箱贴很快就来！",
+      "category": "超市冰箱贴",
+      "skus": [
+        "WOW-SPE",
+        "WOW-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000243,
+      "noteId": "690f238d0000000003012691",
+      "name": "我们把扣死超市做成了冰箱贴🤣",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000244,
+      "noteId": "690ea2f40000000003039207",
+      "name": "路牌生活小提示🚏",
+      "category": "交通指示牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000245,
+      "noteId": "690dd974000000000302dc68",
+      "name": "扣死超市su7版",
+      "category": "超市冰箱贴",
+      "skus": [
+        "COL-SPE",
+        "COL-HALF"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000246,
+      "noteId": "690d5ea3000000000300f30e",
+      "name": "澳洲路牌冰箱贴",
+      "category": "交通指示牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000247,
+      "noteId": "690c7e8b000000000302fc5a",
+      "name": "澳洲冰箱贴集合",
+      "category": "交通指示牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000248,
+      "noteId": "690c45c8000000000300e5f7",
+      "name": "不让喝酒的冰箱贴🍷",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-ALC"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000249,
+      "noteId": "690b0c37000000000303766b",
+      "name": "这里是Alcohol Free Area！的冰箱贴啦",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-ALC"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000250,
+      "noteId": "690ab1a3000000000301fd90",
+      "name": "澳洲冰箱贴之Wrong Way｜Go Back",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-WW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000251,
+      "noteId": "6909c9a9000000000301a95c",
+      "name": "起猛了 酒水畅饮？ 这次是酒鬼冰箱贴！",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-ALC"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000252,
+      "noteId": "6908a80d000000000301289a",
+      "name": "上新啦！ 酒局🍷里的“反骨”冰箱贴",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-ALC"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000253,
+      "noteId": "690877de00000000030368e9",
+      "name": "把澳洲记忆贴进家里！ 这路牌冰箱贴太好玩了",
+      "category": "交通指示牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000254,
+      "noteId": "690700630000000003038717",
+      "name": "小伙子，不管你开多快我们都能逮到你",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-SPD"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000255,
+      "noteId": "69048426000000000303bb11",
+      "name": "澳洲路牌冰箱贴们",
+      "category": "交通指示牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000256,
+      "noteId": "690421ea0000000003020c35",
+      "name": "Wrong way go back 冰箱贴",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-WW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000257,
+      "noteId": "6901dcf20000000003013968",
+      "name": "此路不通！ 其实是冰箱贴",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-WW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000258,
+      "noteId": "690192ea000000000301f9fc",
+      "name": "Your Speed Will Be Checked冰箱贴上线了！",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-SPD"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000259,
+      "noteId": "6900b7620000000003022d17",
+      "name": "赶紧掉头🙅 前面是冰箱不是路",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-WW"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000260,
+      "noteId": "68fe08ac00000000030398ef",
+      "name": "见过袋鼠🦘吗 野生那种",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-ROO"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000261,
+      "noteId": "68fd8cb5000000000301c942",
+      "name": "your speed will be checked冰箱贴",
+      "category": "交通指示牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    },
+    {
+      "productId": 1000262,
+      "noteId": "68fb5cd7000000000300f3d7",
+      "name": "前方注意‼️ 有袋鼠🦘",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-ROO"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000263,
+      "noteId": "68fb3513000000000303a3f1",
+      "name": "车速被监测冰箱贴上线啦",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-SPD"
+      ],
+      "bucket": "SINGLE"
+    },
+    {
+      "productId": 1000264,
+      "noteId": "68f993e9000000000303a89c",
+      "name": "你小子不要超速!!! 这个冰箱贴太吓人了",
+      "category": "交通指示牌",
+      "skus": [
+        "SGN-SPD",
+        "SGN-NSW"
+      ],
+      "bucket": "COMBO"
+    },
+    {
+      "productId": 1000265,
+      "noteId": "68f8d76400000000030184f9",
+      "name": "最能代表🇦🇺澳洲的冰箱贴🦘出现了！！！",
+      "category": "交通指示牌",
+      "skus": [],
+      "bucket": "LOOKBOOK"
+    }
+  ]
+}

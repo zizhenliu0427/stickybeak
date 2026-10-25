@@ -216,6 +216,8 @@ public class ProductServiceImpl implements ProductService {
                 wrapper.orderByDesc(Product::getCreateTime);
                 break;
         }
+        // Unique tie-breaker: create_time is often identical after bulk import.
+        wrapper.orderByDesc(Product::getId);
 
         int pageNum = query.getPage() != null && query.getPage() > 0 ? query.getPage() : 1;
         int pageSize = query.getSize() != null && query.getSize() > 0 ? query.getSize() : 12;
@@ -252,7 +254,9 @@ public class ProductServiceImpl implements ProductService {
         }
 
         LambdaQueryWrapper<ProductImage> imgWrapper = new LambdaQueryWrapper<>();
-        imgWrapper.eq(ProductImage::getProductId, p.getId()).orderByAsc(ProductImage::getSortOrder);
+        imgWrapper.eq(ProductImage::getProductId, p.getId())
+                .orderByDesc(ProductImage::getIsCover)
+                .orderByAsc(ProductImage::getSortOrder);
         List<ProductImage> images = productImageMapper.selectList(imgWrapper);
         if (images != null && !images.isEmpty()) {
             List<ProductVO.MediaItem> media = images.stream()
