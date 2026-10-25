@@ -25,6 +25,7 @@ import {
 } from '../features/auth/authSlice';
 import type { Address, AddressPayload } from '../features/auth/authSlice';
 import McpTokenCard from '../components/McpTokenCard';
+import { useI18n } from '../lib/i18n';
 
 const AU_STATES = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'];
 
@@ -38,6 +39,7 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState<Address | null>(null);
   const [profileForm] = Form.useForm();
   const [addrForm] = Form.useForm();
+  const { t } = useI18n();
 
   const loadAddresses = () => {
     setLoadingAddr(true);
@@ -70,7 +72,7 @@ export default function ProfilePage() {
     const values = await profileForm.validateFields();
     try {
       await dispatch(updateProfile(values)).unwrap();
-      message.success('Profile updated');
+      message.success(t('profile.updated'));
       setProfileOpen(false);
     } catch (e) {
       message.error(String(e));
@@ -82,10 +84,10 @@ export default function ProfilePage() {
     try {
       if (editing) {
         await dispatch(updateAddress({ id: editing.id, body: values })).unwrap();
-        message.success('Address updated');
+        message.success(t('profile.addressUpdated'));
       } else {
         await dispatch(createAddress(values)).unwrap();
-        message.success('Address added');
+        message.success(t('profile.addressAdded'));
       }
       setAddrOpen(false);
       loadAddresses();
@@ -97,7 +99,7 @@ export default function ProfilePage() {
   const removeAddress = async (id: string) => {
     try {
       await dispatch(deleteAddress(id)).unwrap();
-      message.success('Address deleted');
+      message.success(t('profile.addressDeleted'));
       loadAddresses();
     } catch (e) {
       message.error(String(e));
@@ -129,22 +131,22 @@ export default function ProfilePage() {
               setProfileOpen(true);
             }}
           >
-            Edit
+            {t('profile.edit')}
           </Button>
         </div>
       </Card>
 
       <Card
-        title="Addresses"
+        title={t('profile.addresses')}
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            Add address
+            {t('profile.addAddress')}
           </Button>
         }
         loading={loadingAddr}
       >
         {addresses.length === 0 ? (
-          <Empty description="No address yet — add one for checkout" />
+          <Empty description={t('profile.noAddress')} />
         ) : (
           <ul className="divide-y">
             {addresses.map((a) => (
@@ -154,7 +156,7 @@ export default function ProfilePage() {
                     {a.receiver} · {a.phone}
                     {a.isDefault && (
                       <Tag color="green" className="ml-2">
-                        default
+                        {t('profile.default')}
                       </Tag>
                     )}
                   </div>
@@ -164,7 +166,7 @@ export default function ProfilePage() {
                 </div>
                 <Space>
                   <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(a)} />
-                  <Popconfirm title="Delete this address?" onConfirm={() => removeAddress(a.id)}>
+                  <Popconfirm title={t('profile.deleteConfirm')} onConfirm={() => removeAddress(a.id)}>
                     <Button size="small" danger icon={<DeleteOutlined />} />
                   </Popconfirm>
                 </Space>
@@ -178,17 +180,17 @@ export default function ProfilePage() {
 
       {/* 编辑资料 */}
       <Modal
-        title="Edit profile"
+        title={t('profile.editTitle')}
         open={profileOpen}
         onOk={submitProfile}
         onCancel={() => setProfileOpen(false)}
-        okText="Save"
+        okText={t('profile.save')}
       >
         <Form form={profileForm} layout="vertical">
-          <Form.Item name="nickname" label="Nickname" rules={[{ max: 32 }]}>
+          <Form.Item name="nickname" label={t('profile.nickname')} rules={[{ max: 32 }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="phone" label="Phone" rules={[{ max: 20 }]}>
+          <Form.Item name="phone" label={t('profile.phone')} rules={[{ max: 20 }]}>
             <Input />
           </Form.Item>
         </Form>
@@ -196,39 +198,39 @@ export default function ProfilePage() {
 
       {/* 新建/编辑地址 */}
       <Modal
-        title={editing ? 'Edit address' : 'Add address'}
+        title={editing ? t('profile.editAddress') : t('profile.addAddress')}
         open={addrOpen}
         onOk={submitAddress}
         onCancel={() => setAddrOpen(false)}
-        okText="Save"
+        okText={t('profile.save')}
         destroyOnHidden
       >
         <Form form={addrForm} layout="vertical" initialValues={{ country: 'Australia' }}>
           <div className="grid grid-cols-2 gap-x-4">
-            <Form.Item name="receiver" label="Receiver" rules={[{ required: true }]}>
+            <Form.Item name="receiver" label={t('profile.receiver')} rules={[{ required: true }]}>
               <Input />
             </Form.Item>
-            <Form.Item name="phone" label="Phone" rules={[{ required: true }]}>
+            <Form.Item name="phone" label={t('profile.phone')} rules={[{ required: true }]}>
               <Input />
             </Form.Item>
           </div>
-          <Form.Item name="detail" label="Street address" rules={[{ required: true }]}>
-            <Input placeholder="Unit / street number / street name" />
+          <Form.Item name="detail" label={t('profile.street')} rules={[{ required: true }]}>
+            <Input placeholder={t('profile.streetPlaceholder')} />
           </Form.Item>
           <div className="grid grid-cols-3 gap-x-4">
-            <Form.Item name="city" label="City" rules={[{ required: true }]}>
+            <Form.Item name="city" label={t('profile.city')} rules={[{ required: true }]}>
               <Input />
             </Form.Item>
             <Form.Item
               name="state"
-              label="State"
+              label={t('profile.state')}
               rules={[
                 { required: true },
                 {
                   validator: (_, v) =>
                     !v || AU_STATES.includes(String(v).toUpperCase())
                       ? Promise.resolve()
-                      : Promise.reject(new Error(`One of ${AU_STATES.join('/')}`)),
+                      : Promise.reject(new Error(t('profile.stateInvalid', { states: AU_STATES.join('/') }))),
                 },
               ]}
             >
@@ -236,14 +238,14 @@ export default function ProfilePage() {
             </Form.Item>
             <Form.Item
               name="postcode"
-              label="Postcode"
-              rules={[{ required: true }, { pattern: /^\d{4}$/, message: '4 digits' }]}
+              label={t('profile.postcode')}
+              rules={[{ required: true }, { pattern: /^\d{4}$/, message: t('profile.postcodeInvalid') }]}
             >
               <Input placeholder="2000" maxLength={4} />
             </Form.Item>
           </div>
           <Form.Item name="isDefault" valuePropName="checked">
-            <Checkbox>Set as default address</Checkbox>
+            <Checkbox>{t('profile.setDefault')}</Checkbox>
           </Form.Item>
         </Form>
       </Modal>

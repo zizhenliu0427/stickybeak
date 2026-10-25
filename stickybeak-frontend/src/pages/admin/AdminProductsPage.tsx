@@ -35,6 +35,7 @@ import {
 } from '../../lib/admin';
 import ProductCreateDrawer from './ProductCreateDrawer';
 import { useI18n } from '../../lib/i18n';
+import { errorMessage } from '../../lib/api';
 
 const { Title, Text } = Typography;
 
@@ -92,8 +93,8 @@ export default function AdminProductsPage() {
       // 同步获取预警统计
       const alerts = await getStockAlerts(10);
       setAlertSummary(alerts);
-    } catch (err: any) {
-      message.error(err?.message || 'Failed to fetch products');
+    } catch (err) {
+      message.error(errorMessage(err, 'Failed to fetch products'));
     } finally {
       setLoading(false);
     }
@@ -116,8 +117,8 @@ export default function AdminProductsPage() {
       setProducts((prev) =>
         prev.map((item) => (item.id === record.id ? { ...item, status: newStatus } : item))
       );
-    } catch (err: any) {
-      message.error(err?.message || 'Failed to update status');
+    } catch (err) {
+      message.error(errorMessage(err, 'Failed to update status'));
     }
   };
 
@@ -135,7 +136,7 @@ export default function AdminProductsPage() {
       message.success(`Stock for ${stockTargetProduct.name} updated to ${values.stock}`);
       setStockModalVisible(false);
       fetchProducts(page, pageSize, keyword, activeTab);
-    } catch (err: any) {
+    } catch {
       // validation error
     }
   };
@@ -160,7 +161,7 @@ export default function AdminProductsPage() {
       message.success(`Price for ${priceTargetProduct.name} updated to $${values.price}`);
       setPriceModalVisible(false);
       fetchProducts(page, pageSize, keyword, activeTab);
-    } catch (err: any) {
+    } catch {
       // validation error
     }
   };
@@ -183,7 +184,7 @@ export default function AdminProductsPage() {
     {
       title: 'Product',
       key: 'product',
-      render: (_: any, record: AdminProduct) => (
+      render: (_: unknown, record: AdminProduct) => (
         <div className="flex items-center gap-3">
           {record.coverImage ? (
             <img src={record.coverImage} alt={record.name} className="w-12 h-12 object-cover rounded shadow-sm" />
@@ -218,7 +219,7 @@ export default function AdminProductsPage() {
     {
       title: 'Stock Health',
       key: 'stock',
-      render: (_: any, record: AdminProduct) => (
+      render: (_: unknown, record: AdminProduct) => (
         <div className="flex items-center gap-2">
           {getStockBadge(record)}
           <Button
@@ -239,7 +240,7 @@ export default function AdminProductsPage() {
     {
       title: 'Status',
       key: 'status',
-      render: (_: any, record: AdminProduct) => (
+      render: (_: unknown, record: AdminProduct) => (
         <Tooltip title={record.status === 0 ? 'Click to unlist (hide from shop)' : 'Click to list (make visible in shop)'}>
           <Switch
             checked={record.status === 0}
@@ -253,7 +254,7 @@ export default function AdminProductsPage() {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: AdminProduct) => (
+      render: (_: unknown, record: AdminProduct) => (
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => openStockModal(record)}>
             Adjust Stock

@@ -164,7 +164,9 @@ export const clearCartAsync = createAsyncThunk<
   dispatch(clearCart());
   try {
     localStorage.removeItem(STORAGE_KEY);
-  } catch {}
+  } catch {
+    // 隐私模式等环境下 localStorage 不可用，忽略
+  }
 });
 
 export const mergeCartOnLogin = createAsyncThunk<
@@ -182,7 +184,9 @@ export const mergeCartOnLogin = createAsyncThunk<
   const data = await mergeCartApi(mergeItems);
   try {
     localStorage.removeItem(STORAGE_KEY);
-  } catch {}
+  } catch {
+    // 隐私模式等环境下 localStorage 不可用，忽略
+  }
   return data.items.map(mapServerItem);
 });
 

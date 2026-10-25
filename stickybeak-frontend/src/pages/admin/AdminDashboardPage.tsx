@@ -20,6 +20,7 @@ import {
   type StockAlertSummary,
 } from '../../lib/admin';
 import { formatPrice } from '../../lib/format';
+import { errorMessage } from '../../lib/api';
 import { useI18n } from '../../lib/i18n';
 import { useAppSelector } from '../../app/hooks';
 
@@ -52,8 +53,8 @@ export default function AdminDashboardPage() {
       setStockAlerts(alertRes);
       setTopProducts(topsRes);
       setTrendData(trendRes);
-    } catch (err: any) {
-      message.error(err?.message || 'Failed to load dashboard data');
+    } catch (err) {
+      message.error(errorMessage(err, 'Failed to load dashboard data'));
     } finally {
       setLoading(false);
     }
@@ -184,7 +185,7 @@ export default function AdminDashboardPage() {
   const topColumns = [
     {
       title: '#',
-      render: (_: any, __: any, index: number) => (
+      render: (_: unknown, __: unknown, index: number) => (
         <span className={`font-semibold ${index < 3 ? 'text-amber-500 font-bold' : ''}`}>
           {index + 1}
         </span>

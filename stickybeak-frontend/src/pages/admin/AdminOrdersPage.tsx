@@ -34,6 +34,8 @@ import {
   type AdminOrderQueryParams,
 } from '../../lib/admin';
 import { formatPrice } from '../../lib/format';
+import { errorMessage } from '../../lib/api';
+import type { Currency } from '../../features/currency/currencySlice';
 import { useI18n } from '../../lib/i18n';
 
 const { Title, Text } = Typography;
@@ -81,8 +83,8 @@ export default function AdminOrdersPage() {
       setOrders(res.records || []);
       setTotal(res.total || 0);
       setPage(res.current || 1);
-    } catch (err: any) {
-      message.error(err?.message || 'Failed to fetch orders');
+    } catch (err) {
+      message.error(errorMessage(err, 'Failed to fetch orders'));
     } finally {
       setLoading(false);
     }
@@ -108,8 +110,8 @@ export default function AdminOrdersPage() {
         setSelectedOrder((prev) => (prev ? { ...prev, status: nextStatus } : null));
       }
       fetchOrders(page, pageSize, filterStatus, searchOrderNo);
-    } catch (err: any) {
-      message.error(err?.message || 'Failed to update order status');
+    } catch (err) {
+      message.error(errorMessage(err, 'Failed to update order status'));
     }
   };
 
@@ -118,9 +120,9 @@ export default function AdminOrdersPage() {
       await refundAdminOrder(orderNo);
       message.success(`Refund requested for order ${orderNo}`);
       fetchOrders(page, pageSize, filterStatus, searchOrderNo);
-    } catch (err: any) {
+    } catch (err) {
       // 订单已进入退款中，可稍后点击"Retry Refund"重试
-      message.error(err?.message || 'Refund request failed, you can retry it later');
+      message.error(errorMessage(err, 'Refund request failed, you can retry it later'));
       fetchOrders(page, pageSize, filterStatus, searchOrderNo);
     }
   };
@@ -131,7 +133,7 @@ export default function AdminOrdersPage() {
       await handleStatusTransition(targetOrderNo, 'shipped', values.trackingNo);
       setShipModalVisible(false);
       shipForm.resetFields();
-    } catch (err: any) {
+    } catch {
       // Form validation error
     }
   };
@@ -192,7 +194,7 @@ export default function AdminOrdersPage() {
       key: 'payAmount',
       render: (val: number, record: AdminOrder) => (
         <span className="font-semibold">
-          {formatPrice(Math.round(val * 100), (record.currency as any) || 'AUD')}
+          {formatPrice(Math.round(val * 100), (record.currency as Currency) || 'AUD')}
         </span>
       ),
     },
@@ -200,12 +202,12 @@ export default function AdminOrdersPage() {
       title: 'Items',
       dataIndex: 'items',
       key: 'items',
-      render: (items: any[]) => <span>{items?.length || 0} item(s)</span>,
+      render: (items: AdminOrder['items']) => <span>{items?.length || 0} item(s)</span>,
     },
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: AdminOrder) => {
+      render: (_: unknown, record: AdminOrder) => {
         const allowed = record.allowedNextStatuses || [];
         return (
           <Space size="small">
@@ -382,7 +384,7 @@ export default function AdminOrdersPage() {
               </Descriptions.Item>
               <Descriptions.Item label="User ID">{selectedOrder.userId}</Descriptions.Item>
               <Descriptions.Item label="Total Pay Amount">
-                {formatPrice(Math.round(selectedOrder.payAmount * 100), (selectedOrder.currency as any) || 'AUD')}
+                {formatPrice(Math.round(selectedOrder.payAmount * 100), (selectedOrder.currency as Currency) || 'AUD')}
               </Descriptions.Item>
               <Descriptions.Item label="Placed At">{selectedOrder.createTime}</Descriptions.Item>
               <Descriptions.Item label="Paid At">{selectedOrder.payTime || '—'}</Descriptions.Item>
@@ -441,7 +443,7 @@ export default function AdminOrdersPage() {
                       </div>
                     </div>
                     <span className="font-medium">
-                      {formatPrice(Math.round(item.price * item.qty * 100), (selectedOrder.currency as any) || 'AUD')}
+                      {formatPrice(Math.round(item.price * item.qty * 100), (selectedOrder.currency as Currency) || 'AUD')}
                     </span>
                   </div>
                 ))}

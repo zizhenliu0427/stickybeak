@@ -22,7 +22,7 @@ jobs:
         run: mvn -B verify
 
   frontend:
-    name: Frontend typecheck, test & build
+    name: Frontend typecheck, lint, test & build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -36,6 +36,7 @@ jobs:
           cache-dependency-path: stickybeak-frontend/package-lock.json
       - run: npm install
       - run: npm run typecheck
+      - run: npm run lint
       - run: npm run test
       - run: npm run build
 
