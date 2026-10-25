@@ -35,8 +35,12 @@ function uploadFile(filePath, filename, contentType) {
   let r = api('POST', '/api/auth/login', loginBody);
   console.log('0. admin 登录:', r.includes('"code":0') ? 'OK' : r);
 
-  // 1. 上传视频 + 图片
-  const video = uploadFile(`${TMP}\\sb-test-video.mp4`, 'e2e-demo.mp4', 'video/mp4');
+  // 1. 上传视频 + 图片。脚本只验证上传与 media_type 链路、不验证播放：没有现成视频时写一个只含 ftyp 头的 mp4
+  const videoPath = `${TMP}\\sb-test-video.mp4`;
+  if (!fs.existsSync(videoPath)) {
+    fs.writeFileSync(videoPath, Buffer.from('000000186674797069736f6d0000020069736f6d69736f32', 'hex'));
+  }
+  const video = uploadFile(videoPath, 'e2e-demo.mp4', 'video/mp4');
   console.log('1. 视频上传:', video.objectKey, '| 公网可读:', video.httpStatus);
   const img = uploadFile(
     path.resolve(__dirname, '../stickybeak-frontend/public/mock-products/sydney-t9-train-sign/02.jpg'),

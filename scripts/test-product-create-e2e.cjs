@@ -24,6 +24,7 @@ function writeJson(name, obj) {
 (async () => {
   // 1. admin 登录（注意：登录与后续调用必须用同一个 cookie jar）
   fs.rmSync(JAR, { force: true });
+  fs.writeFileSync(ADMIN_JSON, JSON.stringify({ email: 'admin@stickybeak.au', password: 'Admin123!' }), 'utf8');
   let r = api('POST', '/api/auth/login', ADMIN_JSON);
   console.log('1. admin 登录:', r.includes('"code":0') ? 'OK' : r);
 

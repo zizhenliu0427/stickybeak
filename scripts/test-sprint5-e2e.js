@@ -124,8 +124,8 @@ function deductConcurrentlyInsideCluster(productId, n) {
     `-d "{\\"orderNo\\":\\"SO_STRESS_${runId}_$i\\",\\"items\\":[{\\"productId\\":${productId},\\"qty\\":1}]}" ` +
     `http://${productContainer}:8082/products/stock/deduct & done; wait`;
   const out = execFileSync('docker', ['exec', orderContainer, 'sh', '-c', script], { encoding: 'utf-8' });
-  const lines = out.split('\n').filter((l) => l.trim().startsWith('{'));
-  const successCount = lines.filter((l) => JSON.parse(l).code === 0).length;
+  // 并发的 curl 共用一个 stdout，两个响应可能落在同一行（{...}{...}），所以直接数成功响应
+  const successCount = (out.match(/"code":0,/g) || []).length;
   return { successCount, failCount: n - successCount };
 }
 
