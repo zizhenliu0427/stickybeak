@@ -195,6 +195,8 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 
 ## 下一步（第二阶段路线图，2026-10 制定）
 
+> 代码已全部完成；需要 Docker、模型 key 或桌面客户端才能做的剩余验收与待办见 **`HANDOFF_NEXT.md`**。
+
 按 `docs/SPRINT_ISSUES.md` 第二阶段路线图依次推进：
 1. **Sprint 10**（v1.2.0）修复 `docs/CODE_REVIEW_TODO.md` 中 P0–P2
 2. **Sprint 11**（v1.3.0）补齐 README 宣称的能力：Seata、ES 商品搜索、退款、JaCoCo 门禁、Knife4j、Playwright —— 代码已完成，待在完整 Docker 环境验收 Seata 回滚与 ES 搜索
