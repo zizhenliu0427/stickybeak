@@ -28,7 +28,8 @@
 - **Sprint 13**（`feature/sprint-13-ai-agent`，基于 Sprint 12 分支，待合并后打 `v2.0.0`）：Python AI 购物助手 `stickybeak-agent` —— FastAPI + LangGraph，导购 / 订单 / 售后 RAG，写操作 interrupt 确认，MySQL checkpoint，SSE 流式，Redis 限流与额度，SkyWalking 跨语言链路，前端聊天抽屉，50 条评测集（详见 `stickybeak-agent/README.md`）
 - **Sprint 14**（`feature/sprint-14-mcp`，基于 Sprint 13 分支，待合并后打 `v2.1.0`）：MCP Server `stickybeak-mcp`（5 个只读工具，Streamable HTTP，网关 `/api/mcp`），个人中心签发 30 天 `scope=mcp` 令牌（网关限制只能访问 MCP、可撤销），agent 改为通过 langchain-mcp-adapters 加载只读工具，Cursor / Cherry Studio / Claude Code 接入说明与命令行演示
 - 2026-10-25：PR #1–#5 已在本地合入 develop（与上面的本地追加一起解冲突；ES 搜索保留 Sprint 11.2 的实现，见 9.2 一节），待推送后关闭 PR、补打 tag
-- 2026-10-25 ~ 26：完整 Docker 环境验收（全栈 compose 构建 + Sprint 5/6/8 全链路脚本 + Seata 回滚 / 热点压测 + ES 对比与新鲜度 + SkyWalking 链路与告警 + MCP 令牌流程），顺带修复 Seata TC 锁泄漏等问题（见坑 64–72）与 HANDOFF_NEXT 的 P2 待办；结果写在 `docs/SPRINT_ISSUES.md` 各 Issue 的实现说明里
+- 2026-10-25 ~ 26：完整 Docker 环境验收（全栈 compose 构建 + Sprint 5/6/8 全链路脚本 + Seata 回滚 / 热点压测 + ES 对比与新鲜度 + SkyWalking 链路与告警 + MCP 令牌流程），顺带修复 Seata TC 锁泄漏等问题（见坑 64–72）
+- 2026-10-26：AI 助手接入多家模型（通义 / DeepSeek / OpenAI / Gemini / 本地 Ollama），本地 Ollama 跑通真实模型评测（51/52）与首字延迟实测，修了对话存档库排序规则、知识库补向量等问题（见坑 73–76）与 HANDOFF_NEXT 的 P2 待办；结果写在 `docs/SPRINT_ISSUES.md` 各 Issue 的实现说明里
 - 开发分支：`develop`；功能分支：`feature/sprint-N-xxx`（Git Flow）
 
 ## Sprint 1 交付明细（均已 E2E 验证）
@@ -296,6 +297,10 @@ cd stickybeak-frontend; npx tsc --noEmit; npx vitest run; npm run dev
 70. **webhook 线程池是可选模式**：默认同步处理（失败回滚、Stripe 重试）；`WEBHOOK_ASYNC_ENABLED=true` 才走线程池并返回 `ACCEPTED`，两种模式跑同一段校验逻辑。E2E 脚本两种返回值都接受。
 71. **测 ES 新鲜度要用 `_search`**：`_doc` GET 是实时的，搜索要等 refresh（默认 1 秒）。下架后基本立刻搜不到，是因为 MySQL 回表时按上架状态过滤了。
 72. **压测脚本准备数据时会撞上网关 Sentinel 限流**（auth 60 QPS、order 100 QPS），返回 code 429；准备阶段要退避重试，别把 429 当成业务失败。SkyWalking 的死信积压指标挂在服务实例上（MAL `instance(...)`），按服务查是空的。
+73. **AI 助手的模型配置在 `docker/.env`**（已 gitignore，模板 `docker/.env.example`）：`LLM_CHAIN` 决定降级顺序（qwen / deepseek / openai / gemini / ollama），agent 与 stickybeak-mcp 两个容器都通过 `env_file` 读取；改完 `docker compose -f docker/docker-compose.yml up -d --force-recreate agent mcp`。容器里访问宿主机 Ollama 用 `host.docker.internal`。
+74. **Ollama 思考型模型要关思考**：`reasoning_effort: "none"` 才能完全关掉（`think: false` 关不干净），否则路由这类小调用也要等几十秒；`OLLAMA_REASONING_EFFORT` 默认就是 `none`。模型第一次加载进显存约 80 秒，`LLM_TIMEOUT_SECONDS` 本地可以调大。
+75. **`stickybeak_agent` 库不能写死 `utf8mb4_general_ci`**：LangGraph MySQL checkpoint 的查询用了 `json_table`，MySQL 8 里它的输出列是 `utf8mb4_0900_ai_ci`，混用直接报 "Illegal mix of collations"，每次对话都失败（PR 当初在 MariaDB 上测的，没暴露）。老数据卷跑一次 `docker/mysql/upgrade/agent-collation-mysql8.sql`。
+76. **知识库入库按"内容哈希 + 向量模型"增量**：换 `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` 后 MCP 启动时会自动重新向量化；维度必须等于 `EMBEDDING_DIMENSIONS`（1024），不一致时要 `--recreate`。没有重排（只有通义有）时用 `RAG_MIN_VECTOR_SCORE` 拒答，阈值随向量模型变化，bge-m3 是 0.79，换模型要重新校准（方法见 SPRINT_ISSUES 13.4）。
 
 ## 剩余项（全部非阻塞，按需）
 

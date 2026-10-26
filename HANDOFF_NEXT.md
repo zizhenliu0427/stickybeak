@@ -65,7 +65,9 @@ GitHub Actions 被项目所有者关掉了（没付费）。重新打开时要�
 
 ### P0-2 用真实模型跑通 AI 助手并完成评测（13.2 / 13.4 / 13.5 / 13.7 / 14.3）
 
-需要 `DASHSCOPE_API_KEY`（通义千问，主），可选 `DEEPSEEK_API_KEY`（备用）。放在 `docker/.env` 或环境变量里，**不要提交到仓库**。
+**进度（2026-10-26）**：已支持通义 / DeepSeek / OpenAI / Gemini / 本地 Ollama，用 `LLM_CHAIN` 排降级顺序。用本地 Ollama（`qwen3.8` + `bge-m3`）已完成：知识库向量化入库、拒答阈值校准（0.79）、52 条评测 51/52、首字延迟 p50 937 ms / p95 3208 ms、经网关的导购 / 加购确认 / 售后问答手测。数据见 SPRINT_ISSUES 13.2 / 13.4 / 13.5 / 13.7。
+
+剩下的是云端模型：把 key 填进 `docker/.env`（已 gitignore，模板 `docker/.env.example`；**不要提交到仓库**），重建 agent 与 mcp，然后按下面的步骤跑一遍，与本地基线对比。通义的 text-embedding-v3 + gte-rerank 组合也在这一步实测（有重排时阈值用 `RAG_MIN_RERANK_SCORE`）。
 
 1. 先确认通义接口的几处假设（之前没能联网验证）：
    - `qwen-plus` 通过 OpenAI 兼容接口做 function calling（意图路由用 `with_structured_output(method="function_calling")`）。
