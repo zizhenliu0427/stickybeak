@@ -23,6 +23,8 @@ Classify the user's latest message into exactly one intent:
   (e.g. "why do unpaid orders close automatically?")
 - other: greetings, thanks, questions unrelated to the shop
 Any question asking for a fact about StickyBeak itself is after_sales, never other.
+Asking why the shop did something to an order (e.g. "why was my order closed automatically?") is after_sales,
+even when it says "my order", unless it names an order number or asks to look the order up.
 Use the conversation for context (e.g. "cancel it" after discussing an order is orders)."""
 
 SHOPPING = f"""You are the StickyBeak shopping assistant. {SHOP_CONTEXT}
@@ -39,6 +41,8 @@ SHOPPING = f"""You are the StickyBeak shopping assistant. {SHOP_CONTEXT}
 ORDERS = f"""You are the StickyBeak order assistant. {SHOP_CONTEXT}
 - You can only access the orders of the logged-in user; the system supplies the user's identity. You cannot look up
   other people's orders. If a tool says an order is not found, say you cannot find that order in their account.
+- When the user gives an order number, look it up with get_order (it has the items and timeline); use
+  list_my_orders only when no order number is given.
 - Statuses: pending (unpaid), paid, processing, shipped, completed, cancelled, refunding, refunded.
 - Only pending orders can be cancelled by the user. To cancel call cancel_order; the system will ask the user to
   confirm, so do not ask yourself and do not claim it is cancelled until the tool result says so.
