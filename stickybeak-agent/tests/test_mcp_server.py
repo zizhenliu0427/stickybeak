@@ -92,7 +92,7 @@ async def test_startup_ingest_retries_until_elasticsearch_is_up(monkeypatch):
 
     calls = []
 
-    async def flaky_ingest(store, chunks, embeddings):
+    async def flaky_ingest(store, chunks, embeddings, embedding_model=""):
         calls.append(len(chunks))
         if len(calls) < 3:
             raise ConnectionError("Cannot connect to host elasticsearch:9200")

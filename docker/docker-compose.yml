@@ -117,12 +117,19 @@ services:
       context: ../stickybeak-agent
     container_name: sb-mcp
     command: ["python", "-m", "stickybeak_agent.mcp_server"]
+    # 模型 / 向量 / 重排的配置与 key 放在 docker/.env（已 gitignore，模板见 docker/.env.example）；
+    # 不配置时售后检索只用关键词
+    env_file:
+      - path: .env
+        required: false
     environment:
       NACOS_ADDR: nacos:8848
       ES_URIS: http://elasticsearch:9200
       SW_AGENT_COLLECTOR_BACKEND_SERVICES: oap:11800
-      # 知识库向量化与重排用通义（DashScope）；不配置时售后检索只用关键词
-      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      # 容器里访问宿主机上的 Ollama
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - nacos
       - elasticsearch
@@ -132,14 +139,18 @@ services:
     build:
       context: ../stickybeak-agent
     container_name: sb-agent
+    # LLM_CHAIN（降级顺序）与各家的 key 放在 docker/.env（已 gitignore，模板见 docker/.env.example）
+    env_file:
+      - path: .env
+        required: false
     environment:
       NACOS_ADDR: nacos:8848
       MYSQL_HOST: mysql
       REDIS_HOST: redis
       SW_AGENT_COLLECTOR_BACKEND_SERVICES: oap:11800
-      # 通义千问（主）与 DeepSeek（备用），在 docker/.env 或 shell 环境里提供
-      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - nacos
       - mysql

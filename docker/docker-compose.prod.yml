@@ -220,6 +220,13 @@ services:
       - NACOS_PASSWORD=${NACOS_PASSWORD:-nacos}
       - ES_URIS=${ES_URIS:-http://elasticsearch.internal:9200}
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama.internal:11434/v1}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-qwen}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-}
+      - RERANK_PROVIDER=${RERANK_PROVIDER:-qwen}
+      - RAG_MIN_VECTOR_SCORE=${RAG_MIN_VECTOR_SCORE:-0}
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=${SW_AGENT_COLLECTOR_BACKEND_SERVICES:-}
     deploy:
       resources:
@@ -248,8 +255,16 @@ services:
       - REDIS_HOST=${REDIS_HOST:-elasticache-redis.internal}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      # 降级顺序与各家模型，见 docker/.env.prod.example
+      - LLM_CHAIN=${LLM_CHAIN:-qwen,deepseek}
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4.1-mini}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama.internal:11434/v1}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3}
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=${SW_AGENT_COLLECTOR_BACKEND_SERVICES:-}
     deploy:
       resources:

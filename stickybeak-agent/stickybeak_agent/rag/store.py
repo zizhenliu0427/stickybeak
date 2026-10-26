@@ -31,6 +31,8 @@ def index_body(dims: int) -> dict[str, Any]:
                 "lang": {"type": "keyword"},
                 "source": {"type": "keyword"},
                 "content_hash": {"type": "keyword"},
+                # 生成 embedding 的模型（embeddings.embedding_signature），空表示只有文本
+                "embedding_model": {"type": "keyword"},
                 "title": _TEXT,
                 "section": _TEXT,
                 "content": _TEXT,
@@ -54,11 +56,19 @@ class KnowledgeStore:
         if not exists:
             await self._es.indices.create(index=self._index, **index_body(self._dims))
 
-    async def existing_hashes(self) -> dict[str, str]:
-        resp = await self._es.search(index=self._index, size=10_000, source=["content_hash"], query={"match_all": {}})
-        return {hit["_id"]: hit["_source"]["content_hash"] for hit in resp["hits"]["hits"]}
+    async def existing_hashes(self) -> dict[str, tuple[str, str]]:
+        """片段 ID → (内容哈希, 生成向量的模型)。"""
+        resp = await self._es.search(
+            index=self._index, size=10_000, source=["content_hash", "embedding_model"], query={"match_all": {}}
+        )
+        return {
+            hit["_id"]: (hit["_source"]["content_hash"], hit["_source"].get("embedding_model") or "")
+            for hit in resp["hits"]["hits"]
+        }
 
-    async def upsert(self, chunks: Sequence[Chunk], vectors: Sequence[list[float] | None]) -> int:
+    async def upsert(
+        self, chunks: Sequence[Chunk], vectors: Sequence[list[float] | None], embedding_model: str = ""
+    ) -> int:
         def actions() -> Iterable[dict]:
             for chunk, vector in zip(chunks, vectors, strict=True):
                 source = {
@@ -66,6 +76,7 @@ class KnowledgeStore:
                     "lang": chunk.lang,
                     "source": chunk.source,
                     "content_hash": chunk.content_hash,
+                    "embedding_model": embedding_model if vector is not None else "",
                     "title": chunk.title,
                     "section": chunk.section,
                     "content": chunk.text,
@@ -128,4 +139,6 @@ def _hit(hit: dict) -> dict:
         "title": src["title"],
         "section": src["section"],
         "content": src["content"],
+        # BM25 分数或余弦相似度分数，取决于是哪一路检索
+        "score": hit.get("_score"),
     }

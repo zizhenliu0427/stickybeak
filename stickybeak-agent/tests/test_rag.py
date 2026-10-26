@@ -57,7 +57,7 @@ def test_index_mapping_uses_ik_and_dense_vector():
     assert props["embedding"] == {"type": "dense_vector", "dims": 1024, "index": True, "similarity": "cosine"}
 
 
-def passage(pid):
+def passage(pid, score=None):
     return {
         "id": pid,
         "doc_id": pid,
@@ -66,13 +66,14 @@ def passage(pid):
         "title": "T",
         "section": pid,
         "content": f"content {pid}",
+        "score": score,
     }
 
 
 class FakeStore:
-    def __init__(self, keyword=(), vector=()):
-        self.keyword = [passage(p) for p in keyword]
-        self.vector = [passage(p) for p in vector]
+    def __init__(self, keyword=(), vector=(), vector_scores=None):
+        self.keyword = [passage(p, score=12.3) for p in keyword]
+        self.vector = [passage(p, score=(vector_scores or {}).get(p)) for p in vector]
         self.calls = []
 
     async def keyword_search(self, query, lang, size):
@@ -147,11 +148,11 @@ class MemoryKnowledgeStore:
             self.docs.clear()
 
     async def existing_hashes(self):
-        return {i: d["hash"] for i, d in self.docs.items()}
+        return {i: (d["hash"], d["model"]) for i, d in self.docs.items()}
 
-    async def upsert(self, chunks, vectors):
+    async def upsert(self, chunks, vectors, embedding_model=""):
         for c, v in zip(chunks, vectors, strict=True):
-            self.docs[c.id] = {"hash": c.content_hash, "vector": v}
+            self.docs[c.id] = {"hash": c.content_hash, "vector": v, "model": embedding_model if v is not None else ""}
 
     async def delete(self, ids):
         for i in ids:
@@ -177,3 +178,32 @@ async def test_ingest_only_embeds_new_or_changed_chunks_and_removes_deleted():
     report = await ingest(store, v2, embeddings)
     assert report == {"total": 2, "upserted": 1, "deleted": 1, "embedded": True}
     assert embeddings.batches == [3, 1] and len(store.docs) == 2
+
+
+async def test_ingest_reembeds_everything_when_the_embedding_model_changes():
+    store, embeddings = MemoryKnowledgeStore(), CountingEmbeddings()
+    chunks = split_markdown("# T\n## A\na\n## B\nb", doc_id="t", lang="zh", source="zh/t.md")
+    # 先在没有向量模型时入库（只有文本）
+    assert (await ingest(store, chunks, None))["upserted"] == 2
+    # 配上向量模型后，内容没变也要补上向量
+    assert (await ingest(store, chunks, embeddings, embedding_model="ollama:bge-m3:1024"))["upserted"] == 2
+    assert all(d["model"] == "ollama:bge-m3:1024" for d in store.docs.values())
+    assert (await ingest(store, chunks, embeddings, embedding_model="ollama:bge-m3:1024"))["upserted"] == 0
+    # 换模型：全部重新向量化
+    assert (await ingest(store, chunks, embeddings, embedding_model="openai:text-embedding-3-small:1024"))[
+        "upserted"
+    ] == 2
+    assert embeddings.batches == [2, 2]
+
+
+async def test_without_reranker_the_vector_score_decides_whether_the_kb_covers_the_question():
+    store = FakeStore(keyword=["a", "b"], vector=["b", "c"], vector_scores={"b": 0.82, "c": 0.61})
+    retriever = HybridRetriever(Settings(rag_top_k=4, rag_min_vector_score=0.7), store, FakeEmbeddings(), None)
+    result = await retriever.retrieve("退款")
+    # a 只有关键词命中、c 向量分不够，都不算覆盖
+    assert [(p["id"], p["score"]) for p in result.passages] == [("b", 0.82)]
+
+
+async def test_without_reranker_or_threshold_bm25_scores_are_not_exposed():
+    retriever = HybridRetriever(Settings(), FakeStore(keyword=["a"]), None, None)
+    assert (await retriever.retrieve("refund")).passages[0]["score"] is None

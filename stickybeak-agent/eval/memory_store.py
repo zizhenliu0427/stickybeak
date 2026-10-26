@@ -77,7 +77,8 @@ class MemoryKnowledgeStore:
             self._vectors = await self._embeddings.aembed_documents([c.embedding_input() for c in self._chunks])
         scored = [(_cosine(vector, v), c) for v, c in zip(self._vectors, self._chunks, strict=True) if c.lang == lang]
         scored.sort(key=lambda x: x[0], reverse=True)
-        return [self._passage(c) for _, c in scored[:size]]
+        # 与 ES dense_vector cosine 的 _score 同一口径：(1 + cos) / 2，这样 RAG_MIN_VECTOR_SCORE 两边通用
+        return [dict(self._passage(c), score=(1 + s) / 2) for s, c in scored[:size]]
 
 
 def _cosine(a: list[float], b: list[float]) -> float:

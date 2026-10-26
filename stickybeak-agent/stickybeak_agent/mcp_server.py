@@ -31,7 +31,7 @@ from .discovery import ServiceResolver
 from .graph.tools import CATEGORIES, api_error_message
 from .java_api import ApiError, JavaApi
 from .rag.corpus import load_corpus
-from .rag.embeddings import build_embeddings
+from .rag.embeddings import build_embeddings, embedding_signature
 from .rag.ingest import ingest
 from .rag.rerank import Reranker
 from .rag.retriever import HybridRetriever
@@ -190,7 +190,7 @@ def create_app(settings: Settings | None = None) -> Starlette:
             deps.api = JavaApi(resolver, http)
             deps.retriever = HybridRetriever(settings, store, embeddings, Reranker(settings, http))
             if settings.kb_ingest_on_startup:
-                task = asyncio.create_task(_ingest_in_background(store, embeddings))
+                task = asyncio.create_task(_ingest_in_background(store, embeddings, embedding_signature(settings)))
                 stack.callback(task.cancel)
             # 挂载的子应用不会执行自己的 lifespan，MCP 的会话管理器要在这里启动
             await stack.enter_async_context(mcp.session_manager.run())
@@ -205,12 +205,13 @@ def create_app(settings: Settings | None = None) -> Starlette:
 
 
 async def _ingest_in_background(
-    store: KnowledgeStore, embeddings, attempts: int = 12, retry_delay: float = 5.0
+    store: KnowledgeStore, embeddings, embedding_model: str = "", attempts: int = 12, retry_delay: float = 5.0
 ) -> None:
     """不阻塞服务启动。和 ES 一起启动（compose）时 ES 往往还没就绪，隔几秒重试；入库是增量的，重复执行安全。"""
     for attempt in range(1, attempts + 1):
         try:
-            log.info("knowledge base ingest: %s", await ingest(store, load_corpus(), embeddings))
+            result = await ingest(store, load_corpus(), embeddings, embedding_model=embedding_model)
+            log.info("knowledge base ingest: %s", result)
             return
         except Exception as e:
             if attempt == attempts:

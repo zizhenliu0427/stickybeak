@@ -22,7 +22,10 @@ class Reranker:
 
     @property
     def enabled(self) -> bool:
-        return bool(self._settings.rerank_model and self._settings.dashscope_api_key)
+        # 目前只有通义提供重排接口；其他厂商（OpenAI、Gemini、DeepSeek、Ollama）没有，RERANK_PROVIDER=none
+        return self._settings.rerank_provider.strip().lower() == "qwen" and bool(
+            self._settings.rerank_model and self._settings.dashscope_api_key
+        )
 
     async def scores(self, query: str, documents: Sequence[str]) -> list[float]:
         """与 documents 一一对应的相关度分数（0~1）。"""

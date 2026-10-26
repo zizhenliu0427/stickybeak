@@ -1,14 +1,16 @@
 """模型接入（Issue 13.2）。
 
-通义千问（DashScope）与 DeepSeek 都提供 OpenAI 兼容接口，统一用 ChatOpenAI 接入，换模型只改环境变量。
-- 每个模型单独设超时与重试；主模型报错（超时、限流、5xx、连不上）时切到备用模型
-- 两个都没配置 key 或都失败时，调用方返回友好提示，不影响商城其他功能
+通义千问（DashScope）、DeepSeek、OpenAI、Gemini、本地 Ollama 都提供 OpenAI 兼容接口，统一用 ChatOpenAI 接入，
+换模型只改环境变量（LLM_CHAIN 与各家的 *_API_KEY / *_MODEL）。
+- 按 LLM_CHAIN 的顺序降级：前一个报错（超时、限流、5xx、连不上、key 无效）时用下一个
+- 每个模型单独设超时与重试；全部没配置或全部失败时，调用方返回友好提示，不影响商城其他功能
 """
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
@@ -37,14 +39,52 @@ class ModelUnavailableError(Exception):
     """所有模型都不可用。"""
 
 
+PROVIDERS = ("qwen", "deepseek", "openai", "gemini", "ollama")
+
+
+@dataclass(frozen=True)
+class ProviderEndpoint:
+    api_key: str
+    base_url: str
+    model: str
+    # 只发给这一家的额外请求参数（如 Ollama 关闭思考）
+    extra_body: dict[str, Any] = field(default_factory=dict)
+
+
+def provider_endpoint(settings: Settings, provider: str) -> ProviderEndpoint | None:
+    """provider 的连接参数；云端 provider 没配 key 时返回 None（跳过）。"""
+    if provider == "qwen":
+        endpoint = ProviderEndpoint(settings.dashscope_api_key, settings.qwen_base_url, settings.qwen_model)
+    elif provider == "deepseek":
+        endpoint = ProviderEndpoint(settings.deepseek_api_key, settings.deepseek_base_url, settings.deepseek_model)
+    elif provider == "openai":
+        endpoint = ProviderEndpoint(settings.openai_api_key, settings.openai_base_url, settings.openai_model)
+    elif provider == "gemini":
+        endpoint = ProviderEndpoint(settings.gemini_api_key, settings.gemini_base_url, settings.gemini_model)
+    elif provider == "ollama":
+        # Ollama 不校验 key，但 OpenAI SDK 要求非空
+        extra = {"reasoning_effort": settings.ollama_reasoning_effort} if settings.ollama_reasoning_effort else {}
+        return ProviderEndpoint("ollama", settings.ollama_base_url, settings.ollama_model, extra)
+    else:
+        raise ValueError(f"unknown LLM provider: {provider} (expected one of {', '.join(PROVIDERS)})")
+    if not endpoint.api_key:
+        return None
+    return endpoint
+
+
+def provider_chain(settings: Settings) -> list[str]:
+    raw = settings.llm_chain or f"{settings.llm_primary},{settings.llm_fallback}"
+    chain: list[str] = []
+    for name in (p.strip().lower() for p in raw.split(",")):
+        if name and name not in chain:
+            chain.append(name)
+    return chain
+
+
 class ModelProvider:
     def __init__(self, settings: Settings, models: Sequence[BaseChatModel] | None = None):
         if models is None:
-            models = [
-                m
-                for m in (self._build(settings, settings.llm_primary), self._build(settings, settings.llm_fallback))
-                if m is not None
-            ]
+            models = [m for m in (self._build(settings, p) for p in provider_chain(settings)) if m is not None]
         self._models = list(models)
 
     @property
@@ -77,26 +117,19 @@ class ModelProvider:
 
     @staticmethod
     def _build(settings: Settings, provider: str) -> BaseChatModel | None:
-        provider = (provider or "").strip().lower()
-        if provider == "qwen":
-            key, base_url, model = settings.dashscope_api_key, settings.qwen_base_url, settings.qwen_model
-        elif provider == "deepseek":
-            key, base_url, model = settings.deepseek_api_key, settings.deepseek_base_url, settings.deepseek_model
-        elif provider:
-            raise ValueError(f"unknown LLM provider: {provider}")
-        else:
-            return None
-        if not key:
+        endpoint = provider_endpoint(settings, provider)
+        if endpoint is None:
             log.warning("LLM provider %s has no API key, skipped", provider)
             return None
         return ChatOpenAI(
-            model=model,
-            base_url=base_url,
-            api_key=key,
+            model=endpoint.model,
+            base_url=endpoint.base_url,
+            api_key=endpoint.api_key,
             temperature=settings.llm_temperature,
             timeout=settings.llm_timeout_seconds,
             max_retries=settings.llm_max_retries,
             streaming=True,
             # 流式时也返回 token 用量（13.6 记录成本）
             stream_usage=True,
+            extra_body=endpoint.extra_body or None,
         )

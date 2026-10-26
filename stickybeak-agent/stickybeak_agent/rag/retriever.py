@@ -3,7 +3,8 @@
 - 向量检索擅长同义改写（"东西坏了能退吗" ≈ "商品质量问题退货"），关键词检索擅长精确词（订单号格式、"GST"）
 - 两路各取 rag_candidates 条，RRF 合并后取前若干条交给重排
 - 重排后低于 rag_min_rerank_score 的丢掉；一条都不剩说明知识库没覆盖，由调用方直接回答"不知道"
-- 没有配置向量模型时只走关键词；没有配置重排时按 RRF 顺序取 top_k，不做阈值过滤
+- 没有配置向量模型时只走关键词；没有配置重排时按 RRF 顺序取 top_k，
+  若设置了 rag_min_vector_score，则只保留向量相似度达标的片段（代替重排分判断"有没有覆盖"）
 """
 
 from __future__ import annotations
@@ -84,5 +85,11 @@ class HybridRetriever:
                 ][:top_k]
                 result.reranked = True
                 return result
-        result.passages = fused[:top_k]
+        # 没有重排时：用向量相似度判断"知识库有没有覆盖"，只留向量分达标的片段（纯关键词命中不算）
+        vector_scores = {p["id"]: p.get("score") for p in vector}
+        min_vector_score = self._settings.rag_min_vector_score
+        if vector and min_vector_score > 0:
+            fused = [p for p in fused if (vector_scores.get(p["id"]) or 0.0) >= min_vector_score]
+        # BM25 分数没有绝对意义，不往外传；有向量分时带上，方便校准阈值
+        result.passages = [dict(p, score=vector_scores.get(p["id"])) for p in fused[:top_k]]
         return result

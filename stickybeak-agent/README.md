@@ -150,7 +150,8 @@ SSE 事件：
 ```bash
 cd stickybeak-agent
 uv sync                                   # Python 3.12，依赖锁定在 uv.lock
-export DASHSCOPE_API_KEY=sk-...           # 通义千问；可选 DEEPSEEK_API_KEY 作为备用
+export LLM_CHAIN=ollama,deepseek          # 降级顺序；可选 qwen、deepseek、openai、gemini、ollama
+export OLLAMA_MODEL=qwen3.8 DEEPSEEK_API_KEY=sk-...   # 各家的 key / 模型见下方"主要配置"
 export SERVICE_URLS="stickybeak-product=http://localhost:8082,stickybeak-cart=http://localhost:8083,stickybeak-order=http://localhost:8084"
 export ES_URIS=http://localhost:19200 REDIS_PORT=16379   # 对应 docker-compose-infra 的宿主端口
 uv run python -m stickybeak_agent.mcp_server   # MCP Server :8089（先启动）
@@ -174,10 +175,10 @@ uv run python -m stickybeak_agent.rag.ingest --recreate # 改了 mapping 或换�
 ```bash
 uv run ruff check . && uv run ruff format --check .
 uv run pytest -q                  # 用脚本化的假模型，不调用真实模型；MCP Server 在进程内运行（ASGI），走真实的 MCP 协议
-uv run python -m eval.run_eval    # 需要模型 key；报告写到 eval/reports/<时间>/report.md
+uv run python -m eval.run_eval    # 需要至少一个可用模型（云端 key 或本地 Ollama）；报告写到 eval/reports/<时间>/report.md
 ```
 
-- 评测集共 50 条（`eval/dataset.yaml`）：导购 10、订单 10、售后 15（其中 2 条知识库没覆盖）、闲聊 3、越权 6、注入 6。
+- 评测集共 52 条（`eval/dataset.yaml`）：导购 10、订单 10、售后 17（其中 2 条知识库没覆盖）、闲聊 3、越权 6、注入 6。
 - 指标：意图准确率、工具调用正确率、确认正确率、RAG 召回率@k、回答忠实度（模型评审）、拒答正确率、越权泄露。所有用例都检查"未确认的写操作没有执行"。
 - 业务数据用 `eval/fixtures.py` 的固定数据。其中一个商品描述里藏了注入指令。
 - 与生产一样，只读工具经（进程内的）MCP Server 调用。
@@ -187,11 +188,16 @@ uv run python -m eval.run_eval    # 需要模型 key；报告写到 eval/reports
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
-| `DASHSCOPE_API_KEY` / `DEEPSEEK_API_KEY` | 空 | 都为空时助手返回"暂不可用" |
-| `QWEN_MODEL` / `DEEPSEEK_MODEL` | `qwen-plus` / `deepseek-chat` | |
+| `LLM_CHAIN` | 空（= `LLM_PRIMARY,LLM_FALLBACK` = `qwen,deepseek`） | 降级顺序，逗号分隔：`qwen` `deepseek` `openai` `gemini` `ollama`；没配 key 的云端模型跳过 |
+| `DASHSCOPE_API_KEY` / `DEEPSEEK_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` | 空 | 各家的 key；全部为空且链里没有 `ollama` 时助手返回"暂不可用" |
+| `QWEN_MODEL` / `DEEPSEEK_MODEL` / `OPENAI_MODEL` / `GEMINI_MODEL` | `qwen-plus` / `deepseek-chat` / `gpt-4.1-mini` / `gemini-2.5-flash` | `*_BASE_URL` 可改成代理或兼容网关 |
+| `OLLAMA_BASE_URL` / `OLLAMA_MODEL` | `http://localhost:11434/v1` / `qwen3` | 全栈 compose 里默认 `http://host.docker.internal:11434/v1` |
+| `OLLAMA_REASONING_EFFORT` | `none` | 思考型模型默认关闭思考（否则每次调用多等几十秒）；留空用模型默认 |
 | `LLM_TIMEOUT_SECONDS` / `LLM_MAX_RETRIES` | 30 / 1 | |
-| `EMBEDDING_MODEL` / `RERANK_MODEL` | `text-embedding-v3` / `gte-rerank-v2` | `RERANK_MODEL` 为空时不重排，也不做阈值拒答 |
-| `RAG_MIN_RERANK_SCORE` | 0.35 | 低于该分数的片段视为不相关 |
+| `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` | `qwen` / 按 provider 默认 | `qwen`→text-embedding-v3、`openai`→text-embedding-3-small、`gemini`→gemini-embedding-001、`ollama`→bge-m3、`none`；维度要等于 `EMBEDDING_DIMENSIONS`（1024），换模型后 MCP 启动时自动重新向量化 |
+| `RERANK_PROVIDER` / `RERANK_MODEL` | `qwen` / `gte-rerank-v2` | 只有通义有重排接口；其他情况设 `none` |
+| `RAG_MIN_RERANK_SCORE` | 0.35 | 有重排时：低于该分数的片段视为不相关 |
+| `RAG_MIN_VECTOR_SCORE` | 0 | 没有重排时：向量相似度（(1+cos)/2）低于该值的片段丢掉，一条不剩就回答"不知道"。bge-m3 的校准值是 0.79 |
 | `RATE_LIMIT_PER_MINUTE` / `DAILY_REQUEST_QUOTA` / `DAILY_TOKEN_QUOTA` | 10 / 100 / 200000 | |
 | `MCP_URL` | `http://stickybeak-mcp/mcp` | agent 连接的 MCP Server，主机名是服务名时经 Nacos 解析 |
 | `NACOS_ADDR`、`MYSQL_*`、`REDIS_*`、`ES_URIS` | 本机 | 与 Java 服务同名 |
