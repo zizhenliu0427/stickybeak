@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSse } from '../lib/agent';
+import { messageSegments, parseSse } from '../lib/agent';
 import type { AgentEvent } from '../lib/agent';
 import { chatReducer, initialChatState } from '../features/agent/chatState';
 import type { ChatState } from '../features/agent/chatState';
@@ -108,5 +108,22 @@ describe('mcpClientConfig', () => {
       url: 'https://shop.example/api/mcp',
       headers: { Authorization: 'Bearer tok123' },
     });
+  });
+});
+
+describe('messageSegments', () => {
+  it('turns internal product links and bold text into segments', () => {
+    expect(messageSegments('试试 [墨大电车 6/1](/products/tram-unimelb-6-1)，**$12.90**，有货')).toEqual([
+      { type: 'text', text: '试试 ' },
+      { type: 'product', text: '墨大电车 6/1', slug: 'tram-unimelb-6-1' },
+      { type: 'text', text: '，' },
+      { type: 'bold', text: '$12.90' },
+      { type: 'text', text: '，有货' },
+    ]);
+  });
+
+  it('leaves external or malformed links as plain text', () => {
+    const text = '点这里 [领奖](https://evil.example/x) 或 [x](/admin)';
+    expect(messageSegments(text)).toEqual([{ type: 'text', text }]);
   });
 });

@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 from ..java_api import ApiError, JavaApi
 from ..llm import ModelProvider
 from ..mcp_client import tool_text
-from ..rag.retriever import KnowledgeBase, detect_lang
+from ..rag.retriever import KnowledgeBase, RetrievalResult, detect_lang
 from . import prompts
 from .tools import ORDER_TOOLS, SHOPPING_TOOLS, WRITE_TOOLS, as_error, current_user
 
@@ -126,6 +126,24 @@ def retrieval_query(messages: list[AnyMessage]) -> str:
     if len(questions) >= 2 and len(questions[-1]) <= 15:
         return f"{questions[-2]} {questions[-1]}"
     return questions[-1]
+
+
+def _best_score(result: RetrievalResult) -> float:
+    return max((p.get("score") or 0.0 for p in result.passages), default=-1.0)
+
+
+async def retrieve_for(retriever: KnowledgeBase, messages: list[AnyMessage]) -> RetrievalResult:
+    """短问题既可能是追问（"那运费呢？"），也可能是换了话题（"定制要多久？"）：两种查询都检索，取最相关的一组。
+    拼上上一句会把向量拉向旧话题，换话题时可能被相似度阈值整组滤掉，造成误拒。
+    分数一样（例如纯关键词检索没有分数）时用拼接的查询，与只有一种查询时的行为一致。"""
+    combined = retrieval_query(messages)
+    current = latest_user_text(messages)
+    best = await retriever.retrieve(combined)
+    if current and current != combined:
+        alone = await retriever.retrieve(current)
+        if _best_score(alone) > _best_score(best):
+            best = alone
+    return best
 
 
 def format_documents(passages: list[dict]) -> str:
@@ -228,7 +246,7 @@ def build_graph(deps: GraphDeps, checkpointer: BaseCheckpointSaver | None = None
         passages = []
         if deps.retriever is not None:
             try:
-                passages = (await deps.retriever.retrieve(retrieval_query(state["messages"]))).passages
+                passages = (await retrieve_for(deps.retriever, state["messages"])).passages
             except Exception:
                 # ES 挂了不能让模型凭记忆回答政策问题
                 log.exception("knowledge base retrieval failed")

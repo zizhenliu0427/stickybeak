@@ -1,6 +1,7 @@
 """一键评测：uv run python -m eval.run_eval [--kb memory|es] [--only 前缀] [--concurrency 4]
 
-需要模型 key（DASHSCOPE_API_KEY 或 DEEPSEEK_API_KEY）。业务数据用 eval/fixtures.py 的固定数据，
+需要至少一个可用的模型（LLM_CHAIN：通义 / DeepSeek / OpenAI / Gemini 的 key，或本地 Ollama）。
+业务数据用 eval/fixtures.py 的固定数据，
 知识库默认用内存版（--kb memory，不需要 ES），--kb es 使用 ES_URIS 上已入库的真实索引。
 报告写到 eval/reports/<时间>/：report.md（汇总）与 results.json（逐条明细）。
 修改提示词、检索参数、模型后都要跑一遍，与上一次报告对比。
@@ -25,7 +26,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from pydantic import BaseModel, Field
 
 from stickybeak_agent.config import Settings, get_settings
-from stickybeak_agent.graph.builder import GraphDeps, build_graph, format_documents, retrieval_query
+from stickybeak_agent.graph.builder import GraphDeps, build_graph, format_documents, retrieve_for
 from stickybeak_agent.graph.tools import make_write_tools
 from stickybeak_agent.llm import ModelProvider
 from stickybeak_agent.mcp_client import McpKnowledgeBase, load_mall_tools
@@ -96,8 +97,9 @@ async def run_case(case: dict, models: ModelProvider, retriever: HybridRetriever
             result.error = errors[0].get("code")
         result.writes = api.writes
 
-        if retriever is not None and result.category == "after_sales":
-            retrieval = await retriever.retrieve(retrieval_query(messages))
+        # 期望引用资料的用例都要算召回（包括 injection 类里问政策的）
+        if retriever is not None and (result.category == "after_sales" or result.expect.get("sources")):
+            retrieval = await retrieve_for(retriever, messages)
             result.retrieved = [p["doc_id"] for p in retrieval.passages]
             if retrieval.passages and result.sources:
                 judge = models.structured(FaithfulnessVerdict)
@@ -176,7 +178,7 @@ async def main() -> int:
     settings = get_settings()
     models = ModelProvider(settings)
     if not models.available:
-        print("No model configured: set DASHSCOPE_API_KEY or DEEPSEEK_API_KEY", file=sys.stderr)
+        print("No model configured: set LLM_CHAIN and the matching API key (or use ollama)", file=sys.stderr)
         return 2
     cases = [c for c in load_dataset() if c["id"].startswith(args.only)]
     started = time.perf_counter()

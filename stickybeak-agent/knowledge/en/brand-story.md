@@ -16,3 +16,8 @@ birds and everyday Aussie life. Each series is made in small batches and may not
 ## Custom orders
 We make custom magnets (your campus stop, a name and so on) with a minimum of 20 pieces and about 3 weeks lead time.
 Email support@stickybeak.com.au with what you have in mind.
+
+## Do you have a physical store
+StickyBeak sells mainly online and has no store of its own. In Sydney you can see the magnets in person at stall 460,
+Paddy's Markets, Haymarket, run by our partner Sydney Souvenirs. Opening hours follow Paddy's Markets; to check whether a
+particular design is in stock, email support@stickybeak.com.au.

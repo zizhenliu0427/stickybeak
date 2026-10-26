@@ -150,3 +150,30 @@ export async function fetchThread(threadId: string): Promise<ThreadHistory> {
   const resp = await api.get<ThreadHistory>(`/agent/threads/${threadId}`);
   return resp.data;
 }
+
+export type MessageSegment =
+  | { type: 'text'; text: string }
+  | { type: 'bold'; text: string }
+  | { type: 'product'; text: string; slug: string };
+
+/**
+ * 助手回答里只认两种标记：**加粗** 与指向站内商品页的 [名称](/products/slug)。
+ * 其他链接（包括工具结果里被注入的外链）一律当普通文本显示，不渲染成可点击的链接。
+ */
+export function messageSegments(text: string): MessageSegment[] {
+  const pattern = /\[([^\]\n]+)\]\(\/products\/([a-z0-9-]+)\)|\*\*([^*\n]+)\*\*/g;
+  const segments: MessageSegment[] = [];
+  let last = 0;
+  for (const match of text.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    if (index > last) segments.push({ type: 'text', text: text.slice(last, index) });
+    if (match[2]) {
+      segments.push({ type: 'product', text: match[1], slug: match[2] });
+    } else {
+      segments.push({ type: 'bold', text: match[3] });
+    }
+    last = index + match[0].length;
+  }
+  if (last < text.length) segments.push({ type: 'text', text: text.slice(last) });
+  return segments;
+}

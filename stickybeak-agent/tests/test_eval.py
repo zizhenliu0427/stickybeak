@@ -17,7 +17,7 @@ DOC_IDS = {c.doc_id for c in load_corpus()}
 def test_dataset_is_well_formed():
     cases = load_dataset()
     tools = set(make_write_tools(FixtureJavaApi())) | MCP_TOOLS
-    assert len(cases) == 50 and len({c["id"] for c in cases}) == 50
+    assert len(cases) == 52 and len({c["id"] for c in cases}) == 52
     for case in cases:
         e = case.get("expect") or {}
         assert case["turns"], case["id"]

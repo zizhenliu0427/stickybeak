@@ -2,11 +2,11 @@ import json
 
 import httpx
 import openai
-from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.types import Command
 
 from stickybeak_agent.config import Settings
-from stickybeak_agent.graph.builder import repair_tool_calls
+from stickybeak_agent.graph.builder import repair_tool_calls, retrieve_for
 from stickybeak_agent.graph.tools import ORDER_TOOLS, SHOPPING_TOOLS
 from stickybeak_agent.rag.retriever import RetrievalResult
 
@@ -160,7 +160,8 @@ async def test_short_follow_up_question_is_expanded_for_retrieval(api):
     async with make_graph(api, [route_to("after_sales"), route_to("after_sales")], retriever=retriever) as (graph, _):
         await run(graph, {"messages": [HumanMessage("寄到中国要多久？")]})
         await run(graph, {"messages": [HumanMessage("那运费呢？")]})
-        assert retriever.queries[-1] == "寄到中国要多久？ 那运费呢？"
+        # 短问题：拼上上一句、单独一句都检索（见 retrieve_for）
+        assert retriever.queries[-2:] == ["寄到中国要多久？ 那运费呢？", "那运费呢？"]
 
 
 async def test_falls_back_to_second_model_when_primary_times_out(api):
@@ -220,3 +221,36 @@ def test_history_trimming_keeps_the_current_question_in_a_long_turn():
     kept = with_tools_history(messages)
     assert "find 12 things" in [m.text for m in kept]
     assert len(kept) == len(messages)
+
+
+class ScoredRetriever:
+    """按查询返回不同分数的片段，记录查过哪些查询。"""
+
+    def __init__(self, scores):
+        self.scores = scores
+        self.queries = []
+
+    async def retrieve(self, query):
+        self.queries.append(query)
+        score = self.scores.get(query)
+        return RetrievalResult(passages=[{"id": query, "score": score}] if query in self.scores else [])
+
+
+async def test_short_question_after_a_topic_change_is_retrieved_on_its_own():
+    messages = [HumanMessage("有没有鹦鹉的冰箱贴？"), AIMessage("有一款。"), HumanMessage("定制要多久？")]
+    retriever = ScoredRetriever({"定制要多久？": 0.85})  # 拼上上一句后被阈值滤光了
+    result = await retrieve_for(retriever, messages)
+    assert [p["id"] for p in result.passages] == ["定制要多久？"]
+    assert retriever.queries == ["有没有鹦鹉的冰箱贴？ 定制要多久？", "定制要多久？"]
+
+
+async def test_follow_up_keeps_the_previous_question_when_that_matches_better():
+    messages = [HumanMessage("寄到中国大陆要多久？"), AIMessage("10-20 个工作日。"), HumanMessage("那运费呢？")]
+    retriever = ScoredRetriever({"寄到中国大陆要多久？ 那运费呢？": 0.9, "那运费呢？": 0.82})
+    assert (await retrieve_for(retriever, messages)).passages[0]["id"] == "寄到中国大陆要多久？ 那运费呢？"
+
+
+async def test_without_scores_the_combined_query_wins():
+    messages = [HumanMessage("退款多久到账？"), AIMessage("5-10 天。"), HumanMessage("那运费呢？")]
+    retriever = ScoredRetriever({"退款多久到账？ 那运费呢？": None, "那运费呢？": None})
+    assert (await retrieve_for(retriever, messages)).passages[0]["id"] == "退款多久到账？ 那运费呢？"

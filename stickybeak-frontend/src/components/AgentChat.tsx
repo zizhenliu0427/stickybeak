@@ -1,12 +1,12 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button, Drawer, FloatButton, Input, Tag } from 'antd';
 import { CommentOutlined, PlusOutlined, SendOutlined } from '@ant-design/icons';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { fetchCartAsync } from '../features/cart/cartSlice';
 import { chatReducer, initialChatState } from '../features/agent/chatState';
 import type { ChatMessage } from '../features/agent/chatState';
-import { AgentHttpError, fetchThread, resolveConfirm, sendMessage } from '../lib/agent';
+import { AgentHttpError, fetchThread, messageSegments, resolveConfirm, sendMessage } from '../lib/agent';
 import type { AgentAction, AgentEvent } from '../lib/agent';
 import { useI18n } from '../lib/i18n';
 import type { TranslationKey } from '../lib/i18n';
@@ -248,7 +248,19 @@ export default function AgentChat() {
                       <p
                         className={`whitespace-pre-wrap ${m.role === 'assistant' ? 'rounded-2xl rounded-bl-sm bg-sand-100 px-3 py-2 dark:bg-stone-800' : ''} ${m.error ? 'text-red-600 dark:text-red-400' : ''}`}
                       >
-                        {m.text}
+                        {m.role === 'assistant'
+                          ? messageSegments(m.text).map((seg, i) =>
+                              seg.type === 'product' ? (
+                                <Link key={i} to={`/products/${seg.slug}`} className="underline underline-offset-2">
+                                  {seg.text}
+                                </Link>
+                              ) : seg.type === 'bold' ? (
+                                <strong key={i}>{seg.text}</strong>
+                              ) : (
+                                <span key={i}>{seg.text}</span>
+                              ),
+                            )
+                          : m.text}
                       </p>
                     )}
                     {m.sources && m.sources.length > 0 && (
