@@ -45,7 +45,7 @@ node scripts/test-seata-rollback.cjs && node scripts/test-search-freshness.cjs
 2026-10-26 全部通过：
 - 后端：260 个测试，7 个覆盖率门禁。
 - 前端：lint 0 错误（4 个有意保留的 `exhaustive-deps` 警告）、32 个 vitest、25 个 Playwright（桌面 + 移动）。
-- agent：68 个 pytest，ruff 通过。
+- agent：83 个 pytest，ruff 通过。
 - 全链路脚本：Sprint 5（6 项）、6（5 项）、8（25 项）、Seata 回滚、索引新鲜度、MinIO 建品（图片 / 视频）、PWA 检查（40 项）。
 
 GitHub Actions 被项目所有者关掉了（没付费）。重新打开时要确认 `agent` job 和前端新增的 lint 步骤能跑通。
@@ -65,9 +65,14 @@ GitHub Actions 被项目所有者关掉了（没付费）。重新打开时要�
 
 ### P0-2 用真实模型跑通 AI 助手并完成评测（13.2 / 13.4 / 13.5 / 13.7 / 14.3）
 
-**进度（2026-10-26）**：已支持通义 / DeepSeek / OpenAI / Gemini / 本地 Ollama，用 `LLM_CHAIN` 排降级顺序。用本地 Ollama（`qwen3.8` + `bge-m3`）已完成：知识库向量化入库、拒答阈值校准（0.79）、52 条评测 51/52、首字延迟 p50 937 ms / p95 3208 ms、经网关的导购 / 加购确认 / 售后问答手测。数据见 SPRINT_ISSUES 13.2 / 13.4 / 13.5 / 13.7。
+**进度（2026-10-26）**：已支持通义 / DeepSeek / OpenAI / Gemini / 本地 Ollama，用 `LLM_CHAIN` 排降级顺序。数据见 SPRINT_ISSUES 13.2 / 13.4 / 13.5 / 13.7。
+- 本地 Ollama（`qwen3.8` + `bge-m3`）：知识库向量化入库、拒答阈值校准（0.79）、52 条评测 51/52、首字延迟 p50 937 ms / p95 3208 ms、经网关的导购 / 加购确认 / 售后问答手测。
+- OpenAI（项目所有者提供的 ChatGPT 反代，`OPENAI_BASE_URL` 指过去，地址和 key 只在本机 `docker/.env`）：默认 `gpt-6-luna`，评测 52/52、首字延迟 p50 3951 ms / p95 8876 ms；`gpt-6-sol` 也测过（51/52、p50 5778 ms）。本机 `docker/.env` 现在是 `LLM_CHAIN=openai,ollama,...`，反代不可用时自动降级到本地。评测中发现的两处路由 / 订单提示词问题已修，本地模型复跑仍是 51/52。
+- Gemini：提供的 `AQ.` 开头的 key 在 AI Studio 与 Vertex AI 各接口都返回 401，没用上，`docker/.env` 里已注释掉。要用的话换 AI Studio 的 key（`AIza` 开头）。
 
-剩下的是云端模型：把 key 填进 `docker/.env`（已 gitignore，模板 `docker/.env.example`；**不要提交到仓库**），重建 agent 与 mcp，然后按下面的步骤跑一遍，与本地基线对比。通义的 text-embedding-v3 + gte-rerank 组合也在这一步实测（有重排时阈值用 `RAG_MIN_RERANK_SCORE`）。
+剩下的是通义 / DeepSeek（没有 key），以及下面第 6 步的浏览器手测。key 填进 `docker/.env`（已 gitignore，模板 `docker/.env.example`；**不要提交到仓库**），重建 agent 与 mcp，按下面的步骤跑一遍，与上面两份基线对比。通义的 text-embedding-v3 + gte-rerank 组合也在这一步实测（有重排时阈值用 `RAG_MIN_RERANK_SCORE`）。
+
+注意：agent 镜像里没有 `eval/` 目录，在容器里跑评测前先 `docker cp stickybeak-agent/eval sb-agent:/app/eval`（Git Bash 下加 `MSYS_NO_PATHCONV=1`），再 `docker exec -e ES_URIS=http://elasticsearch:9200 sb-agent python -m eval.run_eval --kb es`。临时只测某个模型可以加 `-e LLM_CHAIN=ollama`。
 
 1. 先确认通义接口的几处假设（之前没能联网验证）：
    - `qwen-plus` 通过 OpenAI 兼容接口做 function calling（意图路由用 `with_structured_output(method="function_calling")`）。
