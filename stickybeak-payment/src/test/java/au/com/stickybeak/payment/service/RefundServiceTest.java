@@ -1,5 +1,7 @@
 package au.com.stickybeak.payment.service;
 
+import au.com.stickybeak.payment.config.StripeConfig;
+
 import au.com.stickybeak.common.event.OrderRefundedEvent;
 import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.payment.entity.PaymentRecord;
@@ -145,7 +147,7 @@ class RefundServiceTest {
 
     @Test
     void mockProviderRefundsImmediately() {
-        RefundResult result = new MockPaymentProvider(new ObjectMapper())
+        RefundResult result = new MockPaymentProvider(new ObjectMapper(), new StripeConfig())
                 .refund(new RefundCommand("SO1", "mock_tx", new BigDecimal("10.00"), "AUD", null));
         assertTrue(result.isSucceeded());
         assertTrue(result.getRefundId().startsWith("mock_re_"));

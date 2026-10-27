@@ -12,6 +12,7 @@ dependencies = [
     "langgraph>=1.0,<2",
     "langchain-core>=1.0,<2",
     "langchain-openai>=1.0,<2",
+    "tiktoken>=0.7,<1",
     "langgraph-checkpoint-mysql[aiomysql]>=3.0,<4",
     # PyMySQL 1.2 把 escape_bytes_prefixed 换成了占位字符串，aiomysql 0.3.x 仍在调用它，写入 bytes 会报错
     "pymysql>=1.1,<1.2",

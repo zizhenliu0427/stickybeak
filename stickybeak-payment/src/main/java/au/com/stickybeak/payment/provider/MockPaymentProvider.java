@@ -2,6 +2,7 @@ package au.com.stickybeak.payment.provider;
 
 import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.common.result.ResultCode;
+import au.com.stickybeak.payment.config.StripeConfig;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
@@ -12,9 +13,11 @@ import java.util.UUID;
 public class MockPaymentProvider implements PaymentProvider {
 
     private final ObjectMapper objectMapper;
+    private final StripeConfig stripeConfig;
 
-    public MockPaymentProvider(ObjectMapper objectMapper) {
+    public MockPaymentProvider(ObjectMapper objectMapper, StripeConfig stripeConfig) {
         this.objectMapper = objectMapper;
+        this.stripeConfig = stripeConfig;
     }
 
     @Override
@@ -25,7 +28,9 @@ public class MockPaymentProvider implements PaymentProvider {
     @Override
     public CreateSessionResult createSession(CreateSessionCommand cmd) {
         String mockSessionId = "mock_cs_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
-        String mockCheckoutUrl = "http://localhost:5173/checkout/success?session_id=" + mockSessionId + "&order_no=" + cmd.getOrderNo();
+        String mockCheckoutUrl = stripeConfig.getSuccessUrl()
+                .replace("{CHECKOUT_SESSION_ID}", mockSessionId)
+                .replace("{ORDER_NO}", cmd.getOrderNo());
         return new CreateSessionResult(mockSessionId, mockCheckoutUrl, "mock");
     }
 

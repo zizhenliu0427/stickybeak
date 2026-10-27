@@ -25,6 +25,7 @@ import {
 } from '../features/auth/authSlice';
 import type { Address, AddressPayload } from '../features/auth/authSlice';
 import McpTokenCard from '../components/McpTokenCard';
+import AssistantPreferencesCard from '../components/AssistantPreferencesCard';
 import { useI18n } from '../lib/i18n';
 
 const AU_STATES = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'];
@@ -176,6 +177,7 @@ export default function ProfilePage() {
         )}
       </Card>
 
+      <AssistantPreferencesCard key={user.id} />
       <McpTokenCard />
 
       {/* 编辑资料 */}

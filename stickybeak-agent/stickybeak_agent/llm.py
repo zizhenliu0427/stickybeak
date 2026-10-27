@@ -39,7 +39,7 @@ class ModelUnavailableError(Exception):
     """所有模型都不可用。"""
 
 
-PROVIDERS = ("qwen", "deepseek", "openai", "gemini", "ollama")
+PROVIDERS = ("qwen", "deepseek", "openai", "gemini", "ollama", "vllm")
 
 
 @dataclass(frozen=True)
@@ -61,6 +61,13 @@ def provider_endpoint(settings: Settings, provider: str) -> ProviderEndpoint | N
         endpoint = ProviderEndpoint(settings.openai_api_key, settings.openai_base_url, settings.openai_model)
     elif provider == "gemini":
         endpoint = ProviderEndpoint(settings.gemini_api_key, settings.gemini_base_url, settings.gemini_model)
+    elif provider == "vllm":
+        return ProviderEndpoint(
+            settings.vllm_api_key,
+            settings.vllm_base_url,
+            settings.vllm_model,
+            {"chat_template_kwargs": {"enable_thinking": False}},
+        )
     elif provider == "ollama":
         # Ollama 不校验 key，但 OpenAI SDK 要求非空
         extra = {"reasoning_effort": settings.ollama_reasoning_effort} if settings.ollama_reasoning_effort else {}
@@ -128,6 +135,7 @@ class ModelProvider:
             temperature=settings.llm_temperature,
             timeout=settings.llm_timeout_seconds,
             max_retries=settings.llm_max_retries,
+            max_tokens=settings.llm_max_output_tokens,
             streaming=True,
             # 流式时也返回 token 用量（13.6 记录成本）
             stream_usage=True,

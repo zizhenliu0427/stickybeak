@@ -1,0 +1,23 @@
+# 业务与有状态服务沿用现有部署。运行前替换成集群可达的私网地址。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-config
+data:
+  NACOS_ADDR: ""
+  SERVICE_URLS: "stickybeak-product=http://product:8082,stickybeak-cart=http://cart:8083,stickybeak-order=http://order:8084,stickybeak-mcp=http://mcp:8089"
+  MCP_URL: "http://stickybeak-mcp/mcp"
+  MYSQL_HOST: "mysql"
+  MYSQL_USER: "root"
+  AGENT_DB: "stickybeak_agent"
+  REDIS_HOST: "redis"
+  CHECKPOINT_BACKEND: "mysql"
+  LLM_CHAIN: "openai,ollama"
+  OPENAI_MODEL: "gpt-6-luna"
+  OPENAI_BASE_URL: "https://your-proxy.example/v1"
+  OLLAMA_BASE_URL: "http://ollama.internal:11434/v1"
+  OLLAMA_MODEL: "qwen3.8"
+  CONTEXT_INPUT_TOKENS: "7000"
+  CONTEXT_SUMMARY_TOKENS: "500"
+  LLM_MAX_OUTPUT_TOKENS: "1024"
+  MEMORY_TTL_DAYS: "90"

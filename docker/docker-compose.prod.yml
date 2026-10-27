@@ -41,6 +41,10 @@ x-svc-defaults: &svc-defaults
     - MINIO_BUCKET=${MINIO_BUCKET:-stickybeak}
     - STRIPE_API_KEY=${STRIPE_API_KEY}
     - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+    # 必须填写浏览器可访问的商城域名，避免付款后回跳到开发端口
+    - STOREFRONT_URL=${STOREFRONT_URL:?Set STOREFRONT_URL to the public storefront URL}
+    - STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL:-}
+    - STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL:-}
     - JWT_SECRET=${JWT_SECRET}
     # 邮件（notification 使用）：Amazon SES SMTP 接口
     - MAIL_HOST=${MAIL_HOST:-email-smtp.ap-southeast-2.amazonaws.com}
@@ -256,15 +260,16 @@ services:
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       # 降级顺序与各家模型，见 docker/.env.prod.example
-      - LLM_CHAIN=${LLM_CHAIN:-qwen,deepseek}
+      - LLM_CHAIN=${LLM_CHAIN:-openai,ollama}
       - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4.1-mini}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-6-luna}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama.internal:11434/v1}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3.8}
       - SW_AGENT_COLLECTOR_BACKEND_SERVICES=${SW_AGENT_COLLECTOR_BACKEND_SERVICES:-}
     deploy:
       resources:

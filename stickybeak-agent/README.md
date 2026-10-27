@@ -2,12 +2,16 @@
 
 Python 3.12 项目，同一个镜像部署成两个服务，都注册在 Nacos：
 
+2026-10-27 补充：个人中心显式偏好记忆、Token 预算与历史摘录摘要、基于已购记录的双 Agent 推荐、可选 vLLM 与 K8s 演示。
+实现边界、运行方式及实测记录见 [AI 增强验收](../docs/AI_ENHANCEMENTS.md)。
+
 | 服务 | 启动命令 | 端口 | 网关路径 | 作用 |
 |---|---|---|---|---|
 | `stickybeak-agent` | `python -m stickybeak_agent` | 8087 | `/api/agent/**` | LangGraph 购物助手：导购、订单、售后问答，写操作需用户确认 |
 | `stickybeak-mcp` | `python -m stickybeak_agent.mcp_server` | 8089 | `/api/mcp` | MCP Server：商城的只读能力，给自家 agent 和外部 AI 客户端用 |
 
-agent 的只读工具（商品、订单查询、售后检索）都从 MCP Server 加载；MCP Server 调用现有 Java 服务，并用 Elasticsearch 做售后知识库检索。
+常规聊天的只读工具（商品、订单查询、售后检索）从 MCP Server 加载；MCP Server 调用现有 Java 服务，并用 Elasticsearch 做售后知识库检索。
+新增的有界协作节点通过同一个 JavaApi 适配器读取当前用户订单和候选商品。
 
 ```
 浏览器 ──SSE──► 网关（JWT 鉴权、Sentinel 限流）──► stickybeak-agent ──MCP──► stickybeak-mcp ──► Java 服务 / ES
@@ -178,8 +182,8 @@ uv run pytest -q                  # 用脚本化的假模型，不调用真实�
 uv run python -m eval.run_eval    # 需要至少一个可用模型（云端 key 或本地 Ollama）；报告写到 eval/reports/<时间>/report.md
 ```
 
-- 评测集共 52 条（`eval/dataset.yaml`）：导购 10、订单 10、售后 17（其中 2 条知识库没覆盖）、闲聊 3、越权 6、注入 6。
-- 指标：意图准确率、工具调用正确率、确认正确率、RAG 召回率@k、回答忠实度（模型评审）、拒答正确率、越权泄露。所有用例都检查"未确认的写操作没有执行"。
+- 评测集共 64 条（`eval/dataset.yaml`）：导购 18、订单 10、售后 17（其中 2 条知识库没覆盖）、闲聊 3、越权 6、注入 6、偏好记忆 2、协作推荐 2。导购包含中英文泛推荐先追问、热门推荐不乱加关键词，以及补充偏好后的多轮对话。
+- 指标：意图准确率、工具调用及参数正确率、先追问检查、确认正确率、RAG 召回率@k、回答忠实度（模型评审）、拒答正确率、越权泄露。先追问自动检查仅验证有问号且未调用工具，回答是否自然还需看报告原文。所有用例都检查"未确认的写操作没有执行"。
 - 业务数据用 `eval/fixtures.py` 的固定数据。其中一个商品描述里藏了注入指令。
 - 与生产一样，只读工具经（进程内的）MCP Server 调用。
 - 知识库默认用内存版（`--kb memory`，不需要 ES）；`--kb es` 用真实索引。
@@ -188,11 +192,12 @@ uv run python -m eval.run_eval    # 需要至少一个可用模型（云端 key 
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
-| `LLM_CHAIN` | 空（= `LLM_PRIMARY,LLM_FALLBACK` = `qwen,deepseek`） | 降级顺序，逗号分隔：`qwen` `deepseek` `openai` `gemini` `ollama`；没配 key 的云端模型跳过 |
+| `LLM_CHAIN` | 空（= `LLM_PRIMARY,LLM_FALLBACK` = `qwen,deepseek`） | 降级顺序，逗号分隔：`qwen` `deepseek` `openai` `gemini` `ollama` `vllm`；没配 key 的云端模型跳过。本机商城使用 `openai,ollama` |
 | `DASHSCOPE_API_KEY` / `DEEPSEEK_API_KEY` / `OPENAI_API_KEY` / `GEMINI_API_KEY` | 空 | 各家的 key；全部为空且链里没有 `ollama` 时助手返回"暂不可用" |
 | `QWEN_MODEL` / `DEEPSEEK_MODEL` / `OPENAI_MODEL` / `GEMINI_MODEL` | `qwen-plus` / `deepseek-chat` / `gpt-4.1-mini` / `gemini-2.5-flash` | `*_BASE_URL` 可改成代理或兼容网关 |
 | `OLLAMA_BASE_URL` / `OLLAMA_MODEL` | `http://localhost:11434/v1` / `qwen3` | 全栈 compose 里默认 `http://host.docker.internal:11434/v1` |
 | `OLLAMA_REASONING_EFFORT` | `none` | 思考型模型默认关闭思考（否则每次调用多等几十秒）；留空用模型默认 |
+| `VLLM_BASE_URL` / `VLLM_MODEL` / `VLLM_API_KEY` | `http://localhost:8000/v1` / `nvidia/Qwen3.8-27B-NVFP4` / `local-vllm` | 独立 GPU 实验，关闭思考；Docker 内访问宿主服务用 `http://host.docker.internal:8000/v1`，见 [27B 运行与实测](../docs/VLLM_27B.md) |
 | `LLM_TIMEOUT_SECONDS` / `LLM_MAX_RETRIES` | 30 / 1 | |
 | `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` | `qwen` / 按 provider 默认 | `qwen`→text-embedding-v3、`openai`→text-embedding-3-small、`gemini`→gemini-embedding-001、`ollama`→bge-m3、`none`；维度要等于 `EMBEDDING_DIMENSIONS`（1024），换模型后 MCP 启动时自动重新向量化 |
 | `RERANK_PROVIDER` / `RERANK_MODEL` | `qwen` / `gte-rerank-v2` | 只有通义有重排接口；其他情况设 `none` |

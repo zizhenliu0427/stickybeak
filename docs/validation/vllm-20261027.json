@@ -1,0 +1,343 @@
+{
+  "timestamp": "2026-10-27T14:01:16.598819+11:00",
+  "model": "Qwen/Qwen3-4B",
+  "base_url": "http://vllm:8000/v1",
+  "notes": "Unique random prefix per request prevents cross-run prefix-cache reuse. Context sizes are target words; actual prompt_tokens come from server usage. GPU memory is whole-device usage, includes other processes. Warmup excluded.",
+  "runs": [
+    {
+      "context_words": 256,
+      "concurrency": 1,
+      "requests": 8,
+      "successes": 8,
+      "errors": 0,
+      "wall_seconds": 17.255,
+      "ttft_p50_ms": 52.48,
+      "ttft_p95_ms": 63.67,
+      "latency_p95_ms": 2333.06,
+      "mean_prompt_tokens": 379.875,
+      "output_tokens_per_second": 59.34,
+      "peak_gpu_memory_mib": 22204,
+      "samples": [
+        {
+          "ok": true,
+          "ttft_ms": 56.74,
+          "total_ms": 2333.06,
+          "prompt_tokens": 381,
+          "total_tokens": 509,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 63.67,
+          "total_ms": 2199.53,
+          "prompt_tokens": 381,
+          "total_tokens": 509,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 42.91,
+          "total_ms": 2166.58,
+          "prompt_tokens": 378,
+          "total_tokens": 506,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 44.13,
+          "total_ms": 1926.77,
+          "prompt_tokens": 380,
+          "total_tokens": 508,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 42.72,
+          "total_ms": 1966.31,
+          "prompt_tokens": 381,
+          "total_tokens": 509,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 52.48,
+          "total_ms": 2213.92,
+          "prompt_tokens": 380,
+          "total_tokens": 508,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 58.3,
+          "total_ms": 2300.33,
+          "prompt_tokens": 379,
+          "total_tokens": 507,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 58.51,
+          "total_ms": 2145.75,
+          "prompt_tokens": 379,
+          "total_tokens": 507,
+          "completion_tokens": 128
+        }
+      ]
+    },
+    {
+      "context_words": 256,
+      "concurrency": 4,
+      "requests": 8,
+      "successes": 8,
+      "errors": 0,
+      "wall_seconds": 5.037,
+      "ttft_p50_ms": 135.72,
+      "ttft_p95_ms": 185.93,
+      "latency_p95_ms": 2716.81,
+      "mean_prompt_tokens": 379.75,
+      "output_tokens_per_second": 203.29,
+      "peak_gpu_memory_mib": 22169,
+      "samples": [
+        {
+          "ok": true,
+          "ttft_ms": 185.93,
+          "total_ms": 2716.81,
+          "prompt_tokens": 377,
+          "total_tokens": 505,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 87.14,
+          "total_ms": 2703.19,
+          "prompt_tokens": 381,
+          "total_tokens": 509,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 185.44,
+          "total_ms": 2716.17,
+          "prompt_tokens": 380,
+          "total_tokens": 508,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 185.47,
+          "total_ms": 2716.42,
+          "prompt_tokens": 382,
+          "total_tokens": 510,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 79.17,
+          "total_ms": 2321.7,
+          "prompt_tokens": 377,
+          "total_tokens": 505,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 136.42,
+          "total_ms": 2318.57,
+          "prompt_tokens": 380,
+          "total_tokens": 508,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 135.05,
+          "total_ms": 2318.12,
+          "prompt_tokens": 382,
+          "total_tokens": 510,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 135.72,
+          "total_ms": 2318.11,
+          "prompt_tokens": 379,
+          "total_tokens": 507,
+          "completion_tokens": 128
+        }
+      ]
+    },
+    {
+      "context_words": 2048,
+      "concurrency": 1,
+      "requests": 8,
+      "successes": 8,
+      "errors": 0,
+      "wall_seconds": 19.572,
+      "ttft_p50_ms": 219.64,
+      "ttft_p95_ms": 234.16,
+      "latency_p95_ms": 2543.76,
+      "mean_prompt_tokens": 2620.375,
+      "output_tokens_per_second": 52.32,
+      "peak_gpu_memory_mib": 22264,
+      "samples": [
+        {
+          "ok": true,
+          "ttft_ms": 158.86,
+          "total_ms": 2102.16,
+          "prompt_tokens": 2622,
+          "total_tokens": 2750,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 174.31,
+          "total_ms": 2324.65,
+          "prompt_tokens": 2621,
+          "total_tokens": 2749,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 227.12,
+          "total_ms": 2518.35,
+          "prompt_tokens": 2622,
+          "total_tokens": 2750,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 185.46,
+          "total_ms": 2505.1,
+          "prompt_tokens": 2620,
+          "total_tokens": 2748,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 220.47,
+          "total_ms": 2543.76,
+          "prompt_tokens": 2619,
+          "total_tokens": 2747,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 219.64,
+          "total_ms": 2507.63,
+          "prompt_tokens": 2618,
+          "total_tokens": 2746,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 221.15,
+          "total_ms": 2541.77,
+          "prompt_tokens": 2623,
+          "total_tokens": 2751,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 234.16,
+          "total_ms": 2526.8,
+          "prompt_tokens": 2618,
+          "total_tokens": 2746,
+          "completion_tokens": 128
+        }
+      ]
+    },
+    {
+      "context_words": 2048,
+      "concurrency": 4,
+      "requests": 8,
+      "successes": 8,
+      "errors": 0,
+      "wall_seconds": 7.937,
+      "ttft_p50_ms": 421.24,
+      "ttft_p95_ms": 806.72,
+      "latency_p95_ms": 4247.72,
+      "mean_prompt_tokens": 2620.5,
+      "output_tokens_per_second": 129.02,
+      "peak_gpu_memory_mib": 22232,
+      "samples": [
+        {
+          "ok": true,
+          "ttft_ms": 335.43,
+          "total_ms": 3571.11,
+          "prompt_tokens": 2617,
+          "total_tokens": 2745,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 483.69,
+          "total_ms": 3601.72,
+          "prompt_tokens": 2620,
+          "total_tokens": 2748,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 806.72,
+          "total_ms": 4024.82,
+          "prompt_tokens": 2621,
+          "total_tokens": 2749,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 618.36,
+          "total_ms": 3741.84,
+          "prompt_tokens": 2621,
+          "total_tokens": 2749,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 306.54,
+          "total_ms": 4247.72,
+          "prompt_tokens": 2622,
+          "total_tokens": 2750,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 422.96,
+          "total_ms": 4244.01,
+          "prompt_tokens": 2623,
+          "total_tokens": 2751,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 421.24,
+          "total_ms": 4129.91,
+          "prompt_tokens": 2621,
+          "total_tokens": 2749,
+          "completion_tokens": 128
+        },
+        {
+          "ok": true,
+          "ttft_ms": 342.09,
+          "total_ms": 3909.27,
+          "prompt_tokens": 2619,
+          "total_tokens": 2747,
+          "completion_tokens": 128
+        }
+      ]
+    }
+  ],
+  "environment": {
+    "enforce_eager": true,
+    "runtime": "Docker Desktop / WSL2",
+    "gpu_total_mib": 32607,
+    "image_digest": "sha256:014a95f21c9edf6abe0aea6b07353f96baa4ec291c427bb1176dc7c93a85845c",
+    "vllm": "0.11.0",
+    "torch": "2.8.0+cu128",
+    "gpu_memory_utilization": 0.55,
+    "cuda": "12.8",
+    "output_token_limit": 128,
+    "max_num_seqs": 16,
+    "gpu": "NVIDIA GeForce RTX 5090",
+    "max_model_len": 12288,
+    "model_revision": "1cfa9a7208912126459214e8b04321603b3df60c"
+  }
+}

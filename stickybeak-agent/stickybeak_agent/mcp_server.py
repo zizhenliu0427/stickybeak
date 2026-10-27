@@ -90,16 +90,30 @@ def build_mcp(deps: McpDeps) -> FastMCP:
 
     @mcp.tool(annotations=READ_ONLY)
     async def search_products(
-        query: Annotated[str | None, Field(description="keywords, e.g. 'kookaburra' or '公交站牌'")] = None,
+        query: Annotated[
+            str | None,
+            Field(
+                description="User-requested product keywords, e.g. 'kookaburra'. Omit for browsing/bestsellers; "
+                "Do not repeat the category name here. Never use 'popular', 'recommend' or the shop description."
+            ),
+        ] = None,
         category: Annotated[
             CATEGORIES | None,
-            Field(description="category slug, e.g. bus-sign (uni bus stops), tram (Melbourne trams), achievement"),
+            Field(
+                description="Category slug, e.g. bird, bus-sign, tram, achievement. For category-only browsing, "
+                "set this and omit query; e.g. bird magnets under AUD 15: category='bird', max_price_aud=15."
+            ),
         ] = None,
         max_price_aud: Annotated[float | None, Field(description="upper price limit in AUD")] = None,
         sort: Literal["relevance", "sales", "price-asc", "price-desc", "new"] | None = None,
         size: Annotated[int, Field(ge=1, le=10)] = 5,
     ) -> dict[str, Any]:
-        """Search the StickyBeak catalogue (Australian-themed fridge magnets and souvenirs). Prices are AUD."""
+        """Search the StickyBeak catalogue. Prices are AUD.
+
+        For a vague suggestion request without preferences, ask one short follow-up before searching.
+        For explicit bestsellers or 'you choose', use sort='sales' and omit unspecified filters.
+        query is optional: omit it to browse; use category and max_price_aud for category/budget constraints.
+        """
         return await call(deps.api.search_products(query, category, max_price_aud, sort, size))
 
     @mcp.tool(annotations=READ_ONLY)

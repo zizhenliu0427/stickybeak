@@ -37,6 +37,7 @@ from .guard import Guard, QuotaExceeded
 from .java_api import JavaApi
 from .llm import ModelProvider
 from .mcp_client import McpKnowledgeBase, load_mall_tools
+from .memory import Preferences, PreferenceStore, open_preferences
 from .rag.retriever import detect_lang
 from .stream import sse, stream_run
 from .usage import UsageTracker
@@ -55,6 +56,7 @@ class Services:
     models: ModelProvider
     guard: Guard
     api: JavaApi | None = None
+    preferences: PreferenceStore | None = None
 
     @property
     def ready(self) -> bool:
@@ -127,6 +129,8 @@ async def connect_mcp(app: FastAPI, deps_factory, checkpointer, settings: Settin
                 {**mall_tools, **make_write_tools(svc.api)},
                 svc.api,
                 McpKnowledgeBase(mall_tools["search_faq"]),
+                svc.preferences,
+                settings,
             ),
             checkpointer,
         )
@@ -155,7 +159,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         api = JavaApi(resolver, http)
         models = ModelProvider(settings)
         checkpointer = await open_checkpointer(settings, stack)
-        app.state.services = Services(settings, None, models, Guard(redis, settings), api)
+        preferences = await open_preferences(settings, stack)
+        app.state.services = Services(settings, None, models, Guard(redis, settings), api, preferences)
         task = asyncio.create_task(
             connect_mcp(
                 app,
@@ -200,6 +205,35 @@ class ResumeRequest(BaseModel):
 
 
 router = APIRouter(prefix="/agent")
+
+
+def require_preferences(svc: Services) -> PreferenceStore:
+    if svc.preferences is None:
+        raise HTTPException(status_code=503, detail="preferences unavailable")
+    return svc.preferences
+
+
+@router.get("/preferences")
+async def get_preferences(user_id: UserId, svc: Svc):
+    return {"memory": await require_preferences(svc).get(user_id)}
+
+
+@router.put("/preferences")
+async def put_preferences(body: Preferences, user_id: UserId, svc: Svc):
+    return {"memory": await require_preferences(svc).put(user_id, body)}
+
+
+@router.delete("/preferences")
+async def delete_preferences(user_id: UserId, svc: Svc):
+    await require_preferences(svc).delete(user_id)
+    return {"memory": None}
+
+
+@router.get("/ready")
+async def readiness(svc: Svc):
+    if not svc.ready:
+        raise HTTPException(status_code=503, detail="assistant starting")
+    return {"status": "UP"}
 
 
 @router.get("/health")

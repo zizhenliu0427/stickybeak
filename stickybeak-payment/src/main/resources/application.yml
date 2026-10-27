@@ -50,8 +50,10 @@ stripe:
   enabled: ${STRIPE_ENABLED:true}
   api-key: ${STRIPE_API_KEY:sk_test_mock_key}
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_mock_secret}
-  success-url: ${STRIPE_SUCCESS_URL:http://localhost:5173/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_no={ORDER_NO}}
-  cancel-url: ${STRIPE_CANCEL_URL:http://localhost:5173/checkout/cancel?order_no={ORDER_NO}}
+  storefront-url: ${STOREFRONT_URL:http://localhost:5173}
+  # 留空时由 StripeConfig 根据商城地址生成；Mock 和 Stripe 共用，仍可逐个覆盖
+  success-url: ${STRIPE_SUCCESS_URL:}
+  cancel-url: ${STRIPE_CANCEL_URL:}
   # Stripe 允许 30–1440 分钟；订单 30 分钟超时关单，关单时还会主动让会话失效
   session-expiry-minutes: ${STRIPE_SESSION_EXPIRY_MINUTES:31}
 

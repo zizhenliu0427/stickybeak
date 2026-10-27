@@ -449,6 +449,9 @@ export async function mockBackend(page: Page, initial: Partial<MockBackend> = {}
       }
 
       // ---- AI assistant ----
+      if (method === 'GET' && path === '/agent/preferences') {
+        return backend.user ? json({ memory: null }) : unauthorized();
+      }
       const sse = (body: string) => route.fulfill({ status: 200, contentType: 'text/event-stream', body });
       if (method === 'POST' && path === '/agent/chat') {
         return backend.user ? sse(agentChat(backend, body.message)) : unauthorized();

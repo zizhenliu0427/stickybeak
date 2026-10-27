@@ -20,6 +20,7 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, ToolMessage
 
+from .context import ContextBudgetExceeded
 from .graph.builder import ANSWER_NODES
 from .graph.prompts import MODEL_UNAVAILABLE
 from .llm import MODEL_UNAVAILABLE_ERRORS, ModelUnavailableError
@@ -77,6 +78,13 @@ async def stream_run(
                         log.warning("tool %s failed: %s", message.name, message.text[:200])
                 if update.get("sources"):
                     yield sse("sources", {"items": update["sources"]})
+    except ContextBudgetExceeded:
+        text = (
+            "这轮对话超出上下文预算，请开启新对话后缩小查询范围。"
+            if detect_lang(lang_hint) == "zh"
+            else "This turn exceeds the context budget. Start a new chat with a narrower request."
+        )
+        yield sse("error", {"message": text, "code": "context_budget"})
     except (ModelUnavailableError, *MODEL_UNAVAILABLE_ERRORS) as e:
         log.warning("model unavailable: %s", e)
         yield sse("error", {"message": MODEL_UNAVAILABLE[detect_lang(lang_hint)], "code": "model_unavailable"})

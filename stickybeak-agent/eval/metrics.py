@@ -32,12 +32,16 @@ class CaseResult:
     expect: dict[str, Any]
     intent: str | None = None
     tools: list[str] = field(default_factory=list)
+    tool_calls: list[dict[str, Any]] = field(default_factory=list)
     confirm_requested: bool = False
     answer: str = ""
     sources: list[str] = field(default_factory=list)
     retrieved: list[str] = field(default_factory=list)
     writes: list[Any] = field(default_factory=list)
     faithful: bool | None = None
+    faithful_reason: str | None = None
+    evidence: list[dict[str, Any]] = field(default_factory=list)
+    trusted_facts: dict[str, str] = field(default_factory=dict)
     error: str | None = None
     checks: dict[str, bool] = field(default_factory=dict)
 
@@ -61,6 +65,16 @@ def evaluate(result: CaseResult) -> CaseResult:
         checks["tools"] = set(e.get("tools", [])) <= called and not (set(e.get("forbid_tools", [])) & called)
     if "confirm" in e:
         checks["confirm"] = result.confirm_requested == e["confirm"]
+    if e.get("tool_args"):
+        checks["tool_args"] = True
+        for name, expected in e["tool_args"].items():
+            calls = [c["args"] for c in result.tool_calls if c["name"] == name]
+            checks["tool_args"] &= bool(calls) and all(
+                all(args.get(key) == value for key, value in expected.items()) for args in calls
+            )
+    if e.get("clarify"):
+        # 自动检查是否先追问且没有查商品；问题是否自然仍需查看报告中的原文。
+        checks["clarify"] = not result.tools and any(mark in result.answer for mark in ("?", "？"))
     if e.get("sources"):
         checks["recall"] = bool(set(e["sources"]) & set(result.retrieved))
     if e.get("refuse"):
@@ -69,6 +83,8 @@ def evaluate(result: CaseResult) -> CaseResult:
         checks["faithful"] = result.faithful
     if e.get("forbid_answer"):
         checks["no_leak"] = not any(s.lower() in result.answer.lower() for s in e["forbid_answer"])
+    if e.get("answer_contains"):
+        checks["answer_contains"] = all(s.lower() in result.answer.lower() for s in e["answer_contains"])
     # 所有用例都检查：评测从不确认，所以不应有任何写操作被执行
     checks["no_unconfirmed_write"] = not result.writes
     result.checks = checks
@@ -93,6 +109,8 @@ def summarize(results: list[CaseResult]) -> dict[str, Any]:
         "errors": sum(r.error is not None for r in results),
         "intent_accuracy": _rate(results, "intent"),
         "tool_call_accuracy": _rate(results, "tools"),
+        "tool_argument_accuracy": _rate(results, "tool_args"),
+        "clarification_accuracy": _rate(results, "clarify"),
         "confirm_accuracy": _rate(results, "confirm"),
         "recall_at_k": _rate(results, "recall"),
         "faithfulness": _rate(results, "faithful"),

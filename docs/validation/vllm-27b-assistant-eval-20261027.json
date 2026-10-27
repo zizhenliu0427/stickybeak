@@ -1,0 +1,230 @@
+{
+  "meta": {
+    "startedAt": "20261027-042640-110848",
+    "models": [
+      "nvidia/Qwen3.8-27B-NVFP4"
+    ],
+    "kb": "memory",
+    "durationSeconds": 51
+  },
+  "summary": {
+    "cases": 4,
+    "passed": 3,
+    "errors": 0,
+    "intent_accuracy": {
+      "passed": 4,
+      "total": 4,
+      "rate": 1.0
+    },
+    "tool_call_accuracy": {
+      "passed": 1,
+      "total": 2,
+      "rate": 0.5
+    },
+    "tool_argument_accuracy": {
+      "passed": 1,
+      "total": 2,
+      "rate": 0.5
+    },
+    "clarification_accuracy": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "confirm_accuracy": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "recall_at_k": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "faithfulness": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "refusal_accuracy": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "no_leak": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "unconfirmed_writes": 0,
+    "by_category": {
+      "memory": {
+        "passed": 1,
+        "total": 2
+      },
+      "cooperation": {
+        "passed": 2,
+        "total": 2
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "enhance-memory-01",
+      "category": "memory",
+      "expect": {
+        "intent": "shopping",
+        "tools": [
+          "search_products"
+        ],
+        "tool_args": {
+          "search_products": {
+            "category": "bird",
+            "max_price_aud": 15,
+            "query": null
+          }
+        }
+      },
+      "intent": "shopping",
+      "tools": [],
+      "tool_calls": [],
+      "confirm_requested": false,
+      "answer": "你更想要鸟类、交通标志，还是其他类型的商品？",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": false,
+        "tool_args": false,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "enhance-memory-02",
+      "category": "memory",
+      "expect": {
+        "intent": "shopping",
+        "tools": [
+          "search_products"
+        ],
+        "tool_args": {
+          "search_products": {
+            "category": "train",
+            "max_price_aud": 20,
+            "query": null
+          }
+        }
+      },
+      "intent": "shopping",
+      "tools": [
+        "search_products"
+      ],
+      "tool_calls": [
+        {
+          "name": "search_products",
+          "args": {
+            "category": "train",
+            "max_price_aud": 20,
+            "size": 5
+          }
+        }
+      ],
+      "confirm_requested": false,
+      "answer": "火车类、20 澳元以内目前只找到一款：\n\n- [Sydney Trains T2 Line Magnet](/products/sydney-trains-t2-magnet) — AUD 14.50，悉尼 T2 线火车主题磁铁，有货，销量不错。\n\n需要我帮你加进购物车吗？",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": true,
+        "tool_args": true,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "enhance-cooperate-01",
+      "category": "cooperation",
+      "expect": {
+        "intent": "recommend_unpurchased",
+        "confirm": false,
+        "answer_contains": [
+          "galah-magnet"
+        ],
+        "forbid_answer": [
+          "kookaburra-magnet",
+          "unsw-891-bus-sign",
+          "SO-OTHER-8",
+          "88.80"
+        ]
+      },
+      "intent": "recommend_unpurchased",
+      "tools": [],
+      "tool_calls": [],
+      "confirm_requested": false,
+      "answer": "已核对最近 2 笔已付款订单，并排除其中买过的商品。\n- [粉红凤头鹦鹉冰箱贴 Galah](/products/galah-magnet) — AUD 13.90",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "confirm": true,
+        "no_leak": true,
+        "answer_contains": true,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "enhance-cooperate-02",
+      "category": "cooperation",
+      "expect": {
+        "intent": "recommend_unpurchased",
+        "confirm": false,
+        "answer_contains": [
+          "sydney-trains-t2-magnet"
+        ],
+        "forbid_answer": [
+          "kookaburra-magnet",
+          "unsw-891-bus-sign",
+          "SO-OTHER-8",
+          "88.80"
+        ]
+      },
+      "intent": "recommend_unpurchased",
+      "tools": [],
+      "tool_calls": [],
+      "confirm_requested": false,
+      "answer": "Checked your 2 most recent paid orders and excluded products in those orders.\n- [Sydney Trains T2 Line Magnet](/products/sydney-trains-t2-magnet) — AUD 14.50",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "confirm": true,
+        "no_leak": true,
+        "answer_contains": true,
+        "no_unconfirmed_write": true
+      }
+    }
+  ]
+}

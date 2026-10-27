@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -57,6 +58,15 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434/v1"
     ollama_model: str = "qwen3"
     ollama_reasoning_effort: str = "none"
+    vllm_base_url: str = "http://localhost:8000/v1"
+    vllm_model: str = "nvidia/Qwen3.8-27B-NVFP4"
+    vllm_api_key: str = "local-vllm"
+
+    # 输入预算包含系统提示、摘要、工具 schema 和历史；另留输出额度。
+    context_input_tokens: int = Field(default=7000, ge=2500, le=100000)
+    context_summary_tokens: int = Field(default=500, ge=0, le=1500)
+    llm_max_output_tokens: int = Field(default=1024, ge=128, le=8192)
+    memory_ttl_days: int = Field(default=90, ge=1, le=365)
 
     # RAG 向量化：qwen（text-embedding-v3）、openai（text-embedding-3-small）、gemini（gemini-embedding-001）、
     # ollama（bge-m3）或 none。EMBEDDING_MODEL 为空时用对应的默认模型；维度要与 ES 索引一致，换模型后重新入库

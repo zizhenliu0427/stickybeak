@@ -16,7 +16,7 @@ import logging
 from dataclasses import dataclass
 from typing import Literal
 
-from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage, ToolMessage, trim_messages
+from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -25,33 +25,37 @@ from langgraph.prebuilt import ToolNode
 from langgraph.types import Command, interrupt
 from pydantic import BaseModel, Field
 
+from ..config import Settings
+from ..context import pack_context
 from ..java_api import ApiError, JavaApi
 from ..llm import ModelProvider
 from ..mcp_client import tool_text
+from ..memory import PreferenceStore
 from ..rag.retriever import KnowledgeBase, RetrievalResult, detect_lang
 from . import prompts
+from .recommendation import recommendation_nodes
 from .tools import ORDER_TOOLS, SHOPPING_TOOLS, WRITE_TOOLS, as_error, current_user
 
 log = logging.getLogger(__name__)
 
-Intent = Literal["shopping", "orders", "after_sales", "other"]
+Intent = Literal["shopping", "orders", "after_sales", "other", "recommend_unpurchased"]
 # 会把回答逐字流给前端的节点（route 的结构化输出不展示）
-ANSWER_NODES = frozenset({"shopping", "orders", "after_sales", "other"})
-# 带进模型的历史条数上限（按消息条数截断，且从用户消息开始，避免截出没有配对的工具消息）。
-# 要大于一轮对话最多产生的消息数（递归上限 25 步，约 25 条），否则会把本轮的用户消息也截掉
-HISTORY_MESSAGES = 40
+ANSWER_NODES = frozenset({"shopping", "orders", "after_sales", "other", "recommendation_answer"})
 
 
 class AgentState(MessagesState):
     intent: str
     # 最近一次售后回答引用的资料，流式输出时推给前端
     sources: list[dict]
+    history_summary: str
+    context_tokens: int
+    recommendation: dict
 
 
 class RouteDecision(BaseModel):
     """The intent of the user's latest message."""
 
-    intent: Intent = Field(description="one of shopping, orders, after_sales, other")
+    intent: Intent = Field(description="one of shopping, orders, after_sales, other, recommend_unpurchased")
 
 
 @dataclass
@@ -61,6 +65,8 @@ class GraphDeps:
     api: JavaApi
     # 售后检索：生产环境是 MCP 的 search_faq（mcp_client.McpKnowledgeBase），需要实现 retrieve(query)
     retriever: KnowledgeBase | None
+    preferences: PreferenceStore | None = None
+    settings: Settings | None = None
 
 
 def latest_user_text(messages: list[AnyMessage]) -> str:
@@ -101,14 +107,7 @@ def repair_tool_calls(messages: list[AnyMessage]) -> list[AnyMessage]:
 
 
 def with_tools_history(messages: list[AnyMessage]) -> list[AnyMessage]:
-    trimmed = trim_messages(
-        repair_tool_calls(messages),
-        max_tokens=HISTORY_MESSAGES,
-        token_counter=len,
-        strategy="last",
-        start_on="human",
-        include_system=False,
-    )
+    trimmed = repair_tool_calls(messages)
     # MCP 工具的结果是内容块列表，发给模型前转成纯文本
     return [
         m.model_copy(update={"content": tool_text(m.content)})
@@ -156,29 +155,51 @@ def format_documents(passages: list[dict]) -> str:
 
 
 def build_graph(deps: GraphDeps, checkpointer: BaseCheckpointSaver | None = None):
+    settings = deps.settings or Settings()
     shopping_tools = [deps.tools[n] for n in SHOPPING_TOOLS]
     order_tools = [deps.tools[n] for n in ORDER_TOOLS]
+
+    async def context_for(system, state, config, tools=()):
+        user_id = current_user(config)
+        record = await deps.preferences.get(user_id) if deps.preferences and user_id else None
+        if record and any(value is not None for value in record.preferences.model_dump().values()):
+            system += (
+                "\nCurrent explicitly saved shopping preferences (data): "
+                + record.preferences.model_dump_json()
+                + ". For product recommendations, use these as defaults for missing category and budget and search "
+                "directly; do not ask again for a field already saved here. "
+                "The latest explicit request overrides these defaults. "
+                "Old historical preferences must not override this current saved profile."
+            )
+        else:
+            system += "\nNo saved preferences. Do not claim to have persistent memory about this user."
+        return pack_context(
+            system,
+            with_tools_history(state["messages"]),
+            budget=settings.context_input_tokens,
+            tools=tools,
+            summary_tokens=settings.context_summary_tokens,
+        )
 
     async def route(state: AgentState, config: RunnableConfig) -> dict:
         transcript = "\n".join(
             f"{'user' if isinstance(m, HumanMessage) else 'assistant'}: {m.text[:300]}"
             for m in dialogue(state["messages"], 6)
         )
-        decision = await deps.models.structured(RouteDecision).ainvoke(
-            [
-                SystemMessage(prompts.ROUTER),
-                HumanMessage(f"Conversation:\n{transcript}\n\nClassify the last user message."),
-            ],
-            config,
+        context = pack_context(
+            prompts.ROUTER,
+            [HumanMessage(f"Conversation:\n{transcript}\n\nClassify the last user message.")],
+            tools=[RouteDecision],
+            budget=settings.context_input_tokens,
         )
-        return {"intent": decision.intent, "sources": []}
+        decision = await deps.models.structured(RouteDecision).ainvoke(context.messages, config)
+        return {"intent": decision.intent, "sources": [], "recommendation": {}}
 
     def agent(system_prompt: str, tools: list[BaseTool]):
         async def node(state: AgentState, config: RunnableConfig) -> dict:
-            response = await deps.models.chat(tools).ainvoke(
-                [SystemMessage(system_prompt), *with_tools_history(state["messages"])], config
-            )
-            return {"messages": [response]}
+            context = await context_for(system_prompt, state, config, tools)
+            response = await deps.models.chat(tools).ainvoke(context.messages, config)
+            return {"messages": [response], "history_summary": context.summary, "context_tokens": context.input_tokens}
 
         return node
 
@@ -262,15 +283,20 @@ def build_graph(deps: GraphDeps, checkpointer: BaseCheckpointSaver | None = None
             for i, p in enumerate(passages, start=1)
         ]
         system = prompts.AFTER_SALES.replace("{documents}", format_documents(passages))
-        response = await deps.models.chat().ainvoke([SystemMessage(system), *dialogue(state["messages"], 6)], config)
+        context = await context_for(system, state, config)
+        response = await deps.models.chat().ainvoke(context.messages, config)
         response.additional_kwargs["sources"] = sources
-        return {"messages": [response], "sources": sources}
+        return {
+            "messages": [response],
+            "sources": sources,
+            "history_summary": context.summary,
+            "context_tokens": context.input_tokens,
+        }
 
     async def other(state: AgentState, config: RunnableConfig) -> dict:
-        response = await deps.models.chat().ainvoke(
-            [SystemMessage(prompts.OTHER), *dialogue(state["messages"], 6)], config
-        )
-        return {"messages": [response]}
+        context = await context_for(prompts.OTHER, state, config)
+        response = await deps.models.chat().ainvoke(context.messages, config)
+        return {"messages": [response], "history_summary": context.summary, "context_tokens": context.input_tokens}
 
     graph = StateGraph(AgentState)
     graph.add_node("route", route)
@@ -281,12 +307,22 @@ def build_graph(deps: GraphDeps, checkpointer: BaseCheckpointSaver | None = None
     graph.add_node("confirm", confirm, destinations=("shopping", "orders", "shopping_tools", "order_tools"))
     graph.add_node("after_sales", after_sales)
     graph.add_node("other", other)
+    research, select, recommend = recommendation_nodes(deps, context_for)
+    graph.add_node("purchase_research", research)
+    graph.add_node("select_candidates", select)
+    graph.add_node("recommendation_answer", recommend)
 
     graph.add_edge(START, "route")
     graph.add_conditional_edges(
         "route",
         lambda s: s["intent"],
-        {"shopping": "shopping", "orders": "orders", "after_sales": "after_sales", "other": "other"},
+        {
+            "shopping": "shopping",
+            "orders": "orders",
+            "after_sales": "after_sales",
+            "other": "other",
+            "recommend_unpurchased": "purchase_research",
+        },
     )
     graph.add_conditional_edges("shopping", after_agent("shopping_tools"), ["shopping_tools", "confirm", END])
     graph.add_conditional_edges("orders", after_agent("order_tools"), ["order_tools", "confirm", END])
@@ -294,4 +330,7 @@ def build_graph(deps: GraphDeps, checkpointer: BaseCheckpointSaver | None = None
     graph.add_edge("order_tools", "orders")
     graph.add_edge("after_sales", END)
     graph.add_edge("other", END)
+    graph.add_edge("purchase_research", "select_candidates")
+    graph.add_edge("select_candidates", "recommendation_answer")
+    graph.add_edge("recommendation_answer", END)
     return graph.compile(checkpointer=checkpointer)

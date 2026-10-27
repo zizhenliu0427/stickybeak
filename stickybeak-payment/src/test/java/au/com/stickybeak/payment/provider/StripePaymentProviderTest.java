@@ -25,7 +25,7 @@ class StripePaymentProviderTest {
         stripeConfig.setWebhookSecret("mock-secret");
 
         stripePaymentProvider = new StripePaymentProvider(stripeConfig);
-        mockPaymentProvider = new MockPaymentProvider(new ObjectMapper());
+        mockPaymentProvider = new MockPaymentProvider(new ObjectMapper(), stripeConfig);
         factory = new PaymentProviderFactory(stripePaymentProvider, mockPaymentProvider, stripeConfig);
     }
 

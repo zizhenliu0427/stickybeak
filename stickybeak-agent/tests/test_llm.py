@@ -39,6 +39,14 @@ def test_nothing_configured_means_no_model():
     assert not ModelProvider(Settings()).available
 
 
+def test_vllm_has_its_own_endpoint_and_does_not_require_a_cloud_key():
+    settings = Settings(llm_chain="vllm", vllm_base_url="http://inference:8000/v1")
+    endpoint = provider_endpoint(settings, "vllm")
+    assert endpoint.base_url == "http://inference:8000/v1"
+    assert endpoint.extra_body == {"chat_template_kwargs": {"enable_thinking": False}}
+    assert ModelProvider(settings).model_names == ["nvidia/Qwen3.8-27B-NVFP4"]
+
+
 def test_embedding_provider_selection():
     assert embedding_endpoint(Settings()) is None  # 默认 qwen，但没有 key
     assert embedding_endpoint(Settings(embedding_provider="none", dashscope_api_key="k")) is None

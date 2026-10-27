@@ -12,6 +12,9 @@ WORKDIR /app
 # 先只装依赖，代码改动不会让依赖层失效
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
+# 将 tokenizer 数据打进镜像，集群首次请求无需临时访问公网。
+ENV TIKTOKEN_CACHE_DIR=/app/tokenizers
+RUN .venv/bin/python -c "import tiktoken; tiktoken.get_encoding('cl100k_base')"
 COPY stickybeak_agent ./stickybeak_agent
 COPY knowledge ./knowledge
 RUN uv sync --frozen --no-dev

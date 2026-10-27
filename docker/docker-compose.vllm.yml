@@ -1,0 +1,45 @@
+# 独立、可选的 GPU 实验；不会修改当前助手的默认模型。
+# docker compose -f docker/docker-compose.vllm.yml up -d
+name: stickybeak-inference
+services:
+  vllm:
+    image: vllm/vllm-openai:v0.32.0
+    gpus: all
+    ipc: host
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      VLLM_API_KEY: ${VLLM_API_KEY:-local-vllm}
+    command:
+      - nvidia/Qwen3.8-27B-NVFP4
+      - --revision
+      - "482ca0f3832238542f8f5295dde86b5f22711d80"
+      # 商城助手只需要文本；跳过视觉编码器，给 KV cache 留出显存。
+      - --language-model-only
+      - --enable-auto-tool-choice
+      - --tool-call-parser
+      - qwen3_coder
+      - --reasoning-parser
+      - qwen3
+      - --max-model-len
+      - "12288"
+      - --gpu-memory-utilization
+      - "0.82"
+      - --max-num-seqs
+      - "4"
+      - --max-num-batched-tokens
+      - "1024"
+      - --kv-cache-dtype
+      - fp8_e4m3
+      - --enforce-eager
+    volumes:
+      - models:/root/.cache/huggingface/hub
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 180s
+volumes:
+  models:
