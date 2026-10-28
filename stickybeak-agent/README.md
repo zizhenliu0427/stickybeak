@@ -151,6 +151,8 @@ SSE 事件：
 
 ## 本地运行
 
+Mac 的 Ollama 配置、M4 Pro 实测记录和 vLLM-Metal 支持说明见 [Mac 本地模型测试](../docs/MAC_LOCAL_MODELS.md)。
+
 ```bash
 cd stickybeak-agent
 uv sync                                   # Python 3.12，依赖锁定在 uv.lock

@@ -1,0 +1,188 @@
+{
+  "model": "qwen3.8:27b-mlx",
+  "base_url": "http://127.0.0.1:11434",
+  "context": 32768,
+  "thinking": false,
+  "cases": [
+    {
+      "name": "cold_chinese",
+      "passed": true,
+      "wall_seconds": 11.36,
+      "ttft_seconds": null,
+      "response": {
+        "model": "qwen3.8:27b-mlx",
+        "created_at": "2026-10-28T00:40:37.000006Z",
+        "message": {
+          "role": "assistant",
+          "content": "本地模型运行正常"
+        },
+        "done": true,
+        "done_reason": "stop",
+        "total_duration": 11350809417,
+        "load_duration": 8522601958,
+        "prompt_eval_count": 23,
+        "prompt_eval_cached_count": 0,
+        "prompt_eval_duration": 2261262167,
+        "eval_count": 4,
+        "eval_duration": 563531375
+      },
+      "decode_tokens_per_second": 7.1
+    },
+    {
+      "name": "arithmetic_json_schema",
+      "passed": true,
+      "wall_seconds": 1.677,
+      "ttft_seconds": null,
+      "response": {
+        "model": "qwen3.8:27b-mlx",
+        "created_at": "2026-10-28T00:40:38.67879Z",
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"total_aud\": 80.7,\n  \"item_count\": 5\n}"
+        },
+        "done": true,
+        "done_reason": "stop",
+        "total_duration": 1676064917,
+        "load_duration": 5505917,
+        "prompt_eval_count": 56,
+        "prompt_eval_cached_count": 0,
+        "prompt_eval_duration": 618298875,
+        "eval_count": 24,
+        "eval_duration": 1051203167
+      },
+      "decode_tokens_per_second": 22.83
+    },
+    {
+      "name": "openai_tool_call",
+      "passed": true,
+      "wall_seconds": 3.76,
+      "ttft_seconds": null,
+      "response": {
+        "id": "chatcmpl-233",
+        "object": "chat.completion",
+        "created": 1793148042,
+        "model": "qwen3.8:27b-mlx",
+        "system_fingerprint": "fp_ollama",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "id": "call_1j0xdl3i",
+                  "index": 0,
+                  "type": "function",
+                  "function": {
+                    "name": "search_products",
+                    "arguments": "{\"query\":\"鸟类冰箱贴\",\"maxPrice\":30}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 295,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens": 39,
+          "total_tokens": 334
+        }
+      }
+    },
+    {
+      "name": "warm_stream_1",
+      "passed": true,
+      "wall_seconds": 5.436,
+      "ttft_seconds": 0.378,
+      "response": {
+        "model": "qwen3.8:27b-mlx",
+        "created_at": "2026-10-28T00:40:47.876324Z",
+        "message": {
+          "content": "测试编号0。以下是十条冰箱贴的保养建议，每条均附带了相应的原因说明：\n\n1. **避免长时间暴晒**\n   *   **原因**：紫外线会导致塑料、树脂或纸质冰箱贴褪色、变黄，甚至使材质变脆、开裂，影响美观和使用寿命。\n\n2. **保持干燥，避免受潮**\n   *   **原因**：潮湿环境容易导致纸质或木质冰箱贴发霉、变形；对于金属类冰箱贴，湿气会加速氧化生锈，破坏表面涂层。\n\n3. **定期清洁表面灰尘**\n   *   **原因**：冰箱表面"
+        },
+        "done": true,
+        "done_reason": "length",
+        "total_duration": 5435450625,
+        "load_duration": 4070666,
+        "prompt_eval_count": 30,
+        "prompt_eval_cached_count": 2,
+        "prompt_eval_duration": 268654459,
+        "eval_count": 128,
+        "eval_duration": 5159742500
+      },
+      "decode_tokens_per_second": 24.81
+    },
+    {
+      "name": "warm_stream_2",
+      "passed": true,
+      "wall_seconds": 4.994,
+      "ttft_seconds": 0.424,
+      "response": {
+        "model": "qwen3.8:27b-mlx",
+        "created_at": "2026-10-28T00:40:52.870566Z",
+        "message": {
+          "content": "测试编号1。以下是十条冰箱贴的保养建议，每条均附带了相应的原因说明：\n\n1. **避免长时间暴晒**\n   *   **原因**：阳光中的紫外线会导致塑料、树脂或纸质冰箱贴褪色、变黄，甚至使材质变脆、开裂。\n\n2. **远离高温热源**\n   *   **原因**：冰箱门附近虽相对凉爽，但若冰箱贴靠近烤箱、灶台或暖气片，高温可能使磁性材料退磁，或导致塑料/橡胶材质变形、熔化。\n\n3. **定期清洁表面灰尘**\n   *   **原因**"
+        },
+        "done": true,
+        "done_reason": "length",
+        "total_duration": 4993305875,
+        "load_duration": 29937125,
+        "prompt_eval_count": 30,
+        "prompt_eval_cached_count": 2,
+        "prompt_eval_duration": 271783917,
+        "eval_count": 128,
+        "eval_duration": 4691079125
+      },
+      "decode_tokens_per_second": 27.29
+    },
+    {
+      "name": "warm_stream_3",
+      "passed": true,
+      "wall_seconds": 5.253,
+      "ttft_seconds": 0.373,
+      "response": {
+        "model": "qwen3.8:27b-mlx",
+        "created_at": "2026-10-28T00:40:58.124303Z",
+        "message": {
+          "content": "测试编号2已收到。以下是关于冰箱贴保养的十条建议，每条均附带了相应的保养原因：\n\n1. **避免阳光直射**\n   *   **原因**：紫外线会导致冰箱贴表面的颜料、塑料或树脂材料褪色、老化甚至变脆，影响美观和使用寿命。\n\n2. **保持干燥，避免潮湿环境**\n   *   **原因**：长期处于潮湿环境中，金属类冰箱贴容易生锈，纸质或木质类则可能发霉、变形或受潮脱落。\n\n3. **定期用干布或微湿布擦拭**\n   *   **原因**："
+        },
+        "done": true,
+        "done_reason": "length",
+        "total_duration": 5252636625,
+        "load_duration": 11307792,
+        "prompt_eval_count": 30,
+        "prompt_eval_cached_count": 4,
+        "prompt_eval_duration": 269091250,
+        "eval_count": 128,
+        "eval_duration": 4971748667
+      },
+      "decode_tokens_per_second": 25.75
+    }
+  ],
+  "ps": {
+    "models": [
+      {
+        "name": "qwen3.8:27b-mlx",
+        "model": "qwen3.8:27b-mlx",
+        "size": 20884408060,
+        "digest": "5642e97495e1a088883805981563dcdc4a040c2f53388b7a41d1f24d3622cf7e",
+        "details": {
+          "parent_model": "",
+          "format": "safetensors",
+          "family": "",
+          "families": null,
+          "parameter_size": "",
+          "quantization_level": "nvfp4"
+        },
+        "expires_at": "2026-10-28T12:00:58.124408+11:00",
+        "size_vram": 20884408060,
+        "context_length": 32768
+      }
+    ]
+  }
+}
