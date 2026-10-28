@@ -5,6 +5,7 @@ import au.com.stickybeak.notification.service.EmailService;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -21,10 +22,14 @@ public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
+    /** 发件地址；接 Amazon SES 时必须是已验证的地址 */
+    private final String fromAddress;
 
-    public EmailServiceImpl(JavaMailSender mailSender, TemplateEngine templateEngine) {
+    public EmailServiceImpl(JavaMailSender mailSender, TemplateEngine templateEngine,
+                            @Value("${stickybeak.mail.from:orders@stickybeak.com.au}") String fromAddress) {
         this.mailSender = mailSender;
         this.templateEngine = templateEngine;
+        this.fromAddress = fromAddress;
     }
 
     @Override
@@ -47,7 +52,7 @@ public class EmailServiceImpl implements EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, StandardCharsets.UTF_8.name());
 
-            helper.setFrom("orders@stickybeak.com.au", "StickyBeak");
+            helper.setFrom(fromAddress, "StickyBeak");
             helper.setTo(recipient);
             helper.setSubject(subject);
             helper.setText(htmlContent, true);

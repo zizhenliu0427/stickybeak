@@ -1,0 +1,18 @@
+# 可选；需要 metrics-server。CPU HPA 不代表远端模型推理容量。
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: agent
+  namespace: stickybeak-ai
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: agent }
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120

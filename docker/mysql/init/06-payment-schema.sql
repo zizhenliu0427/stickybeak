@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS t_payment_record (
     amount               DECIMAL(10,2) NOT NULL COMMENT '支付金额',
     currency             VARCHAR(8)    NOT NULL DEFAULT 'AUD' COMMENT 'aud/cny',
     exchange_rate_at_pay DECIMAL(12,6) NOT NULL DEFAULT 1.000000,
-    status               VARCHAR(16)   NOT NULL DEFAULT 'pending' COMMENT 'pending/succeeded/failed/refunded',
+    status               VARCHAR(16)   NOT NULL DEFAULT 'pending' COMMENT 'pending/succeeded/expired/refunding/refunded',
     transaction_id       VARCHAR(128)  NULL     COMMENT '外部交易单号 (PaymentIntent ID)',
     pay_time             DATETIME      NULL,
     create_time          DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,

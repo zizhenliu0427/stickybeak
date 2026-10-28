@@ -11,8 +11,12 @@ spring:
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:localhost:8848}
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
       config:
         server-addr: ${NACOS_ADDR:localhost:8848}
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
         file-extension: yml
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/stickybeak_payment?useSSL=false&serverTimezone=Australia/Sydney&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
@@ -23,6 +27,7 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
       timeout: 3s
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
@@ -45,11 +50,44 @@ stripe:
   enabled: ${STRIPE_ENABLED:true}
   api-key: ${STRIPE_API_KEY:sk_test_mock_key}
   webhook-secret: ${STRIPE_WEBHOOK_SECRET:whsec_mock_secret}
-  success-url: ${STRIPE_SUCCESS_URL:http://localhost:5173/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_no={ORDER_NO}}
-  cancel-url: ${STRIPE_CANCEL_URL:http://localhost:5173/checkout/cancel?order_no={ORDER_NO}}
+  storefront-url: ${STOREFRONT_URL:http://localhost:5173}
+  # 留空时由 StripeConfig 根据商城地址生成；Mock 和 Stripe 共用，仍可逐个覆盖
+  success-url: ${STRIPE_SUCCESS_URL:}
+  cancel-url: ${STRIPE_CANCEL_URL:}
+  # Stripe 允许 30–1440 分钟；订单 30 分钟超时关单，关单时还会主动让会话失效
+  session-expiry-minutes: ${STRIPE_SESSION_EXPIRY_MINUTES:31}
+
+stickybeak:
+  payment:
+    # 无签名的模拟回调，只给本地 E2E 用；生产必须保持 false
+    mock-webhook-enabled: ${PAYMENT_MOCK_WEBHOOK_ENABLED:false}
+  webhook:
+    async:
+      # 故事线 9.6：验签落档后交给线程池异步处理、立即返回 ACCEPTED。默认关闭：同步处理失败时 Stripe 会重试
+      enabled: ${WEBHOOK_ASYNC_ENABLED:false}
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info
+
+# OpenAPI 文档（网关 /doc.html 聚合）。生产环境 API_DOCS_ENABLED=false 关闭，避免暴露接口清单
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED:true}
+  swagger-ui:
+    enabled: ${API_DOCS_ENABLED:true}
+knife4j:
+  enable: true
+  production: ${KNIFE4J_PRODUCTION:false}
+
+---
+# 生产环境强制关闭无签名的模拟回调
+spring:
+  config:
+    activate:
+      on-profile: prod
+stickybeak:
+  payment:
+    mock-webhook-enabled: false

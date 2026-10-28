@@ -27,10 +27,4 @@ public class WebhookController {
         String result = webhookService.handleStripeWebhook(payload, sigHeader);
         return ResponseEntity.ok(Map.of("received", true, "status", result));
     }
-
-    @PostMapping("/mock")
-    public ResponseEntity<Map<String, Object>> handleMockWebhook(@RequestBody String payload) {
-        String result = webhookService.handleMockWebhook(payload);
-        return ResponseEntity.ok(Map.of("received", true, "status", result));
-    }
 }

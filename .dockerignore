@@ -1,0 +1,14 @@
+# 构建上下文是仓库根目录（Dockerfile.backend / Dockerfile.frontend）。
+# node_modules 必须排除：Windows 上装的原生依赖（esbuild / rollup）复制进 Linux 镜像会构建失败。
+.git
+.claude
+.vscode
+.idea
+.skywalking
+**/node_modules
+**/target
+stickybeak-frontend/dist
+stickybeak-frontend/test-results
+stickybeak-frontend/playwright-report
+stickybeak-agent
+scripts/sku-review

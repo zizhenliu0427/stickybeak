@@ -59,13 +59,28 @@ public class PaymentServiceImpl implements PaymentService {
             provider = paymentProviderFactory.getProvider();
         }
 
+        // 同一订单只保留一个可付款的会话：重新发起支付（「我的订单」里的立即支付）前先让旧会话失效，
+        // 否则旧链接仍能付款，两个会话都付了就会重复扣款。旧会话关不掉时宁可不发新链接
+        if (existing != null && "pending".equalsIgnoreCase(existing.getStatus()) && StringUtils.hasText(existing.getSessionId())) {
+            try {
+                paymentProviderFactory.getProviderByName(existing.getProvider()).expireSession(existing.getSessionId());
+            } catch (Exception e) {
+                log.warn("Could not expire previous session {} of order {}: {}", existing.getSessionId(), req.getOrderNo(), e.getMessage());
+                throw new BusinessException(ResultCode.BAD_REQUEST,
+                        "The previous payment link of order " + req.getOrderNo() + " is still open, please try again shortly");
+            }
+        }
+
         CreateSessionCommand cmd = new CreateSessionCommand();
         cmd.setOrderNo(req.getOrderNo());
         cmd.setUserId(req.getUserId());
         cmd.setEmail(req.getEmail());
         cmd.setAmount(req.getAmount());
         cmd.setCurrency(StringUtils.hasText(req.getCurrency()) ? req.getCurrency() : "AUD");
-        cmd.setPaymentMethod(StringUtils.hasText(req.getPaymentMethod()) ? req.getPaymentMethod() : "card");
+        // 重新发起支付时订单服务不传支付方式，沿用下单时选的
+        String paymentMethod = StringUtils.hasText(req.getPaymentMethod()) ? req.getPaymentMethod()
+                : existing != null && StringUtils.hasText(existing.getPaymentMethod()) ? existing.getPaymentMethod() : "card";
+        cmd.setPaymentMethod(paymentMethod);
         cmd.setDescription(req.getDescription());
 
         CreateSessionResult result = provider.createSession(cmd);
@@ -109,5 +124,19 @@ public class PaymentServiceImpl implements PaymentService {
         PaymentRecordVO vo = new PaymentRecordVO();
         BeanUtils.copyProperties(record, vo);
         return vo;
+    }
+
+    @Override
+    public void expireSession(String orderNo) {
+        PaymentRecord record = paymentRecordMapper.selectOne(
+                new LambdaQueryWrapper<PaymentRecord>().eq(PaymentRecord::getOrderNo, orderNo)
+        );
+        if (record == null || !"pending".equalsIgnoreCase(record.getStatus()) || !StringUtils.hasText(record.getSessionId())) {
+            return;
+        }
+        paymentProviderFactory.getProviderByName(record.getProvider()).expireSession(record.getSessionId());
+        record.setStatus("expired");
+        paymentRecordMapper.updateById(record);
+        log.info("Payment session for order {} expired", orderNo);
     }
 }

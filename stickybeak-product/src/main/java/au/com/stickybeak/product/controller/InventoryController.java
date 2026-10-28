@@ -1,5 +1,6 @@
 package au.com.stickybeak.product.controller;
 
+import au.com.stickybeak.common.internal.InternalApi;
 import au.com.stickybeak.common.result.Result;
 import au.com.stickybeak.product.dto.StockDeductRequest;
 import au.com.stickybeak.product.dto.StockRollbackRequest;
@@ -17,18 +18,37 @@ public class InventoryController {
         this.inventoryService = inventoryService;
     }
 
+    /** 扣减 / 回滚 / 确认只允许订单服务调用；对外暴露会被用来锁死库存或绕过防超卖 */
+    @InternalApi
     @PostMapping("/deduct")
     public Result<Void> deductStock(@Valid @RequestBody StockDeductRequest req) {
         inventoryService.deductStock(req);
         return Result.ok();
     }
 
+    @InternalApi
     @PostMapping("/rollback")
     public Result<Void> rollbackStock(@Valid @RequestBody StockRollbackRequest req) {
         inventoryService.rollbackStock(req.getOrderNo());
         return Result.ok();
     }
 
+    /** 已支付订单退款后回补库存 */
+    @InternalApi
+    @PostMapping("/restock")
+    public Result<Void> restockStock(@Valid @RequestBody StockRollbackRequest req) {
+        inventoryService.restockConfirmed(req.getOrderNo());
+        return Result.ok();
+    }
+
+    /** 结账全局事务回滚后，订单服务调用此接口归还该订单的 Redis 预扣（MySQL 部分已由 Seata 撤销） */
+    @InternalApi
+    @PostMapping("/redis-restore")
+    public Result<Integer> restoreRedisReservation(@Valid @RequestBody StockRollbackRequest req) {
+        return Result.ok(inventoryService.restoreRedisReservation(req.getOrderNo()));
+    }
+
+    @InternalApi
     @PostMapping("/confirm")
     public Result<Void> confirmStock(@Valid @RequestBody StockRollbackRequest req) {
         inventoryService.confirmStock(req.getOrderNo());

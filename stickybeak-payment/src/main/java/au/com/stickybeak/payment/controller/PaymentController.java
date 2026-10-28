@@ -1,9 +1,11 @@
 package au.com.stickybeak.payment.controller;
 
+import au.com.stickybeak.common.internal.InternalApi;
 import au.com.stickybeak.common.result.Result;
 import au.com.stickybeak.payment.dto.CreatePaymentSessionRequest;
 import au.com.stickybeak.payment.service.ExchangeRateService;
 import au.com.stickybeak.payment.service.PaymentService;
+import au.com.stickybeak.payment.service.RefundService;
 import au.com.stickybeak.payment.vo.ExchangeRateVO;
 import au.com.stickybeak.payment.vo.PaymentRecordVO;
 import au.com.stickybeak.payment.vo.PaymentSessionVO;
@@ -16,18 +18,25 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/payments")
 public class PaymentController {
 
     private final PaymentService paymentService;
     private final ExchangeRateService exchangeRateService;
+    private final RefundService refundService;
 
-    public PaymentController(PaymentService paymentService, ExchangeRateService exchangeRateService) {
+    public PaymentController(PaymentService paymentService, ExchangeRateService exchangeRateService,
+                             RefundService refundService) {
         this.paymentService = paymentService;
         this.exchangeRateService = exchangeRateService;
+        this.refundService = refundService;
     }
 
+    /** 仅订单服务调用：金额由订单服务计算，不能让用户直接指定 */
+    @InternalApi
     @PostMapping("/checkout-session")
     public Result<PaymentSessionVO> createCheckoutSession(@RequestBody @Valid CreatePaymentSessionRequest req) {
         PaymentSessionVO vo = paymentService.createCheckoutSession(req);
@@ -42,9 +51,27 @@ public class PaymentController {
         return Result.ok(vo);
     }
 
+    /** 记录不含用户归属，无法做越权校验，只开放给内部服务 */
+    @InternalApi
     @GetMapping("/records/{orderNo}")
     public Result<PaymentRecordVO> getRecord(@PathVariable String orderNo) {
         PaymentRecordVO vo = paymentService.getByOrderNo(orderNo);
         return Result.ok(vo);
+    }
+
+    @InternalApi
+    @PostMapping("/{orderNo}/expire-session")
+    public Result<Void> expireSession(@PathVariable String orderNo) {
+        paymentService.expireSession(orderNo);
+        return Result.ok();
+    }
+
+    /** 由订单服务调用（管理员退款、关单后到账的自动退款），返回 refunded / refunding */
+    @InternalApi
+    @PostMapping("/{orderNo}/refund")
+    public Result<String> refund(@PathVariable String orderNo,
+                                 @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : null;
+        return Result.ok(refundService.refund(orderNo, reason));
     }
 }

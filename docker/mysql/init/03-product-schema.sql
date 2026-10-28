@@ -62,9 +62,10 @@ CREATE TABLE IF NOT EXISTS t_product (
 CREATE TABLE IF NOT EXISTS t_product_image (
     id          BIGINT       NOT NULL AUTO_INCREMENT,
     product_id  BIGINT       NOT NULL              COMMENT '所属商品',
-    url         VARCHAR(512) NOT NULL              COMMENT '图片 URL',
+    url         VARCHAR(512) NOT NULL              COMMENT '媒体 URL',
+    media_type  VARCHAR(16)  NOT NULL DEFAULT 'image' COMMENT '媒体类型 image/video',
     sort_order  INT          NOT NULL DEFAULT 0    COMMENT '排序',
-    is_cover    TINYINT      NOT NULL DEFAULT 0    COMMENT '1=封面图',
+    is_cover    TINYINT      NOT NULL DEFAULT 0    COMMENT '1=封面图（仅 image）',
     is_deleted  TINYINT      NOT NULL DEFAULT 0,
     create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

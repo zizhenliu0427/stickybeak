@@ -3,6 +3,11 @@ package au.com.stickybeak.product.vo;
 import java.util.List;
 
 public class ProductVO {
+
+    /** 媒体项（图/视频），按 sort_order 有序 */
+    public record MediaItem(String url, String mediaType) {
+    }
+
     private Long id;
     private String slug;
     private String name;
@@ -13,12 +18,25 @@ public class ProductVO {
     private Integer stock;
     private Integer sales;
     private List<String> tags;
+    /** 仅图片 URL（卡片/封面安全） */
     private List<String> images;
+    /** 全量媒体（含视频），详情页画廊用 */
+    private List<MediaItem> media;
     private String sourceNoteId;
     private Boolean featured;
+    /** 关键词搜索命中时的高亮名称：已 HTML 转义，命中词用 &lt;em&gt; 包裹；非搜索结果为 null */
+    private String highlightedName;
 
     public Long getId() {
         return id;
+    }
+
+    public String getHighlightedName() {
+        return highlightedName;
+    }
+
+    public void setHighlightedName(String highlightedName) {
+        this.highlightedName = highlightedName;
     }
 
     public void setId(Long id) {
@@ -103,6 +121,14 @@ public class ProductVO {
 
     public void setImages(List<String> images) {
         this.images = images;
+    }
+
+    public List<MediaItem> getMedia() {
+        return media;
+    }
+
+    public void setMedia(List<MediaItem> media) {
+        this.media = media;
     }
 
     public String getSourceNoteId() {

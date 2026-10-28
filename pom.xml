@@ -32,10 +32,15 @@
         <spring-cloud-alibaba.version>2023.0.1.2</spring-cloud-alibaba.version>
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <minio.version>8.5.12</minio.version>
         <stripe-java.version>26.1.0</stripe-java.version>
         <redisson.version>3.34.1</redisson.version>
         <knife4j.version>4.5.0</knife4j.version>
+        <!-- SkyWalking 工具包版本必须与运行时挂载的 Java agent 版本一致（docker/Dockerfile.backend） -->
+        <skywalking.version>9.7.0</skywalking.version>
         <jacoco.version>0.8.12</jacoco.version>
+        <!-- 覆盖率门禁：各模块按 Sprint 11 实测值设置底线（只升不降），见各模块 pom -->
+        <jacoco.line.minimum>0.30</jacoco.line.minimum>
     </properties>
 
     <dependencyManagement>
@@ -84,6 +89,11 @@
                 <scope>runtime</scope>
             </dependency>
             <dependency>
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version>${minio.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>au.com.stickybeak</groupId>
                 <artifactId>stickybeak-common</artifactId>
                 <version>0.0.1-SNAPSHOT</version>
@@ -102,6 +112,26 @@
                 <groupId>com.github.xiaoymin</groupId>
                 <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
                 <version>${knife4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.xiaoymin</groupId>
+                <artifactId>knife4j-gateway-spring-boot-starter</artifactId>
+                <version>${knife4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.skywalking</groupId>
+                <artifactId>apm-toolkit-logback-1.x</artifactId>
+                <version>${skywalking.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.skywalking</groupId>
+                <artifactId>apm-toolkit-trace</artifactId>
+                <version>${skywalking.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.skywalking</groupId>
+                <artifactId>apm-toolkit-meter</artifactId>
+                <version>${skywalking.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -145,6 +175,28 @@
                             <goals>
                                 <goal>report</goal>
                             </goals>
+                        </execution>
+                        <!-- 门禁：行覆盖率低于模块底线时 mvn verify 失败；核心类的规则在 order / payment 模块追加 -->
+                        <execution>
+                            <id>check</id>
+                            <phase>verify</phase>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                            <configuration>
+                                <rules>
+                                    <rule>
+                                        <element>BUNDLE</element>
+                                        <limits>
+                                            <limit>
+                                                <counter>LINE</counter>
+                                                <value>COVEREDRATIO</value>
+                                                <minimum>${jacoco.line.minimum}</minimum>
+                                            </limit>
+                                        </limits>
+                                    </rule>
+                                </rules>
+                            </configuration>
                         </execution>
                     </executions>
                 </plugin>

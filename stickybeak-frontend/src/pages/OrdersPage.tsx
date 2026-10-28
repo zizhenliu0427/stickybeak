@@ -19,7 +19,7 @@ import {
   SyncOutlined,
   ShoppingOutlined,
 } from '@ant-design/icons';
-import { getMyOrders, cancelOrder } from '../lib/order';
+import { getMyOrders, cancelOrder, resumePayment } from '../lib/order';
 import type { OrderVO } from '../lib/order';
 import { useI18n } from '../lib/i18n';
 
@@ -78,6 +78,7 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderVO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [cancellingOrderNo, setCancellingOrderNo] = useState<string | null>(null);
+  const [payingOrderNo, setPayingOrderNo] = useState<string | null>(null);
 
   const loadOrders = useCallback(async (status: string) => {
     setLoading(true);
@@ -105,6 +106,22 @@ export default function OrdersPage() {
       message.error(String(e));
     } finally {
       setCancellingOrderNo(null);
+    }
+  };
+
+  // 继续支付原订单（不回结账页重新下单，否则旧订单要等 30 分钟超时才释放库存）
+  const handlePayNow = async (orderNo: string) => {
+    setPayingOrderNo(orderNo);
+    try {
+      const res = await resumePayment(orderNo);
+      if (res.checkoutUrl) {
+        window.location.href = res.checkoutUrl;
+      } else {
+        navigate(`/checkout/success?order_no=${res.orderNo}&session_id=${res.sessionId}`);
+      }
+    } catch (e) {
+      message.error(String(e));
+      setPayingOrderNo(null);
     }
   };
 
@@ -144,6 +161,18 @@ export default function OrdersPage() {
         return (
           <Tag color="default" icon={<CloseCircleOutlined />}>
             {t('orders.tabCancelled')}
+          </Tag>
+        );
+      case 'refunding':
+        return (
+          <Tag color="orange" icon={<SyncOutlined spin />}>
+            {t('orders.statusRefunding')}
+          </Tag>
+        );
+      case 'refunded':
+        return (
+          <Tag color="magenta" icon={<CheckCircleOutlined />}>
+            {t('orders.statusRefunded')}
           </Tag>
         );
       default:
@@ -298,7 +327,8 @@ export default function OrdersPage() {
                           <Button
                             type="primary"
                             className="flex min-h-[38px] items-center px-5 text-xs font-medium sm:text-sm"
-                            onClick={() => navigate('/checkout')}
+                            loading={payingOrderNo === order.orderNo}
+                            onClick={() => handlePayNow(order.orderNo)}
                           >
                             {t('orders.payNow')}
                           </Button>

@@ -112,14 +112,31 @@ public class ProductClient {
         body.put("orderNo", orderNo);
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-        String url = PRODUCT_SERVICE_URL + "/rollback";
+        postOrThrow(PRODUCT_SERVICE_URL + "/rollback", request, "rollback", orderNo);
+    }
 
-        try {
-            restTemplate.postForEntity(url, request, String.class);
-            log.info("Stock rollback RPC successfully invoked for order {}", orderNo);
-        } catch (Exception e) {
-            log.error("Stock rollback RPC failed for order {}: {}", orderNo, e.getMessage());
-        }
+    /** 退款后回补已确认的库存 */
+    public void restockStock(String orderNo) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("orderNo", orderNo);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        postOrThrow(PRODUCT_SERVICE_URL + "/restock", request, "restock", orderNo);
+    }
+
+    /** 结账全局事务回滚后归还该订单的 Redis 预扣（幂等） */
+    public void restoreRedisReservation(String orderNo) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("orderNo", orderNo);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        postOrThrow(PRODUCT_SERVICE_URL + "/redis-restore", request, "redis-restore", orderNo);
     }
 
     public void confirmStock(String orderNo) {
@@ -130,13 +147,27 @@ public class ProductClient {
         body.put("orderNo", orderNo);
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-        String url = PRODUCT_SERVICE_URL + "/confirm";
+        postOrThrow(PRODUCT_SERVICE_URL + "/confirm", request, "confirm", orderNo);
+    }
 
+    /**
+     * 回滚 / 确认失败必须抛出：调用方（消息监听器）据此重试，
+     * 吞掉异常会让库存一直停在 HELD 状态。
+     */
+    private void postOrThrow(String url, HttpEntity<Map<String, Object>> request, String action, String orderNo) {
         try {
-            restTemplate.postForEntity(url, request, String.class);
-            log.info("Stock confirm RPC successfully invoked for order {}", orderNo);
+            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+            int code = response.getBody() == null ? -1 : objectMapper.readTree(response.getBody()).path("code").asInt(-1);
+            if (code != 0) {
+                throw new BusinessException(ResultCode.SYSTEM_ERROR, "Stock " + action + " returned code " + code);
+            }
+            log.info("Stock {} RPC succeeded for order {}", action, orderNo);
+        } catch (BusinessException be) {
+            log.error("Stock {} RPC failed for order {}: {}", action, orderNo, be.getMessage());
+            throw be;
         } catch (Exception e) {
-            log.error("Stock confirm RPC failed for order {}: {}", orderNo, e.getMessage());
+            log.error("Stock {} RPC failed for order {}: {}", action, orderNo, e.getMessage());
+            throw new BusinessException(ResultCode.SYSTEM_ERROR, "Stock " + action + " failed: " + e.getMessage());
         }
     }
 }

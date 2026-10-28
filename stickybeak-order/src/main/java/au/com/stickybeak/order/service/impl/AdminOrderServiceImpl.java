@@ -3,7 +3,8 @@ package au.com.stickybeak.order.service.impl;
 import au.com.stickybeak.common.enums.OrderStatus;
 import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.common.result.ResultCode;
-import au.com.stickybeak.order.client.ProductClient;
+import au.com.stickybeak.common.tx.AfterCommit;
+import au.com.stickybeak.order.client.PaymentClient;
 import au.com.stickybeak.order.dto.AdminOrderPageQuery;
 import au.com.stickybeak.order.dto.AdminOrderStatusUpdateRequest;
 import au.com.stickybeak.order.entity.Order;
@@ -11,6 +12,7 @@ import au.com.stickybeak.order.entity.OrderItem;
 import au.com.stickybeak.order.mapper.OrderItemMapper;
 import au.com.stickybeak.order.mapper.OrderMapper;
 import au.com.stickybeak.order.service.AdminOrderService;
+import au.com.stickybeak.order.service.OrderResourceReleaser;
 import au.com.stickybeak.order.statemachine.OrderStateMachine;
 import au.com.stickybeak.order.vo.*;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -44,20 +46,23 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
     private final OrderStateMachine orderStateMachine;
-    private final ProductClient productClient;
+    private final OrderResourceReleaser orderResourceReleaser;
+    private final PaymentClient paymentClient;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
 
     public AdminOrderServiceImpl(OrderMapper orderMapper,
                                  OrderItemMapper orderItemMapper,
                                  OrderStateMachine orderStateMachine,
-                                 ProductClient productClient,
+                                 OrderResourceReleaser orderResourceReleaser,
+                                 PaymentClient paymentClient,
                                  StringRedisTemplate stringRedisTemplate,
                                  ObjectMapper objectMapper) {
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
         this.orderStateMachine = orderStateMachine;
-        this.productClient = productClient;
+        this.orderResourceReleaser = orderResourceReleaser;
+        this.paymentClient = paymentClient;
         this.stringRedisTemplate = stringRedisTemplate;
         this.objectMapper = objectMapper;
     }
@@ -275,20 +280,12 @@ public class AdminOrderServiceImpl implements AdminOrderService {
         if (targetStatus == null) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "Invalid target status: " + req.getStatus());
         }
+        // 退款状态必须经由退款接口（会真正向支付渠道发起退款），不能直接改状态
+        if (targetStatus == OrderStatus.REFUNDING || targetStatus == OrderStatus.REFUNDED) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "Use the refund endpoint to refund an order");
+        }
 
         String currentStatus = order.getStatus();
-
-        // 如果管理员取消订单且该订单原状态是 paid 或 processing，需要通知商品微服务释放库存
-        if (targetStatus == OrderStatus.CANCELLED) {
-            if ("paid".equalsIgnoreCase(currentStatus) || "processing".equalsIgnoreCase(currentStatus) || "pending".equalsIgnoreCase(currentStatus)) {
-                log.info("Admin cancelling order {}, releasing stock", orderNo);
-                try {
-                    productClient.rollbackStock(orderNo);
-                } catch (Exception e) {
-                    log.error("Failed to release stock when admin cancelled order {}: {}", orderNo, e.getMessage());
-                }
-            }
-        }
 
         StringBuilder remarkBuilder = new StringBuilder();
         if (StringUtils.hasText(order.getRemark())) {
@@ -311,11 +308,51 @@ public class AdminOrderServiceImpl implements AdminOrderService {
         }
 
         orderStateMachine.transition(order, targetStatus, adminId, "admin");
-        orderMapper.updateById(order);
+        if (orderMapper.updateIfStatus(order, currentStatus) == 0) {
+            throw new BusinessException(ResultCode.CONFLICT, "Order " + orderNo + " was changed concurrently, please refresh");
+        }
+
+        // 取消（仅 pending 可取消）落库之后再释放支付会话与库存
+        if (targetStatus == OrderStatus.CANCELLED) {
+            log.info("Admin cancelled order {} (was {}), releasing resources after commit", orderNo, currentStatus);
+            AfterCommit.run(() -> orderResourceReleaser.releaseQuietly(orderNo));
+        }
 
         // 清理分析统计缓存
         evictAnalyticsCaches();
         log.info("Admin {} updated order {} status from {} to {}", adminId, orderNo, currentStatus, targetStatus.getCode());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void refundOrder(String orderNo, String reason, Long adminId) {
+        Order order = orderMapper.selectOne(new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, orderNo));
+        if (order == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "Order not found: " + orderNo);
+        }
+
+        String currentStatus = order.getStatus();
+        // 已在退款中：再次调用即重试（例如上次调用支付服务失败），不改状态
+        if (!OrderStatus.REFUNDING.getCode().equalsIgnoreCase(currentStatus)) {
+            OrderStatus current = OrderStatus.fromCode(currentStatus);
+            if (current != OrderStatus.PAID && current != OrderStatus.PROCESSING) {
+                throw new BusinessException(ResultCode.ILLEGAL_STATE_TRANSITION,
+                        "Only paid or processing orders can be refunded, current status: " + currentStatus);
+            }
+            if (StringUtils.hasText(reason)) {
+                String prefix = StringUtils.hasText(order.getRemark()) ? order.getRemark().trim() + " | " : "";
+                order.setRemark(prefix + "Refund: " + reason.trim());
+            }
+            orderStateMachine.transition(order, OrderStatus.REFUNDING, adminId, "admin");
+            if (orderMapper.updateIfStatus(order, currentStatus) == 0) {
+                throw new BusinessException(ResultCode.CONFLICT, "Order " + orderNo + " was changed concurrently, please refresh");
+            }
+            evictAnalyticsCaches();
+        }
+
+        // 退款中状态提交后再请求支付渠道；失败时订单停在 refunding，管理员可重试（支付侧幂等，不会重复退款）
+        AfterCommit.run(() -> paymentClient.refund(orderNo, reason));
+        log.info("Admin {} requested refund for order {} (was {})", adminId, orderNo, currentStatus);
     }
 
     private void evictAnalyticsCaches() {

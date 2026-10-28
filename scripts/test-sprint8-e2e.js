@@ -135,6 +135,7 @@ async function runE2ESuite() {
   console.log('\n==> 2. [测试用例 1] 买家正向闭环: 浏览 -> 加购 -> 结算 -> 支付确认 -> 订单履约');
   let selectedProduct = null;
   let createdOrderNo = null;
+  let createdPayAmount = null;
 
   // 2.1 目录检索
   try {
@@ -213,6 +214,7 @@ async function runE2ESuite() {
         `订单创建成功, 单号: ${orderRes.json?.data?.orderNo}`
       );
       createdOrderNo = orderRes.json?.data?.orderNo;
+      createdPayAmount = orderRes.json?.data?.payAmount;
     } catch (err) {
       assert(false, `下单异常: ${err.message}`);
     }
@@ -220,21 +222,26 @@ async function runE2ESuite() {
     // 2.5 模拟 Webhook 支付成功通知
     if (createdOrderNo) {
       try {
+        // mock 回调需登录；金额必须与订单实付一致，否则会被拒绝
         const webhookRes = await request(
           {
             path: '/api/webhooks/mock',
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Cookie: `sb_access=${buyerCookie}` },
           },
           {
             eventId: `evt_s8_${timestamp}`,
             orderNo: createdOrderNo,
-            amount: 50.0,
+            amount: createdPayAmount,
             currency: 'AUD',
             transactionId: `tx_s8_${timestamp}`,
           }
         );
-        assert(webhookRes.statusCode === 200 && webhookRes.body.includes('SUCCESS'), '支付成功 Webhook 投递成功');
+        // 默认同步处理返回 SUCCESS；开启 WEBHOOK_ASYNC_ENABLED（故事线 9.6）时受理即返回 ACCEPTED
+        assert(
+          webhookRes.statusCode === 200 && /"(SUCCESS|ACCEPTED)"/.test(webhookRes.body),
+          '支付成功 Webhook 受理成功'
+        );
 
         // 等待异步状态机流转
         await new Promise((r) => setTimeout(r, 1200));
@@ -289,7 +296,7 @@ async function runE2ESuite() {
         {
           path: '/api/webhooks/mock',
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Cookie: `sb_access=${buyerCookie}` },
         },
         {
           eventId: `evt_s8_${timestamp}`, // 相同 eventId
@@ -457,8 +464,10 @@ async function runE2ESuite() {
     'Playwright 测试套件配置存在'
   );
   assert(
-    fs.existsSync(path.join(rootDir, 'stickybeak-frontend/e2e/shopping-flow.spec.ts')),
-    'Playwright E2E 规范测试用例存在'
+    ['catalog', 'checkout', 'orders', 'admin-refund'].every((name) =>
+      fs.existsSync(path.join(rootDir, `stickybeak-frontend/e2e/${name}.spec.ts`)),
+    ),
+    'Playwright 用户旅程用例存在（搜索 / 结账 / 订单 / 后台退款）'
   );
 
   console.log('\n===============================================================');

@@ -26,6 +26,7 @@ import type { Address, AddressPayload } from '../features/auth/authSlice';
 import { selectCartTotalCents } from '../features/cart/cartSlice';
 import { createCheckout } from '../lib/order';
 import { useI18n } from '../lib/i18n';
+import { productName } from '../lib/productCopy';
 import Price from '../components/Price';
 
 const AU_STATES = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT'];
@@ -44,7 +45,7 @@ export default function CheckoutPage() {
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loadingAddr, setLoadingAddr] = useState(true);
-  const [selectedAddrId, setSelectedAddrId] = useState<number | null>(null);
+  const [selectedAddrId, setSelectedAddrId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'alipay' | 'wechat_pay'>('card');
   const [remark, setRemark] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -291,11 +292,13 @@ export default function CheckoutPage() {
                 <div key={item.productId} className="flex items-center gap-3 text-sm">
                   <img
                     src={item.imageUrl}
-                    alt={item.name}
+                    alt={productName(item.slug, item.name, locale)}
                     className="h-12 w-12 rounded-lg border border-sand-200 object-cover dark:border-stone-700"
                   />
                   <div className="flex-1 truncate">
-                    <p className="truncate font-medium text-gray-800 dark:text-stone-200">{item.name}</p>
+                    <p className="truncate font-medium text-gray-800 dark:text-stone-200">
+                      {productName(item.slug, item.name, locale)}
+                    </p>
                     <p className="text-xs text-gray-400">× {item.qty}</p>
                   </div>
                   <Price cents={item.priceCents * item.qty} className="font-medium text-gray-900 dark:text-stone-100" />

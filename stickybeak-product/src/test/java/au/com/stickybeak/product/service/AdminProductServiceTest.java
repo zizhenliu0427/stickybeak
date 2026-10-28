@@ -9,6 +9,9 @@ import au.com.stickybeak.product.entity.Product;
 import au.com.stickybeak.product.mapper.CategoryMapper;
 import au.com.stickybeak.product.mapper.ProductImageMapper;
 import au.com.stickybeak.product.mapper.ProductMapper;
+import au.com.stickybeak.product.mapper.ProductTagRelMapper;
+import au.com.stickybeak.product.mapper.TagMapper;
+import au.com.stickybeak.product.search.ProductChangedEvent;
 import au.com.stickybeak.product.service.impl.AdminProductServiceImpl;
 import au.com.stickybeak.product.vo.AdminProductVO;
 import au.com.stickybeak.product.vo.StockAlertSummaryVO;
@@ -18,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
@@ -42,6 +46,12 @@ class AdminProductServiceTest {
     private StringRedisTemplate stringRedisTemplate;
     @Mock
     private ValueOperations<String, String> valueOperations;
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private TagMapper tagMapper;
+    @Mock
+    private ProductTagRelMapper productTagRelMapper;
 
     private AdminProductServiceImpl adminProductService;
 
@@ -49,7 +59,8 @@ class AdminProductServiceTest {
     void setUp() {
         lenient().when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
         adminProductService = new AdminProductServiceImpl(
-                productMapper, categoryMapper, productImageMapper, stringRedisTemplate);
+                productMapper, categoryMapper, productImageMapper, tagMapper, productTagRelMapper,
+                stringRedisTemplate, eventPublisher);
     }
 
     @Test
@@ -67,6 +78,8 @@ class AdminProductServiceTest {
         assertEquals(1, p.getStatus());
         verify(productMapper).updateById(p);
         verify(stringRedisTemplate).delete("product:id:1001");
+        // 下架后通知搜索索引同步
+        verify(eventPublisher).publishEvent(new ProductChangedEvent(1001L));
     }
 
     @Test
@@ -81,9 +94,10 @@ class AdminProductServiceTest {
 
         adminProductService.updateStock(1001L, req);
 
-        assertEquals(88, p.getStock());
-        verify(productMapper).updateById(p);
-        verify(valueOperations).set("product:stock:1001", "88");
+        verify(productMapper).setStock(1001L, 88);
+        verify(productMapper, never()).updateById(any(Product.class));
+        // Redis 缓存删除，下次扣减从 MySQL 预热
+        verify(stringRedisTemplate).delete("product:stock:1001");
     }
 
     @Test
@@ -98,9 +112,10 @@ class AdminProductServiceTest {
 
         adminProductService.updateStock(1001L, req);
 
-        assertEquals(40, p.getStock());
-        verify(productMapper).updateById(p);
-        verify(valueOperations).set("product:stock:1001", "40");
+        // 增量在 SQL 里原子计算，不再先读后写
+        verify(productMapper).adjustStock(1001L, 25);
+        verify(productMapper, never()).updateById(any(Product.class));
+        verify(stringRedisTemplate).delete("product:stock:1001");
     }
 
     @Test

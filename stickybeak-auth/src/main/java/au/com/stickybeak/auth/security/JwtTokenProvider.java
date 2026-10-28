@@ -11,25 +11,30 @@ import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import au.com.stickybeak.common.security.JwtSecrets;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 
 /**
  * JWT HS256 签发与校验。access token 15 分钟，claims: sub=userId, email, roles, jti。
  * jti 用于登出后的 Redis 黑名单。
+ * MCP 令牌（Sprint 14）多一个 scope=mcp，有效期以天计，网关只允许它访问 /api/mcp。
  */
 @Component
 public class JwtTokenProvider {
+
+    /** MCP 令牌的 scope：网关看到它就只放行 MCP 端点 */
+    public static final String MCP_SCOPE = "mcp";
 
     private final SecretKey key;
     private final long accessTtlMinutes;
 
     public JwtTokenProvider(@Value("${app.jwt.secret}") String secret,
                             @Value("${app.jwt.access-ttl-minutes}") long accessTtlMinutes) {
-        this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
+        this.key = Keys.hmacShaKeyFor(JwtSecrets.decode(secret));
         this.accessTtlMinutes = accessTtlMinutes;
     }
 
@@ -42,6 +47,19 @@ public class JwtTokenProvider {
                 .claim("roles", roles)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(accessTtlMinutes, ChronoUnit.MINUTES)))
+                .signWith(key)
+                .compact();
+    }
+
+    public String createMcpToken(Long userId, String email, List<String> roles, String jti, Instant expiresAt) {
+        return Jwts.builder()
+                .id(jti)
+                .subject(String.valueOf(userId))
+                .claim("email", email)
+                .claim("roles", roles)
+                .claim("scope", MCP_SCOPE)
+                .issuedAt(new Date())
+                .expiration(Date.from(expiresAt))
                 .signWith(key)
                 .compact();
     }

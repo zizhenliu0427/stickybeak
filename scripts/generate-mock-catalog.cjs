@@ -3,6 +3,8 @@
 //   - 目录数据写到 stickybeak-frontend/src/mocks/catalog.json
 // 数据结构对齐 Sprint 2 的 t_product / t_category / t_tag（docs/DATABASE_ER.md §2、§8）
 // 用法: node scripts/generate-mock-catalog.cjs
+// 注意：SKU 合并后 catalog.json 改由 export-shop-catalog.cjs 从线上库导出；
+// 重跑本脚本会把前端离线兜底目录退回 Sprint 1 的 16 件旧 mock（首页仍在用 public/mock-products 的图）。
 const fs = require('fs');
 const path = require('path');
 

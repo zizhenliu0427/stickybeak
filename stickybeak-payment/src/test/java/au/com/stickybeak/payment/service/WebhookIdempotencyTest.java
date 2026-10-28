@@ -48,7 +48,8 @@ class WebhookIdempotencyTest {
                 paymentWebhookMapper,
                 paymentRecordMapper,
                 rabbitTemplate,
-                objectMapper
+                objectMapper,
+                mock(RefundService.class)
         );
     }
 

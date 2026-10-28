@@ -11,6 +11,7 @@ import {
   updateQtyAsync,
 } from '../features/cart/cartSlice';
 import { useI18n } from '../lib/i18n';
+import { productName } from '../lib/productCopy';
 
 /** 满额包邮线（AUD cents） */
 const FREE_SHIPPING_THRESHOLD = 4900;
@@ -49,7 +50,7 @@ export default function CartPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-stone-100">{t('cart.title')}</h1>
+        <h1 className="font-display text-4xl">{t('cart.title')}</h1>
         <Popconfirm
           title={locale === 'en-AU' ? 'Clear entire trolley?' : '确定清空购物车？'}
           onConfirm={() => dispatch(clearCartAsync())}
@@ -62,13 +63,13 @@ export default function CartPage() {
 
       <div className="grid gap-8 sm:grid-cols-[1fr_280px]">
         {/* 明细 */}
-        <ul className="divide-y divide-sand-200 rounded-2xl border border-sand-200 bg-white dark:divide-stone-800 dark:border-stone-800 dark:bg-stone-900">
+        <ul className="divide-y divide-black/10 border-y border-black/10 dark:divide-white/10 dark:border-white/10">
           {items.map((item) => (
             <li key={item.productId} className="flex gap-4 p-4">
               <Link to={`/products/${item.slug}`} className="shrink-0">
                 <img
                   src={item.imageUrl}
-                  alt={item.name}
+                  alt={productName(item.slug, item.name, locale)}
                   className="h-20 w-20 rounded-lg border border-sand-200 object-cover dark:border-stone-700"
                 />
               </Link>
@@ -77,7 +78,7 @@ export default function CartPage() {
                   to={`/products/${item.slug}`}
                   className="text-sm font-medium text-gray-800 hover:text-brand-700 dark:text-stone-200 dark:hover:text-brand-300"
                 >
-                  {item.name}
+                  {productName(item.slug, item.name, locale)}
                 </Link>
                 <div className="mt-1 text-xs text-gray-400 dark:text-stone-400">
                   {locale === 'en-AU' ? 'Unit price' : '单价'} <Price cents={item.priceCents} />
@@ -113,7 +114,7 @@ export default function CartPage() {
         </ul>
 
         {/* 汇总 */}
-        <aside className="h-fit rounded-2xl border border-sand-200 bg-white p-5 dark:border-stone-800 dark:bg-stone-900">
+        <aside className="h-fit border border-black/10 p-5 dark:border-white/10">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-stone-100">
             {locale === 'en-AU' ? 'Order Summary' : '订单汇总'}
           </h2>
@@ -143,7 +144,7 @@ export default function CartPage() {
           <div className="mt-4 border-t border-sand-200 pt-4 dark:border-stone-800">
             <div className="flex justify-between">
               <span className="font-semibold text-gray-900 dark:text-stone-100">{t('cart.total')}</span>
-              <Price cents={totalCents} className="text-lg font-bold text-accent-600 dark:text-accent-400" />
+              <Price cents={totalCents} className="font-display text-2xl" />
             </div>
           </div>
           <Button type="primary" block className="mt-4" onClick={onCheckout}>

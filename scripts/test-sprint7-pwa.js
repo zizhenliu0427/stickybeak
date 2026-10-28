@@ -56,8 +56,8 @@ try {
   assert(manifest.short_name === 'StickyBeak', `short_name 合法: "${manifest.short_name}"`);
   assert(manifest.start_url === '/', `start_url 合法: "${manifest.start_url}"`);
   assert(manifest.display === 'standalone', `display 为原生沉浸式独立模式: "${manifest.display}"`);
-  assert(manifest.theme_color === '#3d8066', `theme_color 为品牌尤加利绿: "${manifest.theme_color}"`);
-  assert(manifest.background_color === '#faf8f4', `background_color 匹配主题底色: "${manifest.background_color}"`);
+  assert(manifest.theme_color === '#1c1916', `theme_color 为品牌墨色: "${manifest.theme_color}"`);
+  assert(manifest.background_color === '#f6f1e8', `background_color 匹配纸色底: "${manifest.background_color}"`);
   assert(Array.isArray(manifest.icons) && manifest.icons.length >= 3, `包含多尺寸图标定义 (共 ${manifest.icons?.length || 0} 个)`);
   assert(Array.isArray(manifest.shortcuts) && manifest.shortcuts.length >= 3, `定义了快捷入口 shortcuts (共 ${manifest.shortcuts?.length || 0} 个)`);
 } catch (e) {
@@ -113,22 +113,18 @@ console.log('\n==> 4. 验证 index.html PWA 规范引入');
 const indexPath = path.join(FRONTEND_DIR, 'index.html');
 const indexHtml = fs.readFileSync(indexPath, 'utf-8');
 assert(indexHtml.includes('rel="manifest"') && indexHtml.includes('/manifest.webmanifest'), '引入了 manifest.webmanifest 声明');
-assert(indexHtml.includes('name="theme-color"') && indexHtml.includes('#3d8066'), '配置了 theme-color 品牌主题色');
+assert(indexHtml.includes('name="theme-color"') && indexHtml.includes('#f6f1e8'), '配置了 theme-color（与顶栏纸色一致）');
 assert(indexHtml.includes('apple-mobile-web-app-capable'), '开启了 iOS Safari 全屏 Web App 沉浸模式');
 assert(indexHtml.includes('rel="apple-touch-icon"'), '声明了 Apple Touch Icon 链接');
 assert(indexHtml.includes('viewport-fit=cover'), '移动端 viewport 配置了 viewport-fit=cover 全面屏安全区适配');
 
 // 5. 移动端组件与触控审计
-console.log('\n==> 5. 移动端沉浸式导航与触控审计 (WCAG & iOS HIG >= 44px)');
-const mobileNavPath = path.join(FRONTEND_DIR, 'src/components/MobileBottomNav.tsx');
-assert(fs.existsSync(mobileNavPath), '移动端沉浸式底部导航组件 MobileBottomNav.tsx 存在');
-if (fs.existsSync(mobileNavPath)) {
-  const navCode = fs.readFileSync(mobileNavPath, 'utf-8');
-  assert(navCode.includes('sm:hidden'), '仅在移动端小屏 (< 640px) 激活底部导航');
-  assert(navCode.includes('cartCount'), '购物车 Tab 支持实时徽标 Badge 展示');
-  assert(navCode.includes('env(safe-area-inset-bottom)'), '支持 iPhone 底部 Home 条安全区沉浸适配');
-  assert(navCode.includes('h-14'), '触控高度满足 56px (严格 >= 44px 规范)');
-}
+// 编辑风改版后去掉了底部 Tab 栏（MobileBottomNav），小屏导航改为顶栏下方的横向滚动栏
+console.log('\n==> 5. 移动端导航与触控审计 (WCAG & iOS HIG >= 44px)');
+assert(
+  !fs.existsSync(path.join(FRONTEND_DIR, 'src/components/MobileBottomNav.tsx')),
+  '底部 Tab 栏 MobileBottomNav 已随改版移除（不再遮挡吸底加购条）'
+);
 
 const bannerPath = path.join(FRONTEND_DIR, 'src/components/OfflineBanner.tsx');
 assert(fs.existsSync(bannerPath), '全站离线感知组件 OfflineBanner.tsx 存在');
@@ -143,13 +139,18 @@ const detailPath = path.join(FRONTEND_DIR, 'src/pages/ProductDetailPage.tsx');
 if (fs.existsSync(detailPath)) {
   const detailCode = fs.readFileSync(detailPath, 'utf-8');
   assert(detailCode.includes('sm:hidden') && detailCode.includes('stickyAdd'), '商品详情页配置了移动端吸底浮动加购条');
+  assert(detailCode.includes('env(safe-area-inset-bottom)'), '吸底加购条适配 iPhone 底部 Home 条安全区');
 }
 
 const appLayoutPath = path.join(FRONTEND_DIR, 'src/layouts/AppLayout.tsx');
 if (fs.existsSync(appLayoutPath)) {
   const layoutCode = fs.readFileSync(appLayoutPath, 'utf-8');
   assert(layoutCode.includes('overflow-x-hidden'), '根容器设置了 overflow-x-hidden 杜绝小屏横向滚动');
-  assert(layoutCode.includes('MobileBottomNav'), '全局集成挂载了 MobileBottomNav');
+  assert(
+    layoutCode.includes('xl:hidden') && layoutCode.includes('overflow-x-auto'),
+    '小屏顶栏下方提供横向滚动导航（大屏隐藏）'
+  );
+  assert(layoutCode.includes('h-11 w-11') && layoutCode.includes('cartCount'), '购物车按钮触控靶心 44px 且带实时徽标');
   assert(layoutCode.includes('OfflineBanner'), '全局集成挂载了 OfflineBanner');
 }
 

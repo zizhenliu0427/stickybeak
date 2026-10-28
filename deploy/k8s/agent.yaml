@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels: { app: stickybeak-agent }
+  template:
+    metadata:
+      labels: { app: stickybeak-agent }
+    spec:
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: agent
+          image: stickybeak-agent:ai-demo
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 8087 }
+          envFrom:
+            - configMapRef: { name: agent-config }
+            - secretRef: { name: agent-secret }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 768Mi }
+          startupProbe:
+            httpGet: { path: /agent/health, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            httpGet: { path: /agent/health, port: http }
+            periodSeconds: 15
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet: { path: /agent/ready, port: http }
+            periodSeconds: 5
+            timeoutSeconds: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent
+spec:
+  type: ClusterIP
+  selector: { app: stickybeak-agent }
+  ports:
+    - { name: http, port: 8087, targetPort: http }

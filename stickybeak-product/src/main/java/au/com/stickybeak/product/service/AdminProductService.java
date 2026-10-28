@@ -1,6 +1,7 @@
 package au.com.stickybeak.product.service;
 
 import au.com.stickybeak.product.dto.AdminProductPageQuery;
+import au.com.stickybeak.product.dto.ProductCreateRequest;
 import au.com.stickybeak.product.dto.ProductPriceUpdateRequest;
 import au.com.stickybeak.product.dto.ProductStatusUpdateRequest;
 import au.com.stickybeak.product.dto.ProductStockUpdateRequest;
@@ -14,4 +15,7 @@ public interface AdminProductService {
     void updateStock(Long id, ProductStockUpdateRequest req);
     void updatePrice(Long id, ProductPriceUpdateRequest req);
     StockAlertSummaryVO getStockAlerts(int threshold);
+
+    /** 新建商品（含图片/标签），返回新商品 id */
+    Long createProduct(ProductCreateRequest req);
 }

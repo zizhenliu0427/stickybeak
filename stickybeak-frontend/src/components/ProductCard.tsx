@@ -2,50 +2,64 @@ import { Link } from 'react-router-dom';
 import type { Product } from '../lib/catalog';
 import Price from './Price';
 import { useI18n } from '../lib/i18n';
+import { productDescription, productName } from '../lib/productCopy';
 
-/** 商品卡片：封面图 + 名称 + 价格 + 标签，整卡可点 */
+/** 商品卡片：先看画面，价格安静地放在名字下面 */
 export default function ProductCard({ product }: { product: Product }) {
   const { t, locale } = useI18n();
+  const cover = product.images[0];
+  const videoFallback = product.media?.find((m) => m.mediaType === 'video')?.url;
+  const name = productName(product.slug, product.name, locale);
+  // 高亮片段来自中文原名；英文界面换成了英文名时就不用它
+  const highlighted = name === product.name ? product.highlightedName : null;
+  const line = productDescription(product.slug, product.description, locale)
+    .replace(/\[[^\]]+\]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
   return (
-    <Link
-      to={`/products/${product.slug}`}
-      className="product-card group block overflow-hidden rounded-xl border border-sand-200 bg-white transition-colors hover:border-brand-300 dark:border-stone-800 dark:bg-stone-900 dark:hover:border-brand-700"
-    >
-      <div className="aspect-square overflow-hidden bg-sand-100 dark:bg-stone-800">
-        <img
-          src={product.images[0]}
-          alt={product.name}
-          loading="lazy"
-          className="product-card-img h-full w-full object-cover"
-        />
+    <Link to={`/products/${product.slug}`} className="product-card group block">
+      <div className="aspect-[4/5] overflow-hidden bg-[#e7e0d2] dark:bg-[#221f1b]">
+        {cover ? (
+          <img
+            src={cover}
+            alt={name}
+            loading="lazy"
+            className="product-card-img h-full w-full object-cover"
+          />
+        ) : videoFallback ? (
+          <video
+            src={videoFallback}
+            muted
+            playsInline
+            preload="metadata"
+            className="product-card-img h-full w-full object-cover"
+          />
+        ) : (
+          <div className="h-full w-full" />
+        )}
       </div>
-      <div className="p-3">
-        <h3 className="line-clamp-2 min-h-10 text-sm font-medium text-gray-800 group-hover:text-brand-700 dark:text-stone-200 dark:group-hover:text-brand-300">
-          {product.name}
-        </h3>
-        <div className="mt-2 flex items-center justify-between">
-          <Price cents={product.priceCents} className="text-base font-bold text-accent-600 dark:text-accent-400" />
+      <div className="pt-4">
+        {highlighted ? (
+          // ES 高亮使用 encoder=html：原文已转义，只有 <em> 是标签，可以安全渲染
+          <h3
+            className="search-highlight font-display line-clamp-2 text-2xl leading-tight"
+            dangerouslySetInnerHTML={{ __html: highlighted }}
+          />
+        ) : (
+          <h3 className="font-display line-clamp-2 text-2xl leading-tight">{name}</h3>
+        )}
+        {line ? <p className="mt-2 line-clamp-2 text-sm leading-6 muted">{line}</p> : null}
+        <div className="mt-3 flex items-baseline justify-between gap-3">
+          <Price cents={product.priceCents} className="text-sm tracking-wide" />
           {product.stock === 0 ? (
-            <span className="text-xs text-gray-400 dark:text-stone-500">{t('detail.soldOut')}</span>
+            <span className="text-[11px] tracking-[0.14em] uppercase muted">{t('detail.soldOut')}</span>
           ) : product.stock < 20 ? (
-            <span className="text-xs text-accent-500 dark:text-accent-400">
+            <span className="text-[11px] tracking-[0.08em] muted">
               {locale === 'en-AU' ? `Only ${product.stock} left` : `仅剩 ${product.stock}`}
             </span>
           ) : null}
         </div>
-        {product.tags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {product.tags.slice(0, 3).map((tag) => (
-              <span
-                key={tag}
-                className="rounded bg-sand-100 px-1.5 py-0.5 text-[11px] text-gray-500 dark:bg-stone-800 dark:text-stone-400"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
     </Link>
   );

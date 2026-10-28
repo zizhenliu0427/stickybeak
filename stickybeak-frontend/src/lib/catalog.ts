@@ -8,16 +8,19 @@
  *   listRelated    → GET /api/products/:slug/related
  */
 
+import axios from 'axios';
 import { get } from './api';
 
 export interface Category {
+  id: string;
   slug: string;
   name: string;
   sortOrder: number;
 }
 
 export interface Product {
-  id: number;
+  /** 雪花 ID，后端 Long 序列化为字符串（防 JS 精度丢失） */
+  id: string;
   slug: string;
   name: string;
   description: string;
@@ -27,9 +30,14 @@ export interface Product {
   stock: number;
   sales: number;
   tags: string[];
+  /** 仅图片 URL（卡片/封面安全） */
   images: string[];
+  /** 全量媒体（含视频），详情页画廊用 */
+  media: { url: string; mediaType: 'image' | 'video' }[];
   sourceNoteId: string;
   featured: boolean;
+  /** 搜索结果的高亮名称：后端已做 HTML 转义，只有命中词被 <em> 包裹 */
+  highlightedName?: string | null;
 }
 
 export interface ProductQuery {
@@ -38,7 +46,7 @@ export interface ProductQuery {
   tags?: string;
   minPrice?: number;
   maxPrice?: number;
-  /** new | sales | price-asc | price-desc */
+  /** relevance（仅搜索） | new | sales | price-asc | price-desc */
   sort?: string;
   q?: string;
   page?: number;
@@ -63,13 +71,17 @@ export async function listProducts(query: ProductQuery = {}): Promise<ProductLis
   params.page = query.page ?? 1;
   params.size = query.size ?? 12;
 
-  return get<ProductListResult>('/products', params);
+  const raw = await get<ProductListResult>('/products', params);
+  // 后端 Long 全局序列化为字符串：total 是计数不是 ID，转回 number
+  return { ...raw, total: Number(raw.total) };
 }
 
 export async function getProductBySlug(slug: string): Promise<Product | null> {
   try {
     return await get<Product>(`/products/${slug}`);
-  } catch {
+  } catch (err) {
+    // 后端不可达（无响应 / 5xx）往外抛，让页面退回本地目录；404 或业务错误才算“没有这件商品”
+    if (axios.isAxiosError(err) && (!err.response || err.response.status >= 500)) throw err;
     return null;
   }
 }

@@ -3,69 +3,40 @@ package au.com.stickybeak.gateway.config;
 import au.com.stickybeak.common.result.Result;
 import com.alibaba.csp.sentinel.adapter.gateway.common.rule.GatewayFlowRule;
 import com.alibaba.csp.sentinel.adapter.gateway.common.rule.GatewayRuleManager;
-import com.alibaba.csp.sentinel.adapter.gateway.sc.SentinelGatewayFilter;
-import com.alibaba.csp.sentinel.adapter.gateway.sc.callback.GatewayCallbackManager;
-import com.alibaba.csp.sentinel.adapter.gateway.sc.exception.SentinelGatewayBlockExceptionHandler;
+import com.alibaba.csp.sentinel.adapter.gateway.sc.callback.BlockRequestHandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.codec.ServerCodecConfigurer;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.server.ServerResponse;
-import org.springframework.web.reactive.result.view.ViewResolver;
 
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 /**
  * Sentinel Gateway Flow Control & Block Handler Configuration.
  * Intercepts high-frequency requests, protects downstream services, and responds with unified HTTP 429 JSON.
+ * <p>
+ * SentinelGatewayFilter 与 SentinelGatewayBlockExceptionHandler 由 spring-cloud-alibaba-sentinel-gateway 的
+ * SentinelSCGAutoConfiguration 注册。这里曾经再声明一次同名 Bean，Spring Boot 默认禁止覆盖，网关直接启动失败；
+ * 现在只提供限流规则和 BlockRequestHandler，后者由自动配置在启动时注册到 GatewayCallbackManager。
  */
 @Configuration
 public class SentinelGatewayConfig {
 
-    private final List<ViewResolver> viewResolvers;
-    private final ServerCodecConfigurer serverCodecConfigurer;
     private final ObjectMapper objectMapper;
 
-    public SentinelGatewayConfig(ObjectProvider<List<ViewResolver>> viewResolversProvider,
-                                 ServerCodecConfigurer serverCodecConfigurer,
-                                 ObjectMapper objectMapper) {
-        this.viewResolvers = viewResolversProvider.getIfAvailable(Collections::emptyList);
-        this.serverCodecConfigurer = serverCodecConfigurer;
+    public SentinelGatewayConfig(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 
     @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    public GlobalFilter sentinelGatewayFilter() {
-        return new SentinelGatewayFilter();
-    }
-
-    @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    public SentinelGatewayBlockExceptionHandler sentinelGatewayBlockExceptionHandler() {
-        return new SentinelGatewayBlockExceptionHandler(viewResolvers, serverCodecConfigurer);
-    }
-
-    @PostConstruct
-    public void init() {
-        initCustomBlockHandler();
-        initGatewayRules();
-    }
-
-    private void initCustomBlockHandler() {
-        GatewayCallbackManager.setBlockHandler((exchange, t) -> {
+    public BlockRequestHandler sentinelBlockRequestHandler() {
+        return (exchange, t) -> {
             Result<Void> failResult = Result.fail(429, "Too many requests. Sentinel gateway rate limit exceeded. Please try again later.");
             String jsonBody;
             try {
@@ -77,10 +48,11 @@ public class SentinelGatewayConfig {
             return ServerResponse.status(HttpStatus.TOO_MANY_REQUESTS)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(BodyInserters.fromValue(jsonBody));
-        });
+        };
     }
 
-    private void initGatewayRules() {
+    @PostConstruct
+    public void initGatewayRules() {
         Set<GatewayFlowRule> rules = new HashSet<>();
 
         // Rate limit for 'order' route: max 100 QPS under normal conditions
@@ -91,6 +63,17 @@ public class SentinelGatewayConfig {
         // Rate limit for 'auth' route: max 60 QPS (prevent brute-force login/registration attacks)
         rules.add(new GatewayFlowRule("auth")
                 .setCount(60)
+                .setIntervalSec(1));
+
+        // Rate limit for 'agent' route: max 20 QPS in total; each model call is slow and costs money.
+        // Per-user limits and daily quotas are enforced by the agent itself (Redis counters).
+        rules.add(new GatewayFlowRule("agent")
+                .setCount(20)
+                .setIntervalSec(1));
+
+        // Rate limit for 'mcp' route: max 30 QPS from external AI clients and the agent together.
+        rules.add(new GatewayFlowRule("mcp")
+                .setCount(30)
                 .setIntervalSec(1));
 
         GatewayRuleManager.loadRules(rules);

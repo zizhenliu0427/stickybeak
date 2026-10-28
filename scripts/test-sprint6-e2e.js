@@ -186,11 +186,14 @@ async function main() {
     runMysql(`SELECT stock FROM stickybeak_product.t_product WHERE id = ${testProductId};`),
     10
   );
-  const afterRedisStock = parseInt(runRedis(`get product:stock:${testProductId}`), 10);
+  // Sprint 10 起改库存在提交后删除 Redis 预扣缓存（下次扣减按 MySQL 重新预热，不覆盖并发扣减的结果），
+  // 所以这里键不存在才是预期；若已被下一次扣减预热，则必须与 MySQL 一致
+  const redisRaw = runRedis(`get product:stock:${testProductId}`);
+  const afterRedisStock = redisRaw === '' ? null : parseInt(redisRaw, 10);
   console.log(`   调配后 MySQL 物理库存: ${afterDbStock}`);
-  console.log(`   调配后 Redis 缓存库存: ${afterRedisStock}`);
+  console.log(`   调配后 Redis 缓存库存: ${afterRedisStock === null ? '(已清除，待下次扣减预热)' : afterRedisStock}`);
 
-  if (afterDbStock !== targetStock || afterRedisStock !== targetStock) {
+  if (afterDbStock !== targetStock || (afterRedisStock !== null && afterRedisStock !== targetStock)) {
     throw new Error(
       `Stock mismatch! Expected ${targetStock}, DB: ${afterDbStock}, Redis: ${afterRedisStock}`
     );
@@ -236,14 +239,14 @@ async function main() {
   const orderNo = checkoutResp.data.data.orderNo;
   console.log(`   买家创建订单成功: ${orderNo}`);
 
-  // 模拟支付成功
+  // 模拟支付成功（mock 回调需登录；金额必须与订单实付一致，否则会被拒绝）
   await makeRequest('POST', '/api/webhooks/mock', {
     id: `evt_mock_${Date.now()}`,
     type: 'mock.payment.paid',
     orderNo,
-    amount: 34.9,
+    amount: checkoutResp.data.data.payAmount,
     currency: 'AUD',
-  });
+  }, customerCookie);
   await sleep(1500);
 
   // 管理员推进状态: paid -> processing (开始拣货)

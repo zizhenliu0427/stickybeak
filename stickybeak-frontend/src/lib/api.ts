@@ -36,6 +36,19 @@ export const api = axios.create({
 
 let refreshing: Promise<void> | null = null;
 
+/**
+ * 服务端 5xx 时把网关返回的 X-Trace-Id 拼进错误信息：页面直接把错误弹给用户，
+ * 用户报障时带上这个 ID 就能在 SkyWalking 里查到整条链路。
+ */
+export function attachTraceId<T extends AxiosError>(error: T): T {
+  const status = error.response?.status;
+  const traceId = error.response?.headers?.['x-trace-id'];
+  if (status && status >= 500 && traceId && !error.message.includes(String(traceId))) {
+    error.message = `${error.message} (Trace ID: ${traceId})`;
+  }
+  return error;
+}
+
 api.interceptors.response.use(
   (resp: AxiosResponse<ApiResult<unknown>>) => {
     const body = resp.data;
@@ -63,20 +76,21 @@ api.interceptors.response.use(
         onSessionExpired();
       }
     }
-    return Promise.reject(error);
+    return Promise.reject(attachTraceId(error));
   },
 );
 
 /** Pull the human-readable message out of any API failure. */
-export function errorMessage(err: unknown): string {
+export function errorMessage(err: unknown, fallback = 'unknown error'): string {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as ApiResult<unknown> | undefined;
+    const traceId = err.response?.headers?.['x-trace-id'];
     if (data?.message) {
-      return data.message;
+      return (err.response?.status ?? 0) >= 500 && traceId ? `${data.message} (Trace ID: ${traceId})` : data.message;
     }
     return err.message;
   }
-  return err instanceof Error ? err.message : 'unknown error';
+  return err instanceof Error && err.message ? err.message : fallback;
 }
 
 export async function get<T>(url: string, params?: Record<string, unknown>): Promise<T> {

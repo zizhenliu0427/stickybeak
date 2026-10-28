@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Avatar, Badge, Button, Drawer, Dropdown, Empty, Segmented, ConfigProvider, theme as antdTheme } from 'antd';
 import {
   LogoutOutlined,
@@ -12,7 +12,7 @@ import {
   DesktopOutlined,
 } from '@ant-design/icons';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { fetchMe, logout } from '../features/auth/authSlice';
+import { logout } from '../features/auth/authSlice';
 import { clearCart, mergeCartOnLogin, selectCartCount, selectCartTotalCents } from '../features/cart/cartSlice';
 import { fetchLiveExchangeRate, setCurrency } from '../features/currency/currencySlice';
 import type { Currency } from '../features/currency/currencySlice';
@@ -20,10 +20,12 @@ import { setLocale } from '../features/locale/localeSlice';
 import type { Locale } from '../lib/i18n';
 import { setTheme, syncSystemTheme } from '../features/theme/themeSlice';
 import type { ThemeMode } from '../features/theme/themeSlice';
+import { GDCUP_XHS, PADDYS_MARKET, SYDNEY_SOUVENIRS_XHS } from '../lib/brand';
 import { useI18n } from '../lib/i18n';
+import { productName } from '../lib/productCopy';
 import Price from '../components/Price';
 import OfflineBanner from '../components/OfflineBanner';
-import MobileBottomNav from '../components/MobileBottomNav';
+import AgentChat from '../components/AgentChat';
 
 export default function AppLayout() {
   const cartCount = useAppSelector(selectCartCount);
@@ -33,19 +35,32 @@ export default function AppLayout() {
   const locale = useAppSelector((s) => s.locale.locale);
   const themeMode = useAppSelector((s) => s.theme.mode);
   const isDark = useAppSelector((s) => s.theme.isDark);
-  const { user, initialized } = useAppSelector((s) => s.auth);
+  const user = useAppSelector((s) => s.auth.user);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const [cartOpen, setCartOpen] = useState(false);
   const { t } = useI18n();
+  const immersive = location.pathname === '/' || location.pathname === '/products';
 
-  // 应用启动探测登录态并拉取实时汇率
-  useEffect(() => {
-    if (!initialized) {
-      dispatch(fetchMe());
+  const sectionLinks = [
+    { id: 'craft', label: t('nav.craft') },
+    { id: 'story', label: t('nav.story') },
+    { id: 'visit', label: t('nav.about') },
+  ];
+
+  const goSection = (id: string) => {
+    if (location.pathname === '/') {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+      return;
     }
+    navigate({ pathname: '/', hash: id });
+  };
+
+  // 拉取实时汇率（登录态探测在 main.tsx 启动时做，管理后台不经过这个布局）
+  useEffect(() => {
     dispatch(fetchLiveExchangeRate());
-  }, [dispatch, initialized]);
+  }, [dispatch]);
 
   // 监听操作系统深浅色设置变化（System 模式下即时自适应）
   useEffect(() => {
@@ -74,76 +89,92 @@ export default function AppLayout() {
       theme={{
         algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
         token: {
-          colorPrimary: '#3d8066',
-          borderRadius: 8,
+          colorPrimary: '#1c1916',
+          colorText: isDark ? '#f3efe6' : '#1c1916',
+          borderRadius: 0,
+          fontFamily: 'Outfit, PingFang SC, Noto Sans SC, Microsoft YaHei, sans-serif',
         },
       }}
     >
-      <div className={`flex min-h-screen flex-col overflow-x-hidden ${isDark ? 'dark bg-[#141716] text-[#f5f5f4]' : 'bg-[#faf8f4] text-[#1c1917]'}`}>
+      <div className={`flex min-h-screen flex-col overflow-x-hidden ${isDark ? 'dark bg-[#141311] text-[#f3efe6]' : 'bg-[#f6f1e8] text-[#1c1916]'}`}>
         <OfflineBanner />
-        <header className="sticky top-0 z-20 border-b border-sand-200 bg-sand-50/90 backdrop-blur dark:border-stone-800 dark:bg-stone-900/90">
-          <div className="mx-auto flex h-14 items-center gap-4 px-4 sm:gap-6" style={{ maxWidth: 'var(--container-max)' }}>
-            <Link to="/" className="text-xl font-bold tracking-tight text-brand-800 dark:text-brand-300">
-              🧲 {t('nav.brand')}
+        <header className="sticky top-0 z-30 border-b border-black/10 bg-[rgba(246,241,232,0.94)] backdrop-blur-md dark:border-white/10 dark:bg-[rgba(20,19,17,0.94)]">
+          <div className="relative mx-auto flex h-[4.5rem] items-center px-5 sm:px-8 lg:px-12">
+            <Link to="/" className="font-display text-[1.65rem] leading-none tracking-[0.14em]">
+              {t('nav.brand')}
             </Link>
-            <nav className="hidden items-center gap-3 text-sm text-gray-700 sm:flex sm:gap-4 dark:text-stone-300">
-              <Link to="/products" className="hover:text-brand-700 dark:hover:text-brand-300">
-                {t('nav.shop')}
+            {/* 绝对居中：1024–1279px 会压到右侧按钮组，所以 xl 才放进顶栏，更窄时用下方横向栏 */}
+            <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 text-[13px] tracking-wide xl:flex">
+              <Link to="/products" className="hover:opacity-60">
+                {t('nav.series')}
               </Link>
-              <Link to="/products?category=bird" className="hover:text-brand-700 dark:hover:text-brand-300">
-                {t('nav.bird')}
-              </Link>
-              <Link to="/products?category=bus-sign" className="hover:text-brand-700 dark:hover:text-brand-300">
-                {t('nav.busSign')}
-              </Link>
+              {sectionLinks.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => goSection(item.id)}
+                  className="hover:opacity-60"
+                >
+                  {item.label}
+                </button>
+              ))}
             </nav>
-            <div className="ml-auto flex items-center gap-2 sm:gap-3">
-              {/* 桌面端偏好切换器（移动端在底部设置抽屉中提供更舒适的触控操作） */}
-              <div className="hidden items-center gap-2 sm:flex sm:gap-3">
-                {/* 语言切换器（澳洲英式英语 en-AU vs 中文 zh-CN） */}
-                <Segmented
-                  size="small"
-                  value={locale}
-                  options={[
-                    { label: '🇦🇺 EN', value: 'en-AU' },
-                    { label: '🇨🇳 中文', value: 'zh-CN' },
-                  ]}
-                  onChange={(v) => dispatch(setLocale(v as Locale))}
-                />
+            <div className="ml-auto flex items-center gap-2 sm:gap-4">
+              <Dropdown
+                popupRender={() => (
+                  <div className="w-64 space-y-4 border border-black/10 bg-[#f6f1e8] p-4 text-[#1c1916] shadow-sm dark:border-white/10 dark:bg-[#1c1a17] dark:text-[#f3efe6]">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs tracking-wide">{t('mobile.language')}</span>
+                      <Segmented
+                        size="small"
+                        value={locale}
+                        options={[
+                          { label: 'EN', value: 'en-AU' },
+                          { label: '中文', value: 'zh-CN' },
+                        ]}
+                        onChange={(v) => dispatch(setLocale(v as Locale))}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs tracking-wide">{t('mobile.currency')}</span>
+                      <Segmented
+                        size="small"
+                        value={currency}
+                        options={['AUD', 'CNY']}
+                        onChange={(v) => dispatch(setCurrency(v as Currency))}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs tracking-wide">{t('mobile.theme')}</span>
+                      <Segmented
+                        size="small"
+                        value={themeMode}
+                        options={[
+                          { label: <SunOutlined title={t('theme.light')} />, value: 'light' },
+                          { label: <MoonOutlined title={t('theme.dark')} />, value: 'dark' },
+                          { label: <DesktopOutlined title={t('theme.system')} />, value: 'system' },
+                        ]}
+                        onChange={(v) => dispatch(setTheme(v as ThemeMode))}
+                      />
+                    </div>
+                  </div>
+                )}
+              >
+                <button type="button" className="text-[11px] tracking-[0.16em]">
+                  {locale === 'zh-CN' ? '中文' : 'EN'} · {currency}
+                </button>
+              </Dropdown>
 
-                {/* 币种切换器（AUD / CNY） */}
-                <Segmented
-                  size="small"
-                  value={currency}
-                  options={['AUD', 'CNY']}
-                  onChange={(v) => dispatch(setCurrency(v as Currency))}
-                />
-
-                {/* 深浅色自适应切换器（Light / Dark / System） */}
-                <Segmented
-                  size="small"
-                  value={themeMode}
-                  options={[
-                    { label: <SunOutlined title={t('theme.light')} />, value: 'light' },
-                    { label: <MoonOutlined title={t('theme.dark')} />, value: 'dark' },
-                    { label: <DesktopOutlined title={t('theme.system')} />, value: 'system' },
-                  ]}
-                  onChange={(v) => dispatch(setTheme(v as ThemeMode))}
-                />
-              </div>
-
-              {/* 购物车（Trolley）按钮 - 触控靶心优化 */}
               <button
                 onClick={() => setCartOpen(true)}
                 aria-label={t('nav.trolley')}
-                className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg p-1 text-gray-700 hover:bg-sand-100 hover:text-brand-700 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-brand-300"
+                className="flex h-11 w-11 cursor-pointer items-center justify-center"
               >
-                <Badge count={cartCount} size="small">
-                  <ShoppingCartOutlined style={{ fontSize: 20 }} />
+                <Badge count={cartCount} size="small" color="#1c1916">
+                  <ShoppingCartOutlined style={{ fontSize: 18 }} />
                 </Badge>
               </button>
 
-              {/* 用户信息 / 登录 */}
               {user ? (
                 <Dropdown
                   menu={{
@@ -170,27 +201,113 @@ export default function AppLayout() {
                 >
                   <a className="flex min-h-[44px] items-center gap-2 p-1" onClick={(e) => e.preventDefault()}>
                     <Avatar size="small" icon={<UserOutlined />} src={user.avatarUrl ?? undefined} />
-                    <span className="hidden text-sm sm:inline">{user.nickname}</span>
+                    <span className="hidden text-sm lg:inline">{user.nickname}</span>
                   </a>
                 </Dropdown>
               ) : (
-                <Link to="/login" className="flex min-h-[44px] items-center px-2 text-sm hover:underline dark:text-stone-300">
+                <Link to="/login" className="flex min-h-[44px] items-center px-1 text-[12px] tracking-[0.14em]">
                   {t('nav.signIn')}
                 </Link>
               )}
+              <Link
+                to="/products"
+                className="btn-ghost btn-ghost-ink hidden px-4 py-2 text-[12px] tracking-[0.16em] sm:inline-flex"
+              >
+                {t('nav.exploreCta')}
+              </Link>
             </div>
           </div>
+          <nav className="flex gap-6 overflow-x-auto border-t border-black/5 px-5 py-2.5 text-[13px] xl:hidden dark:border-white/10">
+            <Link to="/products" className="shrink-0">
+              {t('nav.series')}
+            </Link>
+            {sectionLinks.map((item) => (
+              <button key={item.id} type="button" onClick={() => goSection(item.id)} className="shrink-0">
+                {item.label}
+              </button>
+            ))}
+          </nav>
         </header>
 
-        <main className="mx-auto w-full flex-1 px-4 py-6 pb-20 sm:pb-6" style={{ maxWidth: 'var(--container-max)' }}>
+        <main
+          className={
+            immersive
+              ? 'w-full flex-1'
+              : 'mx-auto w-full flex-1 px-4 py-10 sm:px-6'
+          }
+          style={immersive ? undefined : { maxWidth: 'var(--container-max)' }}
+        >
           <Outlet />
         </main>
 
-        <footer className="border-t border-sand-200 bg-white py-8 text-center text-xs text-gray-500 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-400">
-          <div className="space-y-1">
-            <p className="font-medium text-gray-600 dark:text-stone-300">{t('footer.brand')}</p>
-            <p>{t('footer.desc')}</p>
-            <p className="text-gray-400 dark:text-stone-500">{t('footer.copyright', { year: new Date().getFullYear() })}</p>
+        <footer className="bg-[#161412] text-[#f4efe6]">
+          <div className="mx-auto grid max-w-[1440px] gap-12 px-6 py-16 sm:px-10 md:grid-cols-4 lg:px-16">
+            <div>
+              <p className="font-display text-3xl tracking-[0.12em]">{t('nav.brand')}</p>
+              <p className="mt-3 text-sm text-[#f4efe6]/70">{t('footer.tagline')}</p>
+              <p className="mt-2 max-w-xs text-sm leading-6 text-[#f4efe6]/55">{t('footer.blurb')}</p>
+            </div>
+            <div>
+              <p className="text-[11px] tracking-[0.22em] text-[#f4efe6]/45">{t('footer.explore')}</p>
+              <ul className="mt-4 space-y-3 text-sm">
+                <li>
+                  <Link to="/products" className="hover:opacity-70">
+                    {t('nav.series')}
+                  </Link>
+                </li>
+                {sectionLinks.map((item) => (
+                  <li key={item.id}>
+                    <button type="button" onClick={() => goSection(item.id)} className="hover:opacity-70">
+                      {item.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="text-[11px] tracking-[0.22em] text-[#f4efe6]/45">{t('footer.shopCol')}</p>
+              <ul className="mt-4 space-y-3 text-sm">
+                <li>
+                  <Link to="/cart" className="hover:opacity-70">
+                    {t('nav.trolley')}
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/orders" className="hover:opacity-70">
+                    {t('nav.myOrders')}
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <p className="text-[11px] tracking-[0.22em] text-[#f4efe6]/45">{t('footer.contact')}</p>
+              <ul className="mt-4 space-y-3 text-sm">
+                <li>
+                  <a href={GDCUP_XHS.profileUrl} target="_blank" rel="noopener noreferrer" className="hover:opacity-70">
+                    {t('footer.xhs')}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href={SYDNEY_SOUVENIRS_XHS.profileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:opacity-70"
+                  >
+                    {t('footer.partnerXhs')}
+                  </a>
+                </li>
+                <li>
+                  <a href={PADDYS_MARKET.mapsUrl} target="_blank" rel="noopener noreferrer" className="hover:opacity-70">
+                    {t('footer.offline')}
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div className="mx-auto flex max-w-[1440px] flex-col gap-2 border-t border-white/10 px-6 py-5 text-[11px] tracking-wide text-[#f4efe6]/45 sm:flex-row sm:items-center sm:justify-between sm:px-10 lg:px-16">
+            <p>{t('footer.copyright', { year: new Date().getFullYear() })}</p>
+            <p>{t('footer.signoff')}</p>
           </div>
         </footer>
 
@@ -238,11 +355,13 @@ export default function AppLayout() {
                 <li key={item.productId} className="flex gap-3">
                   <img
                     src={item.imageUrl}
-                    alt={item.name}
+                    alt={productName(item.slug, item.name, locale)}
                     className="h-14 w-14 rounded-lg border border-sand-200 object-cover dark:border-stone-700"
                   />
                   <div className="flex-1">
-                    <p className="line-clamp-1 text-sm text-gray-800 dark:text-stone-200">{item.name}</p>
+                    <p className="line-clamp-1 text-sm text-gray-800 dark:text-stone-200">
+                      {productName(item.slug, item.name, locale)}
+                    </p>
                     <p className="mt-1 text-xs text-gray-400 dark:text-stone-400">
                       × {item.qty} · <Price cents={item.priceCents * item.qty} />
                     </p>
@@ -253,8 +372,8 @@ export default function AppLayout() {
           )}
         </Drawer>
 
-        {/* 沉浸式移动端底部导航栏 */}
-        <MobileBottomNav />
+        {/* AI 购物助手（右下角浮动按钮 + 抽屉） */}
+        <AgentChat />
       </div>
     </ConfigProvider>
   );

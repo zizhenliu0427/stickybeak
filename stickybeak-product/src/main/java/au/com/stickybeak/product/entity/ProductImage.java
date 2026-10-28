@@ -21,6 +21,9 @@ public class ProductImage implements Serializable {
 
     private String url;
 
+    /** image / video */
+    private String mediaType;
+
     private Integer sortOrder;
 
     private Integer isCover;
@@ -56,6 +59,14 @@ public class ProductImage implements Serializable {
 
     public void setUrl(String url) {
         this.url = url;
+    }
+
+    public String getMediaType() {
+        return mediaType;
+    }
+
+    public void setMediaType(String mediaType) {
+        this.mediaType = mediaType;
     }
 
     public Integer getSortOrder() {

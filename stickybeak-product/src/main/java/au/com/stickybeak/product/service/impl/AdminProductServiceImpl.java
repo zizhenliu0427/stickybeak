@@ -2,23 +2,32 @@ package au.com.stickybeak.product.service.impl;
 
 import au.com.stickybeak.common.exception.BusinessException;
 import au.com.stickybeak.common.result.ResultCode;
+import au.com.stickybeak.common.tx.AfterCommit;
 import au.com.stickybeak.product.dto.AdminProductPageQuery;
+import au.com.stickybeak.product.dto.ProductCreateRequest;
 import au.com.stickybeak.product.dto.ProductPriceUpdateRequest;
 import au.com.stickybeak.product.dto.ProductStatusUpdateRequest;
 import au.com.stickybeak.product.dto.ProductStockUpdateRequest;
 import au.com.stickybeak.product.entity.Category;
 import au.com.stickybeak.product.entity.Product;
 import au.com.stickybeak.product.entity.ProductImage;
+import au.com.stickybeak.product.entity.ProductTagRel;
+import au.com.stickybeak.product.entity.Tag;
 import au.com.stickybeak.product.mapper.CategoryMapper;
 import au.com.stickybeak.product.mapper.ProductImageMapper;
 import au.com.stickybeak.product.mapper.ProductMapper;
+import au.com.stickybeak.product.mapper.ProductTagRelMapper;
+import au.com.stickybeak.product.mapper.TagMapper;
+import au.com.stickybeak.product.search.ProductChangedEvent;
 import au.com.stickybeak.product.service.AdminProductService;
 import au.com.stickybeak.product.vo.AdminProductVO;
 import au.com.stickybeak.product.vo.StockAlertSummaryVO;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.seata.spring.annotation.GlobalLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,16 +45,26 @@ public class AdminProductServiceImpl implements AdminProductService {
     private final ProductMapper productMapper;
     private final CategoryMapper categoryMapper;
     private final ProductImageMapper productImageMapper;
+    private final TagMapper tagMapper;
+    private final ProductTagRelMapper productTagRelMapper;
     private final StringRedisTemplate stringRedisTemplate;
+    /** 商品变更后通知 ES 索引同步（事务提交后执行，见 ProductIndexer） */
+    private final ApplicationEventPublisher eventPublisher;
 
     public AdminProductServiceImpl(ProductMapper productMapper,
                                    CategoryMapper categoryMapper,
                                    ProductImageMapper productImageMapper,
-                                   StringRedisTemplate stringRedisTemplate) {
+                                   TagMapper tagMapper,
+                                   ProductTagRelMapper productTagRelMapper,
+                                   StringRedisTemplate stringRedisTemplate,
+                                   ApplicationEventPublisher eventPublisher) {
         this.productMapper = productMapper;
         this.categoryMapper = categoryMapper;
         this.productImageMapper = productImageMapper;
+        this.tagMapper = tagMapper;
+        this.productTagRelMapper = productTagRelMapper;
         this.stringRedisTemplate = stringRedisTemplate;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -109,6 +128,9 @@ public class AdminProductServiceImpl implements AdminProductService {
             imgWrapper.in(ProductImage::getProductId, productIds);
             List<ProductImage> images = productImageMapper.selectList(imgWrapper);
             for (ProductImage img : images) {
+                if ("video".equalsIgnoreCase(img.getMediaType())) {
+                    continue;
+                }
                 if (img.getIsCover() != null && img.getIsCover() == 1) {
                     coverImageMap.put(img.getProductId(), img.getUrl());
                 } else if (!coverImageMap.containsKey(img.getProductId())) {
@@ -154,10 +176,13 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setStatus(req.getStatus());
         productMapper.updateById(product);
         clearProductCaches(product);
+        eventPublisher.publishEvent(new ProductChangedEvent(id));
         log.info("Admin updated product {} status to {}", id, req.getStatus());
     }
 
+    /** 与 InventoryServiceImpl#rollbackStock 同理：改库存行要先确认它不在未完成的结账全局事务里 */
     @Override
+    @GlobalLock
     @Transactional(rollbackFor = Exception.class)
     public void updateStock(Long id, ProductStockUpdateRequest req) {
         Product product = productMapper.selectById(id);
@@ -165,27 +190,28 @@ public class AdminProductServiceImpl implements AdminProductService {
             throw new BusinessException(ResultCode.NOT_FOUND, "Product not found: " + id);
         }
 
-        int targetStock;
+        // 在数据库内原子更新：先读后写（updateById）会覆盖这期间下单产生的扣减，导致超卖
         if (req.getStock() != null) {
-            targetStock = Math.max(0, req.getStock());
+            productMapper.setStock(id, Math.max(0, req.getStock()));
         } else if (req.getDelta() != null) {
-            targetStock = Math.max(0, (product.getStock() != null ? product.getStock() : 0) + req.getDelta());
+            productMapper.adjustStock(id, req.getDelta());
         } else {
             throw new BusinessException(ResultCode.BAD_REQUEST, "Either stock or delta must be provided");
         }
 
-        product.setStock(targetStock);
-        productMapper.updateById(product);
-
-        // 同步更新 Redis 预扣减库存缓存
-        try {
-            stringRedisTemplate.opsForValue().set("product:stock:" + id, String.valueOf(targetStock));
-        } catch (Exception e) {
-            log.warn("Failed to sync Redis stock cache for product {}: {}", id, e.getMessage());
-        }
+        // Redis 预扣缓存在提交后删除，下一次扣减按 MySQL 最新值重新预热（避免覆盖并发扣减的结果）
+        String stockKey = "product:stock:" + id;
+        AfterCommit.run(() -> {
+            try {
+                stringRedisTemplate.delete(stockKey);
+            } catch (Exception e) {
+                log.warn("Failed to evict Redis stock cache for product {}: {}", id, e.getMessage());
+            }
+        });
 
         clearProductCaches(product);
-        log.info("Admin updated product {} stock to {}", id, targetStock);
+        eventPublisher.publishEvent(new ProductChangedEvent(id));
+        log.info("Admin updated product {} stock (set={}, delta={})", id, req.getStock(), req.getDelta());
     }
 
     @Override
@@ -198,6 +224,7 @@ public class AdminProductServiceImpl implements AdminProductService {
         product.setPrice(req.getPrice());
         productMapper.updateById(product);
         clearProductCaches(product);
+        eventPublisher.publishEvent(new ProductChangedEvent(id));
         log.info("Admin updated product {} price to {}", id, req.getPrice());
     }
 
@@ -243,6 +270,91 @@ public class AdminProductServiceImpl implements AdminProductService {
         summary.setLowStockCount(low);
         summary.setAlertProducts(voList);
         return summary;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long createProduct(ProductCreateRequest req) {
+        Category category = categoryMapper.selectById(req.categoryId());
+        if (category == null) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "category not found: " + req.categoryId());
+        }
+
+        Product product = new Product();
+        product.setName(req.name().trim());
+        // slug：未提供则先占位，插入后更新为 p-{id}
+        product.setSlug(StringUtils.hasText(req.slug()) ? req.slug().trim()
+                : "tmp-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
+        product.setDescription(req.description());
+        product.setCategoryId(req.categoryId());
+        product.setPrice(req.price());
+        product.setStock(req.stock());
+        product.setSales(0);
+        product.setFeatured(Boolean.TRUE.equals(req.featured()) ? 1 : 0);
+        product.setStatus(Product.STATUS_ACTIVE);
+        productMapper.insert(product);
+
+        if (!StringUtils.hasText(req.slug())) {
+            Product slugUpdate = new Product();
+            slugUpdate.setId(product.getId());
+            slugUpdate.setSlug("p-" + product.getId());
+            productMapper.updateById(slugUpdate);
+            product.setSlug("p-" + product.getId());
+        }
+
+        // 媒体：优先 media（含类型），兼容旧 images 字段（全按 image）；第一张图片为封面
+        List<ProductCreateRequest.MediaInput> mediaInputs = req.media() != null && !req.media().isEmpty()
+                ? req.media()
+                : (req.images() == null ? List.of()
+                        : req.images().stream()
+                                .filter(StringUtils::hasText)
+                                .map(u -> new ProductCreateRequest.MediaInput(u.trim(), "image"))
+                                .toList());
+        int sort = 0;
+        boolean coverAssigned = false;
+        for (ProductCreateRequest.MediaInput m : mediaInputs) {
+            if (m == null || !StringUtils.hasText(m.url())) {
+                continue;
+            }
+            String mediaType = "video".equalsIgnoreCase(m.mediaType()) ? "video" : "image";
+            ProductImage image = new ProductImage();
+            image.setProductId(product.getId());
+            image.setUrl(m.url().trim());
+            image.setMediaType(mediaType);
+            image.setSortOrder(sort);
+            // 封面只能是图片（视频不做封面）
+            boolean isCover = !coverAssigned && "image".equals(mediaType);
+            image.setIsCover(isCover ? 1 : 0);
+            if (isCover) {
+                coverAssigned = true;
+            }
+            productImageMapper.insert(image);
+            sort++;
+        }
+
+        // 标签：按名 upsert 后关联
+        if (req.tags() != null) {
+            for (String raw : req.tags()) {
+                if (!StringUtils.hasText(raw)) {
+                    continue;
+                }
+                String tagName = raw.trim();
+                Tag tag = tagMapper.selectOne(new LambdaQueryWrapper<Tag>().eq(Tag::getName, tagName));
+                if (tag == null) {
+                    tag = new Tag();
+                    tag.setName(tagName);
+                    tagMapper.insert(tag);
+                }
+                ProductTagRel rel = new ProductTagRel();
+                rel.setProductId(product.getId());
+                rel.setTagId(tag.getId());
+                productTagRelMapper.insert(rel);
+            }
+        }
+
+        eventPublisher.publishEvent(new ProductChangedEvent(product.getId()));
+        log.info("Admin created product {} ({}), category={}", product.getId(), product.getName(), req.categoryId());
+        return product.getId();
     }
 
     private String computeStockStatus(Integer stock) {

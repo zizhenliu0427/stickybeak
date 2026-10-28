@@ -40,7 +40,9 @@ services:
       - "15672:15672"
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    # 自定义镜像：官方 8.14.3 + IK 中文分词插件（docker/elasticsearch/Dockerfile）
+    build: ./elasticsearch
+    image: stickybeak/elasticsearch-ik:8.14.3
     container_name: sb-elasticsearch
     environment:
       - discovery.type=single-node
@@ -64,15 +66,74 @@ services:
       - "19848:9848"
 
   seata:
-    image: seataio/seata-server:1.8.0
+    # 客户端是 Spring Cloud Alibaba 2023.0.1.x 自带的 Seata 2.0；TC 用 2.3.0：2.0–2.2 的 file 锁存储在分支注册遇到锁冲突时
+    # 会漏掉已拿到的行锁（热点商品并发结账后，取消 / 超时归还库存永远拿不到全局锁），2.3.0 修复。file 存储，单机演示用
+    image: apache/seata-server:2.3.0
     container_name: sb-seata
     environment:
       SEATA_PORT: "8091"
-      store.mode: file
+      STORE_MODE: file
     ports:
       - "8091:8091"
+      - "7091:7091"   # 控制台
+
+  # --- SkyWalking 全链路追踪（Sprint 12）：BanyanDB 存储 + OAP + UI ---
+  # BanyanDB 是 SkyWalking 10 的默认存储，专为链路 / 指标 / 日志设计，比 ES 省资源，也不和商品搜索抢 ES 内存
+  banyandb:
+    image: apache/skywalking-banyandb:0.10.3
+    container_name: sb-banyandb
+    command: >-
+      standalone
+      --stream-root-path /data --measure-root-path /data --trace-root-path /data
+      --property-root-path /data --metadata-root-path /data --schema-server-root-path /data
+    volumes:
+      - banyandb-data:/data
+    ports:
+      - "17912:17912"
+      - "17913:17913"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -nz 127.0.0.1 17912"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  oap:
+    image: apache/skywalking-oap-server:10.4.0
+    container_name: sb-oap
     depends_on:
-      - mysql
+      banyandb:
+        condition: service_healthy
+    environment:
+      SW_STORAGE: banyandb
+      SW_STORAGE_BANYANDB_TARGETS: banyandb:17912
+      SW_HEALTH_CHECKER: default
+      # 默认文件 + 业务自定义指标（死信队列积压，见 skywalking/meter-analyzer-config/stickybeak.yaml）
+      SW_METER_ANALYZER_ACTIVE_FILES: datasource,threadpool,satellite,go-runtime,python-runtime,continuous-profiling,java-agent,go-agent,ruby-runtime,stickybeak
+      JAVA_OPTS: "-Xms512m -Xmx1g"
+    volumes:
+      - ./skywalking/alarm-settings.yml:/skywalking/config/alarm-settings.yml:ro
+      - ./skywalking/meter-analyzer-config/stickybeak.yaml:/skywalking/config/meter-analyzer-config/stickybeak.yaml:ro
+      # 网关端点按 URL 模板分组（/api/products/{var}），避免订单号、slug 让端点数无限增长
+      - ./skywalking/endpoint-name-grouping.yml:/skywalking/config/endpoint-name-grouping.yml:ro
+    ports:
+      - "11800:11800"   # agent 上报（gRPC）
+      - "12800:12800"   # UI / 查询（HTTP）
+    healthcheck:
+      # OAP 镜像里没有 curl / wget，用 bash 的 /dev/tcp 发一个最小 HTTP 请求
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/12800 && printf 'GET /healthcheck HTTP/1.0\r\n\r\n' >&3 && head -n1 <&3 | grep -q ' 200'"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  skywalking-ui:
+    image: apache/skywalking-ui:10.4.0
+    container_name: sb-skywalking-ui
+    depends_on:
+      - oap
+    environment:
+      SW_OAP_ADDRESS: http://oap:12800
+    ports:
+      - "8088:8080"
 
   minio:
     # MinIO 社区版已停止向 Docker Hub 发布镜像，改用 quay.io 最后发布的历史版本
@@ -100,3 +161,4 @@ volumes:
   redis-data:
   es-data:
   minio-data:
+  banyandb-data:

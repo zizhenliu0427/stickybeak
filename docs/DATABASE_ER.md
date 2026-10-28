@@ -83,8 +83,8 @@ erDiagram
 索引：`idx_product_category_status(category_id, status)`、`idx_product_sales(sales)`
 
 ### t_product_image
-`id, product_id, url, sort_order, is_cover` — idx_image_product(product_id)
-> 开发期用本地 MinIO / 静态目录，生产 S3/OSS。
+`id, product_id, url, media_type(image|video), sort_order, is_cover` — idx_image_product(product_id)
+> 封面只能是 image；视频走详情页画廊。开发期用本地 MinIO / 静态目录，生产 S3/OSS。
 
 ### t_tag / t_product_tag_rel
 - `t_tag(id, name)`：UNSW、USYD、扣死、窝窝屎、T9、电车、大葵……
@@ -157,17 +157,19 @@ erDiagram
 
 ## 6. 跨库一致性（Seata AT 场景）
 
-下单链路跨 3 库：
-1. `stickybeak_order.t_order` 插入（pending）
-2. `stickybeak_product.t_product` 条件扣减 + `t_stock_hold` 核销
-3. `stickybeak_cart.t_cart_item` 清理已购项
+下单链路的全局事务（`CheckoutTransaction#placeOrder`）跨 2 库：
+1. `stickybeak_product.t_product` 条件扣减 + `t_stock_hold` 插入 HELD 预占（product 服务的一个 AT 分支）
+2. `stickybeak_order.t_order` / `t_order_item` / `t_order_status_history` 插入（order 服务本地分支）
 
-任一失败 → Seata AT 全局回滚。支付回调只发 MQ，由 order 服务消费推进状态机，最终一致。
+任一失败 → Seata AT 全局回滚（两个库都有 `undo_log` 表）；Redis 预扣按订单账本由回滚 hook 归还。
+购物车不在全局事务里：支付成功后才清空（`completePaidOrder`），用户放弃支付还能重新结账。
+支付会话也不在全局事务里（外部调用会拉长全局锁持有时间），建失败时立即关单释放库存。
+支付回调只发 MQ，由 order 服务消费推进状态机，最终一致。
 
 ## 7. ES 索引（非 MySQL）
 
-`products` 索引：`name(text, ik 分词), description(text), category_id, tag_ids, price, sales, status`
-> 商品变更 → RabbitMQ → product 服务消费同步 ES；ES 挂了 Sentinel 降级走 MySQL LIKE。
+`stickybeak-products` 索引（`product-mapping.json`）：`name / description / categoryName`（IK：`ik_max_word` 建索引、`ik_smart` 查询）、`tags`（keyword + text 子字段）、`categoryId`、`price`、`sales`、`stock`、`status`、`createdAt`
+> 后台改价 / 改库存 / 上下架在事务提交后发 Spring 事件，product 服务重建该商品文档；启动时与每日 03:30 全量对账。ES 不可用时关键词搜索回退 MySQL `LIKE`。
 
 ## 8. 数据导入映射（classified/商品 → 表）
 

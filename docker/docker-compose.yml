@@ -11,6 +11,8 @@ services:
     container_name: sb-gateway
     environment:
       NACOS_ADDR: nacos:8848
+      REDIS_HOST: redis
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: oap:11800
     ports:
       - "8080:8080"
     depends_on:
@@ -23,8 +25,22 @@ services:
       args:
         MODULE: stickybeak-auth
     container_name: sb-auth
+    # 容器网络内按服务名访问中间件；不设置时各服务会回落到 localhost 而连不上
     environment: &svc-env
       NACOS_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      REDIS_HOST: redis
+      RABBITMQ_HOST: rabbitmq
+      MAIL_HOST: mailhog
+      ES_URIS: http://elasticsearch:9200
+      SEATA_ADDR: seata:8091
+      # 商品图片 / 视频直传：服务端用容器内地址，预签名 URL 用浏览器能访问的地址
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_ENDPOINT: http://localhost:9000
+      # 挂 SkyWalking agent 并上报到 OAP（不设置则不挂 agent，见 Dockerfile.backend）
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: oap:11800
+      # 本地 E2E 脚本使用模拟支付回调；生产 compose 不设置（默认关闭）
+      PAYMENT_MOCK_WEBHOOK_ENABLED: "true"
     depends_on: &svc-deps
       - nacos
       - mysql
@@ -38,7 +54,11 @@ services:
         MODULE: stickybeak-product
     container_name: sb-product
     environment: *svc-env
-    depends_on: *svc-deps
+    depends_on:
+      - nacos
+      - mysql
+      - redis
+      - seata
 
   cart:
     build:
@@ -72,7 +92,11 @@ services:
       args:
         MODULE: stickybeak-payment
     container_name: sb-payment
-    environment: *svc-env
+    environment:
+      <<: *svc-env
+      STOREFRONT_URL: ${STOREFRONT_URL:-http://localhost}
+      STRIPE_SUCCESS_URL: ${STRIPE_SUCCESS_URL:-}
+      STRIPE_CANCEL_URL: ${STRIPE_CANCEL_URL:-}
     depends_on:
       - nacos
       - mysql
@@ -90,6 +114,53 @@ services:
       - nacos
       - rabbitmq
       - mailhog
+
+  # MCP Server（Sprint 14）：商城的只读能力（商品、订单查询、售后检索）。外部 AI 客户端经网关 /api/mcp 访问，agent 也通过它调用
+  mcp:
+    build:
+      context: ../stickybeak-agent
+    container_name: sb-mcp
+    command: ["python", "-m", "stickybeak_agent.mcp_server"]
+    # 模型 / 向量 / 重排的配置与 key 放在 docker/.env（已 gitignore，模板见 docker/.env.example）；
+    # 不配置时售后检索只用关键词
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NACOS_ADDR: nacos:8848
+      ES_URIS: http://elasticsearch:9200
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: oap:11800
+      # 容器里访问宿主机上的 Ollama
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - nacos
+      - elasticsearch
+
+  # AI 助手（Python / FastAPI + LangGraph）。没有配置模型 key 时助手返回"暂不可用"，商城其他功能不受影响
+  agent:
+    build:
+      context: ../stickybeak-agent
+    container_name: sb-agent
+    # LLM_CHAIN（降级顺序）与各家的 key 放在 docker/.env（已 gitignore，模板见 docker/.env.example）
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NACOS_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      REDIS_HOST: redis
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: oap:11800
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-http://host.docker.internal:8000/v1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - nacos
+      - mysql
+      - redis
+      - mcp
 
   frontend:
     build:
@@ -134,14 +205,16 @@ services:
       - "15672:15672"
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    # 官方镜像 + IK 中文分词插件（docker/elasticsearch/Dockerfile）
+    build: ./elasticsearch
+    image: stickybeak/elasticsearch-ik:8.14.3
     container_name: sb-elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
-      - "9200:9200"
+      - "19200:9200"   # 宿主 9200 在 Windows 动态排除段内，与 infra compose 一致
     volumes:
       - es-data:/usr/share/elasticsearch/data
 
@@ -153,18 +226,77 @@ services:
       NACOS_AUTH_ENABLE: "false"
     ports:
       - "8848:8848"
-      - "9848:9848"
+      - "19848:9848"   # 同上
 
   seata:
-    image: seataio/seata-server:1.8.0
+    # 客户端是 Spring Cloud Alibaba 2023.0.1.x 自带的 Seata 2.0；TC 用 2.3.0：2.0–2.2 的 file 锁存储在分支注册遇到锁冲突时
+    # 会漏掉已拿到的行锁（热点商品并发结账后，取消 / 超时归还库存永远拿不到全局锁），2.3.0 修复。file 存储，单机演示用
+    image: apache/seata-server:2.3.0
     container_name: sb-seata
     environment:
       SEATA_PORT: "8091"
-      store.mode: file
+      STORE_MODE: file
     ports:
       - "8091:8091"
+      - "7091:7091"   # 控制台
+
+  # --- SkyWalking 全链路追踪（Sprint 12）：BanyanDB 存储 + OAP + UI ---
+  # BanyanDB 是 SkyWalking 10 的默认存储，专为链路 / 指标 / 日志设计，比 ES 省资源，也不和商品搜索抢 ES 内存
+  banyandb:
+    image: apache/skywalking-banyandb:0.10.3
+    container_name: sb-banyandb
+    command: >-
+      standalone
+      --stream-root-path /data --measure-root-path /data --trace-root-path /data
+      --property-root-path /data --metadata-root-path /data --schema-server-root-path /data
+    volumes:
+      - banyandb-data:/data
+    ports:
+      - "17912:17912"
+      - "17913:17913"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -nz 127.0.0.1 17912"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  oap:
+    image: apache/skywalking-oap-server:10.4.0
+    container_name: sb-oap
     depends_on:
-      - mysql
+      banyandb:
+        condition: service_healthy
+    environment:
+      SW_STORAGE: banyandb
+      SW_STORAGE_BANYANDB_TARGETS: banyandb:17912
+      SW_HEALTH_CHECKER: default
+      # 默认文件 + 业务自定义指标（死信队列积压，见 skywalking/meter-analyzer-config/stickybeak.yaml）
+      SW_METER_ANALYZER_ACTIVE_FILES: datasource,threadpool,satellite,go-runtime,python-runtime,continuous-profiling,java-agent,go-agent,ruby-runtime,stickybeak
+      JAVA_OPTS: "-Xms512m -Xmx1g"
+    volumes:
+      - ./skywalking/alarm-settings.yml:/skywalking/config/alarm-settings.yml:ro
+      - ./skywalking/meter-analyzer-config/stickybeak.yaml:/skywalking/config/meter-analyzer-config/stickybeak.yaml:ro
+      # 网关端点按 URL 模板分组（/api/products/{var}），避免订单号、slug 让端点数无限增长
+      - ./skywalking/endpoint-name-grouping.yml:/skywalking/config/endpoint-name-grouping.yml:ro
+    ports:
+      - "11800:11800"   # agent 上报（gRPC）
+      - "12800:12800"   # UI / 查询（HTTP）
+    healthcheck:
+      # OAP 镜像里没有 curl / wget，用 bash 的 /dev/tcp 发一个最小 HTTP 请求
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/12800 && printf 'GET /healthcheck HTTP/1.0\r\n\r\n' >&3 && head -n1 <&3 | grep -q ' 200'"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  skywalking-ui:
+    image: apache/skywalking-ui:10.4.0
+    container_name: sb-skywalking-ui
+    depends_on:
+      - oap
+    environment:
+      SW_OAP_ADDRESS: http://oap:12800
+    ports:
+      - "8088:8080"
 
   minio:
     # MinIO 社区版已停止向 Docker Hub 发布镜像，改用 quay.io 历史版本
@@ -192,3 +324,4 @@ volumes:
   redis-data:
   es-data:
   minio-data:
+  banyandb-data:

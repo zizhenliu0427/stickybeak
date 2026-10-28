@@ -11,8 +11,12 @@ spring:
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:localhost:8848}
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
       config:
         server-addr: ${NACOS_ADDR:localhost:8848}
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
         file-extension: yml
     gateway:
       globalcors:
@@ -53,12 +57,92 @@ spring:
             - Path=/api/payments/**,/api/webhooks/**
           filters:
             - StripPrefix=1
+        # MCP Server（Python，Sprint 14）：外部 AI 客户端与自家 agent 共用的只读工具。/api/mcp → /mcp
+        - id: mcp
+          uri: lb://stickybeak-mcp
+          predicates:
+            - Path=/api/mcp,/api/mcp/**
+          filters:
+            - StripPrefix=1
+        # AI 助手（Python 服务，同样注册在 Nacos）。回答是 SSE 流，网关逐块转发，不做缓冲
+        - id: agent
+          uri: lb://stickybeak-agent
+          predicates:
+            - Path=/api/agent/**
+          filters:
+            - StripPrefix=1
+        # OpenAPI 文档：只转发 /v3/api-docs，不能做成 /api-docs/{svc}/** 的通配转发，
+        # 否则这个公开前缀会绕过网关鉴权直达任意业务接口
+        - id: api-docs-auth
+          uri: lb://stickybeak-auth
+          predicates:
+            - Path=/api-docs/auth/v3/api-docs/**
+          filters:
+            - RewritePath=/api-docs/auth/(?<segment>.*), /$\{segment}
+        - id: api-docs-product
+          uri: lb://stickybeak-product
+          predicates:
+            - Path=/api-docs/product/v3/api-docs/**
+          filters:
+            - RewritePath=/api-docs/product/(?<segment>.*), /$\{segment}
+        - id: api-docs-cart
+          uri: lb://stickybeak-cart
+          predicates:
+            - Path=/api-docs/cart/v3/api-docs/**
+          filters:
+            - RewritePath=/api-docs/cart/(?<segment>.*), /$\{segment}
+        - id: api-docs-order
+          uri: lb://stickybeak-order
+          predicates:
+            - Path=/api-docs/order/v3/api-docs/**
+          filters:
+            - RewritePath=/api-docs/order/(?<segment>.*), /$\{segment}
+        - id: api-docs-payment
+          uri: lb://stickybeak-payment
+          predicates:
+            - Path=/api-docs/payment/v3/api-docs/**
+          filters:
+            - RewritePath=/api-docs/payment/(?<segment>.*), /$\{segment}
   data:
     redis:
       # 黑名单查询；本机 Docker 映射在 16379，容器网络内用 sb-redis:6379
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
       timeout: 3s
+
+# 网关 /doc.html 聚合各服务的 OpenAPI 文档。context-path 是网关路由去掉的前缀（StripPrefix=1 去掉的 /api），
+# 文档里"调试"发出的请求会加上它，从而经过网关鉴权
+knife4j:
+  gateway:
+    enabled: ${API_DOCS_ENABLED:true}
+    strategy: manual
+    routes:
+      - name: 认证与用户 auth
+        service-name: stickybeak-auth
+        url: /api-docs/auth/v3/api-docs
+        context-path: /api
+        order: 1
+      - name: 商品与库存 product
+        service-name: stickybeak-product
+        url: /api-docs/product/v3/api-docs
+        context-path: /api
+        order: 2
+      - name: 购物车与心愿单 cart
+        service-name: stickybeak-cart
+        url: /api-docs/cart/v3/api-docs
+        context-path: /api
+        order: 3
+      - name: 订单 order
+        service-name: stickybeak-order
+        url: /api-docs/order/v3/api-docs
+        context-path: /api
+        order: 4
+      - name: 支付 payment
+        service-name: stickybeak-payment
+        url: /api-docs/payment/v3/api-docs
+        context-path: /api
+        order: 5
 
 app:
   jwt:
@@ -69,4 +153,15 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        # 不暴露 gateway 端点：它支持在运行时增删路由，且网关全局过滤器不保护 actuator
+        include: health,info
+
+---
+# 生产环境不使用仓库内的开发密钥：缺少 JWT_SECRET 时启动失败
+spring:
+  config:
+    activate:
+      on-profile: prod
+app:
+  jwt:
+    secret: ${JWT_SECRET}

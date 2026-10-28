@@ -1,0 +1,473 @@
+import type { Page, Route } from '@playwright/test';
+
+/**
+ * 浏览器端的后端替身：拦截页面发往 /api/** 的请求，按真实接口的响应结构返回。
+ * 这样 UI 旅程可以在 CI 里只靠 Vite dev server 运行；需要真实后端的全链路验证见 scripts/test-sprint8-e2e.js。
+ * 后端把 Long 全部序列化成字符串（JacksonLongConfig），所以这里的实体 ID 也都是字符串。
+ */
+
+const IMAGE =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400"><rect width="400" height="400" fill="#f4e9d8"/></svg>');
+
+export interface MockProduct {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  category: string;
+  categoryName: string;
+  priceCents: number;
+  stock: number;
+  sales: number;
+  tags: string[];
+  images: string[];
+  sourceNoteId: string;
+  featured: boolean;
+  highlightedName?: string | null;
+}
+
+export const PRODUCTS: MockProduct[] = [
+  {
+    id: '101',
+    slug: 'sydney-opera-house-magnet',
+    name: 'Sydney Opera House Magnet',
+    description: 'Hand-painted sails on the harbour.',
+    category: 'landmarks',
+    categoryName: 'Landmarks',
+    priceCents: 1990,
+    stock: 50,
+    sales: 120,
+    tags: ['Sydney'],
+    images: [IMAGE],
+    sourceNoteId: 'n-101',
+    featured: true,
+  },
+  {
+    id: '102',
+    slug: 'unsw-bus-sign-magnet',
+    name: 'UNSW Bus Sign Magnet',
+    description: 'The 891 express, now on your fridge.',
+    category: 'bus-sign',
+    categoryName: 'Bus Signs',
+    priceCents: 1500,
+    stock: 8,
+    sales: 64,
+    tags: ['UNSW'],
+    images: [IMAGE],
+    sourceNoteId: 'n-102',
+    featured: true,
+  },
+  {
+    id: '103',
+    slug: 'kookaburra-magnet',
+    name: 'Kookaburra Magnet',
+    description: 'Laughing all the way to breakfast.',
+    category: 'wildlife',
+    categoryName: 'Wildlife',
+    priceCents: 1290,
+    stock: 30,
+    sales: 15,
+    tags: ['Birds'],
+    images: [IMAGE],
+    sourceNoteId: 'n-103',
+    featured: false,
+  },
+];
+
+export const BUYER = {
+  id: '7',
+  email: 'buyer@example.com',
+  nickname: 'Aussie Buyer',
+  phone: null,
+  avatarUrl: null,
+  roles: ['customer'],
+};
+
+export const ADMIN = { ...BUYER, id: '1', email: 'admin@example.com', nickname: 'Admin', roles: ['admin'] };
+
+const ADDRESS = {
+  id: '31',
+  receiver: 'Jane Doe',
+  phone: '0400111222',
+  country: 'AU',
+  state: 'NSW',
+  city: 'Sydney',
+  postcode: '2000',
+  detail: '1 Martin Place',
+  isDefault: true,
+};
+
+interface CartLine {
+  productId: string;
+  qty: number;
+}
+
+export interface MockOrder {
+  orderNo: string;
+  status: string;
+  payAmount: number;
+  totalAmount: number;
+  currency: string;
+  createTime: string;
+  items: { id: string; productId: string; productName: string; productImage: string; price: number; qty: number }[];
+  allowedNextStatuses?: string[];
+}
+
+export interface MockBackend {
+  /** 当前登录用户；null 表示游客 */
+  user: typeof BUYER | typeof ADMIN | null;
+  cart: CartLine[];
+  orders: MockOrder[];
+  checkoutRequests: Record<string, unknown>[];
+  /** 「立即支付」重新取支付链接的订单号（不应产生新的下单请求） */
+  payRequests: string[];
+  refundRequests: string[];
+  /** AI 助手：用户发出的消息、确认 / 拒绝的记录、当前对话（刷新页面后恢复用） */
+  agentMessages: string[];
+  agentResumes: boolean[];
+  agentThread: AgentThread | null;
+  /** 当前有效的 MCP 令牌（个人中心生成 / 撤销） */
+  mcpToken: { token: string; expiresAt: string } | null;
+  /** 没有被模拟的接口，测试结束时断言为空，防止页面悄悄调用了新接口 */
+  unmatched: string[];
+}
+
+export const AGENT_THREAD = `7-${'a'.repeat(32)}`;
+
+interface AgentThread {
+  messages: { role: 'user' | 'assistant'; text: string; sources?: unknown[] }[];
+  pendingConfirm: { type: 'confirm'; actions: Record<string, unknown>[] } | null;
+}
+
+/** 按服务端格式拼 SSE 响应体（一次性返回，前端按流解析） */
+function sseBody(events: [string, unknown][]) {
+  return events.map(([event, data]) => `event: ${event}\r\ndata: ${JSON.stringify(data)}\r\n\r\n`).join('');
+}
+
+/**
+ * 助手的替身：问到退款时给出带引用的售后回答；其他消息都当作"加购物车"请求，返回待确认的操作。
+ * 真实的意图识别、工具调用和检索由 stickybeak-agent 的 pytest 覆盖。
+ */
+function agentChat(backend: MockBackend, message: string) {
+  backend.agentMessages.push(message);
+  const thread: AgentThread = backend.agentThread ?? { messages: [], pendingConfirm: null };
+  backend.agentThread = thread;
+  thread.messages.push({ role: 'user', text: message });
+  thread.pendingConfirm = null;
+  if (/refund/i.test(message)) {
+    const text = 'Card refunds usually take 5-10 business days [1].';
+    const sources = [{ n: 1, title: 'Returns and Refunds', section: 'How long do refunds take', source: 'en/returns-refunds.md' }];
+    thread.messages.push({ role: 'assistant', text, sources });
+    return sseBody([
+      ['meta', { threadId: AGENT_THREAD }],
+      ['token', { text: 'Card refunds usually take ' }],
+      ['token', { text: '5-10 business days [1].' }],
+      ['sources', { items: sources }],
+      ['done', { firstTokenMs: 5 }],
+    ]);
+  }
+  const product = PRODUCTS[1];
+  thread.pendingConfirm = {
+    type: 'confirm',
+    actions: [{ id: 'call-1', tool: 'add_to_cart', productId: product.id, name: product.name, priceAud: (product.priceCents / 100).toFixed(2), qty: 1 }],
+  };
+  return sseBody([
+    ['meta', { threadId: AGENT_THREAD }],
+    ['tool', { name: 'add_to_cart' }],
+    ['confirm', thread.pendingConfirm],
+    ['done', {}],
+  ]);
+}
+
+function agentResume(backend: MockBackend, approved: boolean) {
+  backend.agentResumes.push(approved);
+  const thread = backend.agentThread!;
+  thread.pendingConfirm = null;
+  let text = "No problem, I didn't add it.";
+  if (approved) {
+    addToCart(backend, PRODUCTS[1].id, 1);
+    text = 'Added UNSW Bus Sign Magnet to your trolley.';
+  }
+  thread.messages.push({ role: 'assistant', text });
+  return sseBody([
+    ['meta', { threadId: AGENT_THREAD }],
+    ['token', { text }],
+    ['done', {}],
+  ]);
+}
+
+export function order(orderNo: string, status: string, product = PRODUCTS[0], qty = 1): MockOrder {
+  const amount = (product.priceCents * qty) / 100;
+  return {
+    orderNo,
+    status,
+    payAmount: amount,
+    totalAmount: amount,
+    currency: 'AUD',
+    createTime: '2026-10-20T10:00:00',
+    items: [{ id: '1', productId: product.id, productName: product.name, productImage: IMAGE, price: product.priceCents / 100, qty }],
+  };
+}
+
+const ok = (data: unknown) => ({ code: 0, message: 'success', data });
+
+function cartVO(backend: MockBackend) {
+  const items = backend.cart.map((line, index) => {
+    const p = PRODUCTS.find((x) => x.id === line.productId)!;
+    return {
+      id: String(index + 1),
+      productId: p.id,
+      slug: p.slug,
+      name: p.name,
+      imageUrl: IMAGE,
+      priceCents: p.priceCents,
+      qty: line.qty,
+      stock: p.stock,
+    };
+  });
+  return {
+    id: '1',
+    items,
+    totalCents: items.reduce((sum, i) => sum + i.priceCents * i.qty, 0),
+    itemCount: items.reduce((sum, i) => sum + i.qty, 0),
+  };
+}
+
+function addToCart(backend: MockBackend, productId: string | number, qty: number) {
+  productId = String(productId);
+  const line = backend.cart.find((l) => l.productId === productId);
+  if (line) {
+    line.qty += qty;
+  } else {
+    backend.cart.push({ productId, qty });
+  }
+}
+
+/** 模拟 ES 搜索：名称命中时返回 <em> 高亮 */
+function searchProducts(q: string | null) {
+  if (!q) {
+    return PRODUCTS.map((p) => ({ ...p, highlightedName: null }));
+  }
+  const keyword = q.toLowerCase();
+  return PRODUCTS.filter((p) => p.name.toLowerCase().includes(keyword) || p.description.toLowerCase().includes(keyword)).map(
+    (p) => {
+      const at = p.name.toLowerCase().indexOf(keyword);
+      const highlightedName =
+        at < 0 ? null : `${p.name.slice(0, at)}<em>${p.name.slice(at, at + keyword.length)}</em>${p.name.slice(at + keyword.length)}`;
+      return { ...p, highlightedName };
+    },
+  );
+}
+
+export async function mockBackend(page: Page, initial: Partial<MockBackend> = {}): Promise<MockBackend> {
+  const backend: MockBackend = {
+    user: null,
+    cart: [],
+    orders: [],
+    checkoutRequests: [],
+    payRequests: [],
+    refundRequests: [],
+    agentMessages: [],
+    agentResumes: [],
+    agentThread: null,
+    mcpToken: null,
+    unmatched: [],
+    ...initial,
+  };
+
+  // 固定英文界面，避免随运行环境的浏览器语言变化
+  await page.addInitScript(() => {
+    window.localStorage.setItem('sb_locale', 'en-AU');
+  });
+
+  await page.route(
+    (url) => url.pathname.startsWith('/api/'),
+    async (route: Route) => {
+      try {
+        await handle(route);
+      } catch (e) {
+        backend.unmatched.push(`mock error: ${String(e)}`);
+        await route.fulfill({ status: 599, body: String(e) });
+      }
+    },
+  );
+
+  async function handle(route: Route) {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname.replace(/^\/api/, '');
+      const method = request.method();
+      const body = request.postDataJSON?.() ?? null;
+      const json = (data: unknown, status = 200) =>
+        route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
+      const unauthorized = () => json({ code: 401, message: 'Unauthorized', data: null }, 401);
+
+      // ---- auth ----
+      if (method === 'GET' && path === '/users/me') {
+        return backend.user ? json(ok(backend.user)) : unauthorized();
+      }
+      if (method === 'POST' && path === '/auth/refresh') {
+        return unauthorized();
+      }
+      if (method === 'POST' && path === '/auth/login') {
+        backend.user = body?.email === ADMIN.email ? ADMIN : BUYER;
+        return json(ok({ user: backend.user, accessExpiresIn: 900 }));
+      }
+      if (method === 'POST' && path === '/auth/logout') {
+        backend.user = null;
+        return json(ok(null));
+      }
+      if (path === '/users/me/mcp-token') {
+        if (!backend.user) {
+          return unauthorized();
+        }
+        if (method === 'POST') {
+          backend.mcpToken = { token: `mcp-token-${Date.now()}`, expiresAt: '2026-11-23T00:00:00Z' };
+          return json(ok({ active: true, ...backend.mcpToken }));
+        }
+        if (method === 'DELETE') {
+          backend.mcpToken = null;
+          return json(ok(null));
+        }
+        return json(
+          ok(
+            backend.mcpToken
+              ? { active: true, token: null, expiresAt: backend.mcpToken.expiresAt }
+              : { active: false, token: null, expiresAt: null },
+          ),
+        );
+      }
+      if (method === 'GET' && path === '/users/me/addresses') {
+        return backend.user ? json(ok([ADDRESS])) : unauthorized();
+      }
+
+      // ---- catalog ----
+      if (method === 'GET' && path === '/payments/exchange-rate') {
+        return json(ok({ baseCurrency: 'AUD', quoteCurrency: 'CNY', rate: 4.7, fetchedAt: '2026-10-20T10:00:00' }));
+      }
+      if (method === 'GET' && path === '/categories') {
+        return json(
+          ok([
+            { slug: 'landmarks', name: 'Landmarks', sortOrder: 1 },
+            { slug: 'bus-sign', name: 'Bus Signs', sortOrder: 2 },
+            { slug: 'wildlife', name: 'Wildlife', sortOrder: 3 },
+          ]),
+        );
+      }
+      if (method === 'GET' && path === '/products/featured') {
+        return json(ok(PRODUCTS.filter((p) => p.featured)));
+      }
+      if (method === 'GET' && path === '/products') {
+        const items = searchProducts(url.searchParams.get('q'));
+        return json(ok({ items, total: items.length, page: 1, size: 12 }));
+      }
+      const related = path.match(/^\/products\/([^/]+)\/related$/);
+      if (method === 'GET' && related) {
+        return json(ok(PRODUCTS.filter((p) => p.slug !== related[1]).slice(0, 2)));
+      }
+      const detail = path.match(/^\/products\/([^/]+)$/);
+      if (method === 'GET' && detail) {
+        const product = PRODUCTS.find((p) => p.slug === detail[1]);
+        return product ? json(ok(product)) : json({ code: 404, message: 'Product not found', data: null }, 404);
+      }
+
+      // ---- cart & wishlist ----
+      if (path === '/cart' && method === 'GET') {
+        return json(ok(cartVO(backend)));
+      }
+      if (path === '/cart/items' && method === 'POST') {
+        addToCart(backend, body.productId, body.qty);
+        return json(ok(cartVO(backend)));
+      }
+      if (path === '/cart/merge' && method === 'POST') {
+        for (const item of body.items ?? []) {
+          addToCart(backend, item.productId, item.qty);
+        }
+        return json(ok(cartVO(backend)));
+      }
+      if (path === '/wishlist' && method === 'GET') {
+        return json(ok([]));
+      }
+
+      // ---- orders ----
+      if (method === 'POST' && path === '/orders/checkout') {
+        backend.checkoutRequests.push(body);
+        const created = order(`SO20261024${String(1000 + backend.orders.length)}`, 'pending');
+        backend.orders.unshift(created);
+        // Stripe 托管收银台的替身：直接回到支付成功页（真实流程由 webhook 把订单推进到 paid）
+        return json(
+          ok({
+            orderNo: created.orderNo,
+            totalAmount: created.totalAmount,
+            payAmount: created.payAmount,
+            currency: 'AUD',
+            checkoutUrl: `${url.origin}/checkout/success?order_no=${created.orderNo}&session_id=cs_test_e2e`,
+            sessionId: 'cs_test_e2e',
+          }),
+        );
+      }
+      const pay = path.match(/^\/orders\/([^/]+)\/pay$/);
+      if (method === 'POST' && pay) {
+        backend.payRequests.push(pay[1]);
+        const target = backend.orders.find((o) => o.orderNo === pay[1]);
+        if (!target || target.status !== 'pending') {
+          return json({ code: 1004, message: 'Only unpaid orders can be paid', data: null });
+        }
+        return json(
+          ok({
+            orderNo: target.orderNo,
+            totalAmount: target.totalAmount,
+            payAmount: target.payAmount,
+            currency: target.currency,
+            checkoutUrl: `${url.origin}/checkout/success?order_no=${target.orderNo}&session_id=cs_test_resume`,
+            sessionId: 'cs_test_resume',
+          }),
+        );
+      }
+      if (method === 'GET' && path === '/orders/my') {
+        return backend.user ? json(ok(backend.orders)) : unauthorized();
+      }
+      if (method === 'GET' && path === '/orders/admin/page') {
+        return json(ok({ records: backend.orders, total: backend.orders.length, current: 1, size: 10 }));
+      }
+      const refund = path.match(/^\/orders\/admin\/([^/]+)\/refund$/);
+      if (method === 'POST' && refund) {
+        backend.refundRequests.push(refund[1]);
+        const target = backend.orders.find((o) => o.orderNo === refund[1]);
+        if (target) {
+          target.status = 'refunding';
+          target.allowedNextStatuses = [];
+        }
+        return json(ok(null));
+      }
+      const single = path.match(/^\/orders\/([^/]+)$/);
+      if (method === 'GET' && single) {
+        const found = backend.orders.find((o) => o.orderNo === single[1]);
+        // 支付成功页轮询订单状态：webhook 已经处理完
+        return found ? json(ok({ ...found, status: 'paid' })) : json({ code: 404, message: 'Order not found', data: null }, 404);
+      }
+
+      // ---- AI assistant ----
+      if (method === 'GET' && path === '/agent/preferences') {
+        return backend.user ? json({ memory: null }) : unauthorized();
+      }
+      const sse = (body: string) => route.fulfill({ status: 200, contentType: 'text/event-stream', body });
+      if (method === 'POST' && path === '/agent/chat') {
+        return backend.user ? sse(agentChat(backend, body.message)) : unauthorized();
+      }
+      if (method === 'POST' && path === `/agent/chat/${AGENT_THREAD}/resume`) {
+        return sse(agentResume(backend, body.approved));
+      }
+      if (method === 'GET' && path === `/agent/threads/${AGENT_THREAD}`) {
+        return backend.agentThread
+          ? json({ threadId: AGENT_THREAD, ...backend.agentThread })
+          : json({ code: 404, message: 'conversation not found', data: null }, 404);
+      }
+
+      backend.unmatched.push(`${method} ${url.pathname}`);
+      return json({ code: 404, message: `No mock for ${method} ${url.pathname}`, data: null }, 404);
+  }
+
+  return backend;
+}

@@ -1,0 +1,118 @@
+{
+  "meta": {
+    "startedAt": "20261027-043009-699992",
+    "models": [
+      "nvidia/Qwen3.8-27B-NVFP4"
+    ],
+    "kb": "memory",
+    "durationSeconds": 15
+  },
+  "summary": {
+    "cases": 1,
+    "passed": 1,
+    "errors": 0,
+    "intent_accuracy": {
+      "passed": 1,
+      "total": 1,
+      "rate": 1.0
+    },
+    "tool_call_accuracy": {
+      "passed": 1,
+      "total": 1,
+      "rate": 1.0
+    },
+    "tool_argument_accuracy": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "clarification_accuracy": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "confirm_accuracy": {
+      "passed": 1,
+      "total": 1,
+      "rate": 1.0
+    },
+    "recall_at_k": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "faithfulness": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "refusal_accuracy": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "no_leak": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "unconfirmed_writes": 0,
+    "by_category": {
+      "shopping": {
+        "passed": 1,
+        "total": 1
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "shop-10",
+      "category": "shopping",
+      "expect": {
+        "intent": "shopping",
+        "tools": [
+          "add_to_cart"
+        ],
+        "confirm": true
+      },
+      "intent": "shopping",
+      "tools": [
+        "search_products",
+        "add_to_cart"
+      ],
+      "tool_calls": [
+        {
+          "name": "search_products",
+          "args": {
+            "query": "kookaburra",
+            "category": "bird",
+            "size": 5
+          }
+        },
+        {
+          "name": "add_to_cart",
+          "args": {
+            "product_id": 1003,
+            "qty": 2
+          }
+        }
+      ],
+      "confirm_requested": true,
+      "answer": "",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": true,
+        "confirm": true,
+        "no_unconfirmed_write": true
+      }
+    }
+  ]
+}

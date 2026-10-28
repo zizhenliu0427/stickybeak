@@ -10,7 +10,10 @@ public enum OrderStatus {
     PROCESSING("processing", "备货中"),
     SHIPPED("shipped", "已发货"),
     COMPLETED("completed", "已完成"),
-    CANCELLED("cancelled", "已取消");
+    CANCELLED("cancelled", "已取消"),
+    /** 已向支付渠道发起退款，等待到账确认 */
+    REFUNDING("refunding", "退款中"),
+    REFUNDED("refunded", "已退款");
 
     private final String code;
     private final String desc;
@@ -29,7 +32,7 @@ public enum OrderStatus {
     }
 
     public boolean isTerminal() {
-        return this == COMPLETED || this == CANCELLED;
+        return this == COMPLETED || this == CANCELLED || this == REFUNDED;
     }
 
     public static OrderStatus fromCode(String code) {
