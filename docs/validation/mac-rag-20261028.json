@@ -1,0 +1,112 @@
+[
+  {
+    "test": "bge_m3_dimensions",
+    "ok": true,
+    "dimensions": 1024
+  },
+  {
+    "test": "ingest_and_incremental_skip",
+    "ok": true,
+    "first": {
+      "total": 68,
+      "upserted": 68,
+      "deleted": 0,
+      "embedded": true
+    },
+    "second": {
+      "total": 68,
+      "upserted": 0,
+      "deleted": 0,
+      "embedded": true
+    }
+  },
+  {
+    "test": "stale_signature_reembedded",
+    "ok": true,
+    "result": {
+      "total": 68,
+      "upserted": 1,
+      "deleted": 0,
+      "embedded": true
+    }
+  },
+  {
+    "test": "hybrid_retrieval",
+    "question": "收到的商品坏了怎么办？",
+    "elapsed_seconds": 0.049,
+    "documents": [
+      {
+        "doc_id": "returns-refunds",
+        "section": "七天内反馈质量问题",
+        "score": 0.84996754,
+        "source": "zh/returns-refunds.md"
+      },
+      {
+        "doc_id": "returns-refunds",
+        "section": "不喜欢可以退吗（无理由退货）",
+        "score": 0.7961927,
+        "source": "zh/returns-refunds.md"
+      },
+      {
+        "doc_id": "returns-refunds",
+        "section": "已支付的订单想取消",
+        "score": 0.7903737,
+        "source": "zh/returns-refunds.md"
+      },
+      {
+        "doc_id": "shipping",
+        "section": "查不到物流或包裹延误",
+        "score": 0.807038,
+        "source": "zh/shipping.md"
+      }
+    ]
+  },
+  {
+    "test": "hybrid_retrieval",
+    "question": "How long does shipping take?",
+    "elapsed_seconds": 0.032,
+    "documents": [
+      {
+        "doc_id": "returns-refunds",
+        "section": "How long do refunds take",
+        "score": 0.81804216,
+        "source": "en/returns-refunds.md"
+      },
+      {
+        "doc_id": "shipping",
+        "section": "Shipping to mainland China",
+        "score": 0.8541372,
+        "source": "en/shipping.md"
+      },
+      {
+        "doc_id": "shipping",
+        "section": "Shipping within Australia",
+        "score": 0.85131145,
+        "source": "en/shipping.md"
+      },
+      {
+        "doc_id": "shipping",
+        "section": "Where we ship to",
+        "score": 0.854412,
+        "source": "en/shipping.md"
+      }
+    ]
+  },
+  {
+    "test": "hybrid_retrieval",
+    "question": "能开发票吗？",
+    "elapsed_seconds": 0.036,
+    "documents": []
+  },
+  {
+    "test": "hybrid_retrieval",
+    "question": "量子计算机量子纠错怎么做？",
+    "elapsed_seconds": 0.05,
+    "documents": []
+  },
+  {
+    "test": "es_document_count",
+    "ok": true,
+    "count": 68
+  }
+]

@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import httpx
@@ -24,3 +25,20 @@ async def test_benchmark_requires_complete_stream_and_uses_reported_tokens():
         result = await request(client, args, "hi", 0)
         assert result["ok"] and result["completion_tokens"] == 1 and result["prompt_tokens"] == 4
         assert result["ttft_ms"] <= result["total_ms"]
+
+
+async def test_ollama_thinking_switch_is_opt_in():
+    args = SimpleNamespace(base_url="http://test/v1", model="test", output_tokens=10)
+    payloads = []
+
+    def respond(req):
+        payloads.append(json.loads(req.content))
+        return httpx.Response(200, text='data: {"choices":[{"delta":{"content":"Hi"}}]}\n\ndata: [DONE]\n\n')
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+        await request(client, args, "hi", 0)
+        args.reasoning_effort = "none"
+        await request(client, args, "hi", 1)
+    assert "reasoning_effort" not in payloads[0]
+    assert payloads[1]["reasoning_effort"] == "none"
+    assert payloads[1]["chat_template_kwargs"] == {"enable_thinking": False}

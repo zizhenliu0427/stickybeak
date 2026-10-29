@@ -40,6 +40,8 @@ async def request(client, args, prompt, index):
                 "stream": True,
                 "stream_options": {"include_usage": True},
                 "chat_template_kwargs": {"enable_thinking": False},
+                # Ollama uses a different switch; leave the vLLM default request unchanged.
+                **({"reasoning_effort": args.reasoning_effort} if getattr(args, "reasoning_effort", None) else {}),
             },
         ) as response:
             response.raise_for_status()
@@ -95,6 +97,7 @@ async def benchmark(args):
         "timestamp": datetime.now(UTC).isoformat(),
         "model": args.model,
         "base_url": args.base_url,
+        "reasoning_effort": getattr(args, "reasoning_effort", None),
         "notes": "Unique random prefix per request prevents cross-run prefix-cache reuse. "
         "Context sizes are target words; actual prompt_tokens come from server usage. "
         "GPU memory is whole-device usage, includes other processes. Warmup excluded.",
@@ -162,6 +165,7 @@ def main():
     parser.add_argument("--requests", type=int, default=8)
     parser.add_argument("--output-tokens", type=int, default=128)
     parser.add_argument("--timeout", type=float, default=120)
+    parser.add_argument("--reasoning-effort", choices=["none", "low", "medium", "high"])
     parser.add_argument("--output", type=Path, default=Path("eval/reports/vllm-benchmark.json"))
     args = parser.parse_args()
     if min(*args.concurrency, *args.context_words, args.requests, args.output_tokens) < 1:

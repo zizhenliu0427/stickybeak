@@ -1,0 +1,1084 @@
+{
+  "timestamp": "2026-10-29T10:40:51.281197+00:00",
+  "runtime": {
+    "oap": "10.4.0 Linux ARM64",
+    "storage": "BanyanDB 0.10.3 Linux ARM64",
+    "java_agent": "9.7.0",
+    "java": "21",
+    "python": "3.12"
+  },
+  "request": {
+    "http_status": 200,
+    "trace_id": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 101,
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\n  \"data\": {\n    \"total\": 1,\n    \"items\": [\n      {\n        \"id\": \"990001\",\n        \"slug\": \"mac-validation-bird\",\n        \"name\": \"Mac test bird magnet\",\n        \"category\": \"小鸟路牌\",\n        \"priceAud\": \"19.90\",\n        \"inStock\": true,\n        \"sales\": 10,\n        \"tags\": [],\n        \"image\": null\n      }\n    ]\n  }\n}"
+          }
+        ],
+        "structuredContent": {
+          "data": {
+            "total": 1,
+            "items": [
+              {
+                "id": "990001",
+                "slug": "mac-validation-bird",
+                "name": "Mac test bird magnet",
+                "category": "小鸟路牌",
+                "priceAud": "19.90",
+                "inStock": true,
+                "sales": 10,
+                "tags": [],
+                "image": null
+              }
+            ]
+          }
+        },
+        "isError": false
+      }
+    }
+  },
+  "checks": [
+    {
+      "name": "real_mcp_product_request",
+      "ok": true
+    },
+    {
+      "name": "three_real_services_same_trace",
+      "ok": true,
+      "services": [
+        "stickybeak-mac-gateway",
+        "stickybeak-mac-mcp",
+        "stickybeak-mac-product"
+      ]
+    },
+    {
+      "name": "stickybeak-mac-mcp_cross_process_parent",
+      "ok": true,
+      "expected_parent": "stickybeak-mac-gateway"
+    },
+    {
+      "name": "stickybeak-mac-product_cross_process_parent",
+      "ok": true,
+      "expected_parent": "stickybeak-mac-mcp"
+    },
+    {
+      "name": "trace_spans_have_no_errors",
+      "ok": true
+    },
+    {
+      "name": "real_agent_health_and_mcp_connection",
+      "ok": true
+    },
+    {
+      "name": "gateway_agent_cross_process_trace",
+      "ok": true
+    }
+  ],
+  "observations": {
+    "response_trace_header": null,
+    "note": "MCP is Python/Starlette; the repository response header filter applies only to Java Servlet responses. Trace linkage is checked in OAP; no response header is required here."
+  },
+  "trace": {
+    "spans": [
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451256,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "/api/mcp",
+        "type": "Entry",
+        "component": "spring-webflux",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512560004",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451256,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512570014",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451257,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512580024",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451258,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512560006",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451256,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512570016",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451257,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512580026",
+        "spanId": 1,
+        "parentSpanId": 0,
+        "startTime": 1793270451258,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/RoutingFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512580028",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451258,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/send",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512580026",
+            "parentSpanId": 1,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512580028",
+        "spanId": 1,
+        "parentSpanId": 0,
+        "startTime": 1793270451258,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/sendRequest",
+        "type": "Exit",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "35d78396d38511f19b81b95b2dbcb731",
+        "spanId": 1,
+        "parentSpanId": 0,
+        "startTime": 1793270451262,
+        "serviceCode": "stickybeak-mac-mcp",
+        "endpointName": "/mcp",
+        "type": "Entry",
+        "component": "FastAPI",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512580028",
+            "parentSpanId": 1,
+            "type": "CROSS_PROCESS"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "35d78396d38511f19b81b95b2dbcb731",
+        "spanId": 2,
+        "parentSpanId": 1,
+        "startTime": 1793270451263,
+        "serviceCode": "stickybeak-mac-mcp",
+        "endpointName": "/products",
+        "type": "Exit",
+        "component": "HTTPX",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451264,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "GET:/products",
+        "type": "Entry",
+        "component": "SpringMVC",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "35d78396d38511f19b81b95b2dbcb731",
+            "parentSpanId": 2,
+            "type": "CROSS_PROCESS"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 1,
+        "parentSpanId": 0,
+        "startTime": 1793270451265,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "Lettuce/GET",
+        "type": "Exit",
+        "component": "Lettuce",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 2,
+        "parentSpanId": 0,
+        "startTime": 1793270451269,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "HikariCP/Connection/getConnection",
+        "type": "Local",
+        "component": "HikariCP",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 3,
+        "parentSpanId": 0,
+        "startTime": 1793270451270,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "Mysql/JDBC/PreparedStatement/execute",
+        "type": "Exit",
+        "component": "mysql-connector-java",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 4,
+        "parentSpanId": 0,
+        "startTime": 1793270451271,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "Mysql/JDBC/PreparedStatement/execute",
+        "type": "Exit",
+        "component": "mysql-connector-java",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 5,
+        "parentSpanId": 0,
+        "startTime": 1793270451272,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "HikariCP/Connection/close",
+        "type": "Local",
+        "component": "HikariCP",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 6,
+        "parentSpanId": 0,
+        "startTime": 1793270451272,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "HikariCP/Connection/getConnection",
+        "type": "Local",
+        "component": "HikariCP",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 7,
+        "parentSpanId": 0,
+        "startTime": 1793270451272,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "Mysql/JDBC/PreparedStatement/execute",
+        "type": "Exit",
+        "component": "mysql-connector-java",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 8,
+        "parentSpanId": 0,
+        "startTime": 1793270451273,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "HikariCP/Connection/close",
+        "type": "Local",
+        "component": "HikariCP",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 9,
+        "parentSpanId": 0,
+        "startTime": 1793270451273,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "HikariCP/Connection/getConnection",
+        "type": "Local",
+        "component": "HikariCP",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 10,
+        "parentSpanId": 0,
+        "startTime": 1793270451273,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "Mysql/JDBC/PreparedStatement/execute",
+        "type": "Exit",
+        "component": "mysql-connector-java",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 11,
+        "parentSpanId": 0,
+        "startTime": 1793270451274,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "HikariCP/Connection/close",
+        "type": "Local",
+        "component": "HikariCP",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 12,
+        "parentSpanId": 0,
+        "startTime": 1793270451274,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "HikariCP/Connection/getConnection",
+        "type": "Local",
+        "component": "HikariCP",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 13,
+        "parentSpanId": 0,
+        "startTime": 1793270451275,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "Mysql/JDBC/PreparedStatement/execute",
+        "type": "Exit",
+        "component": "mysql-connector-java",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 14,
+        "parentSpanId": 0,
+        "startTime": 1793270451276,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "HikariCP/Connection/close",
+        "type": "Local",
+        "component": "HikariCP",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "592121add7b847a1839a518ae1131a9b.104.17932704512640000",
+        "spanId": 15,
+        "parentSpanId": 0,
+        "startTime": 1793270451277,
+        "serviceCode": "stickybeak-mac-product",
+        "endpointName": "Lettuce/SETEX",
+        "type": "Exit",
+        "component": "Lettuce",
+        "isError": false,
+        "refs": []
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "35d78396d38511f19b81b95b2dbcb731",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451262,
+        "serviceCode": "stickybeak-mac-mcp",
+        "endpointName": "/mcp",
+        "type": "Entry",
+        "component": "FastAPI",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512580028",
+            "parentSpanId": 1,
+            "type": "CROSS_PROCESS"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512580026",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451258,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512560008",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451256,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512570018",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451257,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512570010",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451257,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512570020",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451257,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512560002",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451256,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512570012",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451257,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512580022",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451258,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      },
+      {
+        "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+        "segmentId": "5053753b0df2411885571757de04f60d.93.17932704512800030",
+        "spanId": 0,
+        "parentSpanId": -1,
+        "startTime": 1793270451280,
+        "serviceCode": "stickybeak-mac-gateway",
+        "endpointName": "SpringCloudGateway/GatewayFilter",
+        "type": "Local",
+        "component": "spring-cloud-gateway",
+        "isError": false,
+        "refs": [
+          {
+            "traceId": "5053753b0df2411885571757de04f60d.93.17932704512560001",
+            "parentSegmentId": "5053753b0df2411885571757de04f60d.93.17932704512560000",
+            "parentSpanId": 0,
+            "type": "CROSS_THREAD"
+          }
+        ]
+      }
+    ]
+  },
+  "agent_health": {
+    "response": {
+      "status": "UP",
+      "modelConfigured": true,
+      "models": [
+        "mlx-community/Qwen3.8-27B-4bit"
+      ],
+      "mcpConnected": true
+    },
+    "trace": {
+      "spans": [
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512665,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "/api/agent/health",
+          "type": "Entry",
+          "component": "spring-webflux",
+          "isError": false,
+          "refs": []
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126650004",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512665,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126660020",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512666,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126840030",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512684,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126800026",
+          "spanId": 1,
+          "parentSpanId": 0,
+          "startTime": 1793270512680,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/RoutingFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126810028",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512681,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/send",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126800026",
+              "parentSpanId": 1,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126810028",
+          "spanId": 1,
+          "parentSpanId": 0,
+          "startTime": 1793270512681,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/sendRequest",
+          "type": "Exit",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": []
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5a7395aad38511f1872ad344646f6b5d",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512683,
+          "serviceCode": "stickybeak-mac-agent",
+          "endpointName": "/agent/health",
+          "type": "Entry",
+          "component": "FastAPI",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126810028",
+              "parentSpanId": 1,
+              "type": "CROSS_PROCESS"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126800026",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512680,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126650002",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512665,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126650008",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512665,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126660016",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512666,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126660014",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512666,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126800024",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512680,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126650006",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512665,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126660012",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512666,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126660018",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512666,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126650010",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512665,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        },
+        {
+          "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+          "segmentId": "5053753b0df2411885571757de04f60d.94.17932705126800022",
+          "spanId": 0,
+          "parentSpanId": -1,
+          "startTime": 1793270512680,
+          "serviceCode": "stickybeak-mac-gateway",
+          "endpointName": "SpringCloudGateway/GatewayFilter",
+          "type": "Local",
+          "component": "spring-cloud-gateway",
+          "isError": false,
+          "refs": [
+            {
+              "traceId": "5053753b0df2411885571757de04f60d.94.17932705126650001",
+              "parentSegmentId": "5053753b0df2411885571757de04f60d.94.17932705126650000",
+              "parentSpanId": 0,
+              "type": "CROSS_THREAD"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

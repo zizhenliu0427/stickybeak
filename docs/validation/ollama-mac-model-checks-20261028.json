@@ -1,0 +1,23 @@
+[
+  {
+    "test": "compressed_history_real_27b",
+    "ok": true,
+    "answer": "READY_27B",
+    "summary": "human: old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content old content\nai: previous answer",
+    "system_messages": 1,
+    "omitted_messages": 2,
+    "budget_tokens": 241,
+    "elapsed_seconds": 2.193
+  },
+  {
+    "test": "unreachable_primary_to_real_ollama",
+    "ok": true,
+    "answer": "FALLBACK_OK",
+    "primary_error": "OpenAIConnectionError",
+    "models": [
+      "deliberately-unreachable",
+      "qwen3.8:27b-mlx"
+    ],
+    "elapsed_seconds": 0.569
+  }
+]

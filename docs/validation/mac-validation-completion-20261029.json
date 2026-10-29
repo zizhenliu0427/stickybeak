@@ -1,0 +1,154 @@
+{
+  "completed_at_utc": "2026-10-29T10:52:08.244365+00:00",
+  "completed_at_sydney": "2026-10-29T21:52:08.244628+11:00",
+  "status": "planned_tests_completed_with_one_business_quality_failure",
+  "benchmark": {
+    "completed_groups_across_two_dates": 4,
+    "successful_requests": 32,
+    "failed_requests": 0,
+    "new_long_input_requests": 16,
+    "single_continuous_run": false
+  },
+  "business": {
+    "cases": 13,
+    "passed": 12,
+    "errors": 0,
+    "intent_accuracy": {
+      "passed": 13,
+      "total": 13,
+      "rate": 1.0
+    },
+    "tool_call_accuracy": {
+      "passed": 10,
+      "total": 11,
+      "rate": 0.909
+    },
+    "tool_argument_accuracy": {
+      "passed": 5,
+      "total": 6,
+      "rate": 0.833
+    },
+    "clarification_accuracy": {
+      "passed": 3,
+      "total": 3,
+      "rate": 1.0
+    },
+    "confirm_accuracy": {
+      "passed": 11,
+      "total": 11,
+      "rate": 1.0
+    },
+    "recall_at_k": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "faithfulness": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "refusal_accuracy": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "no_leak": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
+    },
+    "unconfirmed_writes": 0,
+    "by_category": {
+      "shopping": {
+        "passed": 9,
+        "total": 9
+      },
+      "memory": {
+        "passed": 1,
+        "total": 2
+      },
+      "cooperation": {
+        "passed": 2,
+        "total": 2
+      }
+    }
+  },
+  "rag": {
+    "cases": 17,
+    "passed": 17,
+    "errors": 0,
+    "intent_accuracy": {
+      "passed": 17,
+      "total": 17,
+      "rate": 1.0
+    },
+    "tool_call_accuracy": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "tool_argument_accuracy": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "clarification_accuracy": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "confirm_accuracy": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "recall_at_k": {
+      "passed": 15,
+      "total": 15,
+      "rate": 1.0
+    },
+    "faithfulness": {
+      "passed": 16,
+      "total": 16,
+      "rate": 1.0
+    },
+    "refusal_accuracy": {
+      "passed": 2,
+      "total": 2,
+      "rate": 1.0
+    },
+    "no_leak": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "unconfirmed_writes": 0,
+    "by_category": {
+      "after_sales": {
+        "passed": 17,
+        "total": 17
+      }
+    }
+  },
+  "tracing": {
+    "passed": 7,
+    "total": 7
+  },
+  "cleanup": {
+    "registered_test_processes_remaining": "",
+    "test_containers_remaining": "",
+    "other_running_containers_count": 16,
+    "test_data_volumes_retained": true,
+    "models_and_environment_in_temporary_directory": true
+  },
+  "power": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36110435)\t45%; discharging; 0:29 remaining present: true\n",
+  "untested_outside_this_checklist": [
+    "load-triggered HPA autoscaling (not previously covered on 5090 either)",
+    "long-duration stability (not previously covered on 5090 either)",
+    "full payment, MQ and Seata transaction lifecycle"
+  ],
+  "verification": "Report counts, unique cases, completed flags, SSE successes, output token counts, process shutdown and container removal checked.",
+  "subsequent_user_requested_cleanup": "See mac-model-cleanup-20261029.json: removed added models and temporary Metal environment; original Ollama qwen3.8:27b-mlx retained. The cleanup state above is the historical snapshot at test completion.",
+  "subsequent_docker_cleanup": "See mac-docker-cleanup-20261029.json: user authorized removal of unused Docker resources; synthetic MySQL/ES test volumes and test images have now been deleted. Original completion state is retained as history."
+}

@@ -1,0 +1,50 @@
+{
+  "time_utc": "2026-10-29T11:42:41.692641+00:00",
+  "authorization": "User requested inspection and removal of unused Docker resources.",
+  "before": {
+    "images": 49,
+    "containers": 25,
+    "running_containers": 16,
+    "volumes": 257,
+    "build_cache_reported_gb": 43.53,
+    "docker_raw_allocated_gib_rounded": 89,
+    "host_free_gib_rounded": 44
+  },
+  "after": {
+    "images": 20,
+    "containers": 25,
+    "running_containers": 16,
+    "volumes": 86,
+    "build_cache_bytes": 0,
+    "docker_raw_allocated_bytes": 28484542464,
+    "docker_raw_allocated_gib": 26.53,
+    "host_free_bytes": 47104000000,
+    "host_free_gib": 43.87
+  },
+  "removed": {
+    "unreferenced_images": 29,
+    "volumes": 171,
+    "volume_types": {
+      "node_modules": 39,
+      "empty": 130,
+      "unknown": 1,
+      "mysql": 1
+    },
+    "node_modules_volumes": 39,
+    "empty_anonymous_volumes": 130,
+    "synthetic_stickybeak_test_volumes": 2,
+    "temporary_reclaim_helper_image_removed": true
+  },
+  "preserved": {
+    "all_existing_containers_and_running_health": true,
+    "all_other_database_and_unknown_volumes": true,
+    "original_ollama_model": "qwen3.8:27b-mlx",
+    "original_manifest_sha256": "5642e97495e1a088883805981563dcdc4a040c2f53388b7a41d1f24d3622cf7e",
+    "original_model_references_checked": 1210
+  },
+  "host_space_note": "Docker.raw has shed roughly 62 GiB of allocated blocks, but host free space has not yet risen equivalently. Old local APFS/Time Machine snapshots remain and are a likely cause; exact snapshot retained size has not been measured. Backup is active; no snapshot was deleted.",
+  "sources": {
+    "docker_mac_reclaim": "https://docs.docker.com/desktop/troubleshoot-and-support/faqs/macfaqs/",
+    "apple_local_snapshots": "https://support.apple.com/en-gb/102154"
+  }
+}

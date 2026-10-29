@@ -1,0 +1,9 @@
+{
+  "time_utc": "2026-10-28T11:15:44.592440+00:00",
+  "threshold_percent": 20,
+  "interval_seconds": 5,
+  "triggered": true,
+  "percent": 20,
+  "power_status": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=22872163)\t20%; discharging; 0:27 remaining present: true",
+  "reason": "User requested pause at or below 20% battery"
+}

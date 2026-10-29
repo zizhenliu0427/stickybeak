@@ -110,4 +110,4 @@ brew install vllm-project/vllm-metal/vllm-metal
 Ollama 的模型标签不是 vLLM 的模型路径，切换引擎应选插件支持的 checkpoint，并重新验证工具调用、思考开关、内存和速度。
 参见 [Metal 模型支持矩阵](https://docs.vllm.ai/projects/vllm-metal/en/stable/supported_models/)。
 
-本次实测的是 Ollama；尚未安装或实测 vLLM-Metal，不能据此声称它比本机 Ollama 更快。
+本页记录第一轮 Ollama 测试。后续已实测 vLLM Metal、补齐并发矩阵与真实服务集成，见 [Mac 补测报告](MAC_VALIDATION_GAPS.md)；不同模型与权重的结果应分开比较。

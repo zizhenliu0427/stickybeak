@@ -1,0 +1,72 @@
+[
+  {
+    "test": "health_and_models",
+    "ok": true,
+    "models": {
+      "object": "list",
+      "data": [
+        {
+          "id": "mlx-community/Qwen3.8-27B-4bit",
+          "object": "model",
+          "created": 1793185930,
+          "owned_by": "vllm",
+          "root": "/private/tmp/stickybeak-qwen38-27b-mlx",
+          "parent": null,
+          "max_model_len": 12288,
+          "permission": [
+            {
+              "id": "modelperm-8dd00b997ddc9a6d",
+              "object": "model_permission",
+              "created": 1793185930,
+              "allow_create_engine": false,
+              "allow_sampling": true,
+              "allow_logprobs": true,
+              "allow_search_indices": false,
+              "allow_view": true,
+              "allow_fine_tuning": false,
+              "organization": "*",
+              "group": null,
+              "is_blocking": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "test": "arithmetic_json_schema",
+    "ok": true,
+    "http_status": 200,
+    "answer": "{\n  \"total_aud\": 80.7,\n  \"count\": 5\n}"
+  },
+  {
+    "test": "automatic_tool_call",
+    "ok": true,
+    "http_status": 200,
+    "message": {
+      "role": "assistant",
+      "content": null,
+      "refusal": null,
+      "annotations": null,
+      "audio": null,
+      "function_call": null,
+      "tool_calls": [
+        {
+          "id": "chatcmpl-tool-87c7ce1caf9573a5",
+          "type": "function",
+          "function": {
+            "name": "search_products",
+            "arguments": "{\"query\": \"bird fridge magnet\", \"max_price_aud\": 30}"
+          }
+        }
+      ],
+      "reasoning": null
+    }
+  },
+  {
+    "test": "compressed_history_real_27b_metal",
+    "ok": true,
+    "answer": "READY_27B",
+    "omitted_messages": 2
+  }
+]

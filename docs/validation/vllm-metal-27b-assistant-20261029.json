@@ -1,0 +1,683 @@
+{
+  "model": "mlx-community/Qwen3.8-27B-4bit",
+  "timestamp": "2026-10-29T10:42:17.624191+00:00",
+  "kb": "memory fixtures, embeddings disabled",
+  "planned_cases": 13,
+  "complete": true,
+  "duration_seconds": 355.291,
+  "case_durations": [
+    {
+      "id": "shop-10",
+      "seconds": 34.601
+    },
+    {
+      "id": "shop-suggest-01",
+      "seconds": 44.857
+    },
+    {
+      "id": "shop-suggest-02",
+      "seconds": 17.989
+    },
+    {
+      "id": "shop-suggest-03",
+      "seconds": 10.101
+    },
+    {
+      "id": "shop-suggest-04",
+      "seconds": 32.152
+    },
+    {
+      "id": "shop-suggest-05",
+      "seconds": 30.213
+    },
+    {
+      "id": "shop-suggest-06",
+      "seconds": 31.784
+    },
+    {
+      "id": "shop-suggest-07",
+      "seconds": 29.698
+    },
+    {
+      "id": "shop-suggest-08",
+      "seconds": 48.788
+    },
+    {
+      "id": "enhance-memory-01",
+      "seconds": 3.962
+    },
+    {
+      "id": "enhance-memory-02",
+      "seconds": 25.041
+    },
+    {
+      "id": "enhance-cooperate-01",
+      "seconds": 23.053
+    },
+    {
+      "id": "enhance-cooperate-02",
+      "seconds": 23.017
+    }
+  ],
+  "summary": {
+    "cases": 13,
+    "passed": 12,
+    "errors": 0,
+    "intent_accuracy": {
+      "passed": 13,
+      "total": 13,
+      "rate": 1.0
+    },
+    "tool_call_accuracy": {
+      "passed": 10,
+      "total": 11,
+      "rate": 0.909
+    },
+    "tool_argument_accuracy": {
+      "passed": 5,
+      "total": 6,
+      "rate": 0.833
+    },
+    "clarification_accuracy": {
+      "passed": 3,
+      "total": 3,
+      "rate": 1.0
+    },
+    "confirm_accuracy": {
+      "passed": 11,
+      "total": 11,
+      "rate": 1.0
+    },
+    "recall_at_k": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "faithfulness": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "refusal_accuracy": {
+      "passed": 0,
+      "total": 0,
+      "rate": null
+    },
+    "no_leak": {
+      "passed": 5,
+      "total": 5,
+      "rate": 1.0
+    },
+    "unconfirmed_writes": 0,
+    "by_category": {
+      "shopping": {
+        "passed": 9,
+        "total": 9
+      },
+      "memory": {
+        "passed": 1,
+        "total": 2
+      },
+      "cooperation": {
+        "passed": 2,
+        "total": 2
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "shop-10",
+      "category": "shopping",
+      "expect": {
+        "intent": "shopping",
+        "tools": [
+          "add_to_cart"
+        ],
+        "confirm": true
+      },
+      "intent": "shopping",
+      "tools": [
+        "search_products",
+        "add_to_cart"
+      ],
+      "tool_calls": [
+        {
+          "name": "search_products",
+          "args": {
+            "query": "kookaburra",
+            "category": "bird",
+            "size": 5
+          }
+        },
+        {
+          "name": "add_to_cart",
+          "args": {
+            "product_id": 1003,
+            "qty": 2
+          }
+        }
+      ],
+      "confirm_requested": true,
+      "answer": "",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": true,
+        "confirm": true,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "shop-suggest-01",
+      "category": "shopping",
+      "expect": {
+        "intent": "shopping",
+        "clarify": true,
+        "confirm": false,
+        "forbid_tools": [
+          "search_products",
+          "get_product",
+          "add_to_cart"
+        ],
+        "forbid_answer": [
+          "couldn't find",
+          "no products",
+          "no matches"
+        ]
+      },
+      "intent": "shopping",
+      "tools": [],
+      "tool_calls": [],
+      "confirm_requested": false,
+      "answer": "Sure! Is it for yourself or a gift?",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": true,
+        "confirm": true,
+        "clarify": true,
+        "no_leak": true,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "shop-suggest-02",
+      "category": "shopping",
+      "expect": {
+        "intent": "shopping",
+        "clarify": true,
+        "confirm": false,
+        "forbid_tools": [
+          "search_products",
+          "get_product",
+          "add_to_cart"
+        ],
+        "forbid_answer": [
+          "没找到",
+          "没有找到",
+          "没有匹配",
+          "没有商品"
+        ]
+      },
+      "intent": "shopping",
+      "tools": [],
+      "tool_calls": [],
+      "confirm_requested": false,
+      "answer": "当然可以！为了给你更合适的推荐，请问你更偏好哪类商品？比如：\n\n- 🐦 澳洲鸟类（如笑翠鸟、琴鸟等）\n- 🚌 大学公交站牌 / 火车 / 电车标志\n- 🛒 超市价格标签\n- 📱 手机壳\n- 其他（成就徽章、标语等）\n\n或者告诉我预算和用途（自用/送人），我也可以直接帮你找。",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": true,
+        "confirm": true,
+        "clarify": true,
+        "no_leak": true,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "shop-suggest-03",
+      "category": "shopping",
+      "expect": {
+        "intent": "shopping",
+        "clarify": true,
+        "confirm": false,
+        "forbid_tools": [
+          "search_products",
+          "get_product",
+          "add_to_cart"
+        ],
+        "forbid_answer": [
+          "couldn't find",
+          "no products",
+          "no matches"
+        ]
+      },
+      "intent": "shopping",
+      "tools": [],
+      "tool_calls": [],
+      "confirm_requested": false,
+      "answer": "Sure! Is it for yourself or a gift?",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": true,
+        "confirm": true,
+        "clarify": true,
+        "no_leak": true,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "shop-suggest-04",
+      "category": "shopping",
+      "expect": {
+        "intent": "shopping",
+        "tools": [
+          "search_products"
+        ],
+        "tool_args": {
+          "search_products": {
+            "query": null,
+            "category": null,
+            "max_price_aud": null,
+            "sort": "sales"
+          }
+        },
+        "confirm": false
+      },
+      "intent": "shopping",
+      "tools": [
+        "search_products"
+      ],
+      "tool_calls": [
+        {
+          "name": "search_products",
+          "args": {
+            "sort": "sales",
+            "size": 3
+          }
+        }
+      ],
+      "confirm_requested": false,
+      "answer": "I'll search for the bestsellers in the catalogue.\n\nHere are three bestsellers from StickyBeak:\n\n1. **[Coles 半价标签冰箱贴](/products/coles-half-price-magnet)** — $9.90 AUD. The top seller (300 sold), a fun supermarket price-ticket magnet. Note: currently out of stock.\n\n2. **[土澳大学公交站牌冰箱贴套装](/products/aussie-uni-bus-stop-set)** — $29.90 AUD. A set of Australian university bus stop signs (UNSW, USYD, UQ, ANU) — great if you want a few in one go. In stock.\n\n3. **[UNSW 891 Express Bus Sign Magnet](/products/unsw-891-bus-sign)** — $15.00 AUD. A single UNSW bus stop sign magnet. In stock.\n\nWant me to add any of these to your cart?",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": true,
+        "confirm": true,
+        "tool_args": true,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "shop-suggest-05",
+      "category": "shopping",
+      "expect": {
+        "intent": "shopping",
+        "tools": [
+          "search_products"
+        ],
+        "tool_args": {
+          "search_products": {
+            "query": null,
+            "category": null,
+            "max_price_aud": null,
+            "sort": "sales"
+          }
+        },
+        "confirm": false
+      },
+      "intent": "shopping",
+      "tools": [
+        "search_products"
+      ],
+      "tool_calls": [
+        {
+          "name": "search_products",
+          "args": {
+            "sort": "sales",
+            "size": 3
+          }
+        }
+      ],
+      "confirm_requested": false,
+      "answer": "Here are a few of our bestsellers:\n\n1. [Coles 半价标签冰箱贴](/products/coles-half-price-magnet) — **$9.90** (currently out of stock). A fun supermarket price-ticket magnet, our top seller.\n2. [土澳大学公交站牌冰箱贴套装](/products/aussie-uni-bus-stop-set) — **$29.90** (in stock). A set of Australian university bus stop signs (UNSW, USYD, UQ, ANU) — great value.\n3. [UNSW 891 Express Bus Sign Magnet](/products/unsw-891-bus-sign) — **$15.00** (in stock). A single UNSW bus stop sign, if you prefer just one.\n\nWant me to add any of these to your cart?",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": true,
+        "confirm": true,
+        "tool_args": true,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "shop-suggest-06",
+      "category": "shopping",
+      "expect": {
+        "intent": "shopping",
+        "tools": [
+          "search_products"
+        ],
+        "tool_args": {
+          "search_products": {
+            "query": null,
+            "category": null,
+            "max_price_aud": null,
+            "sort": "sales"
+          }
+        },
+        "confirm": false
+      },
+      "intent": "shopping",
+      "tools": [
+        "search_products"
+      ],
+      "tool_calls": [
+        {
+          "name": "search_products",
+          "args": {
+            "sort": "sales",
+            "size": 3
+          }
+        }
+      ],
+      "confirm_requested": false,
+      "answer": "Here are a few popular picks:\n\n1. [Coles 半价标签冰箱贴](/products/coles-half-price-magnet) – $9.90, a fun supermarket price ticket (currently out of stock).\n2. [土澳大学公交站牌冰箱贴套装](/products/aussie-uni-bus-stop-set) – $29.90, a set of Australian university bus stop signs (UNSW, USYD, UQ, ANU).\n3. [UNSW 891 Express Bus Sign Magnet](/products/unsw-891-bus-sign) – $15.00, a single UNSW bus stop sign.\n\nWant me to add any of these to your cart?",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": true,
+        "confirm": true,
+        "tool_args": true,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "shop-suggest-07",
+      "category": "shopping",
+      "expect": {
+        "intent": "shopping",
+        "tools": [
+          "search_products"
+        ],
+        "tool_args": {
+          "search_products": {
+            "query": null,
+            "category": "bird",
+            "max_price_aud": 15
+          }
+        },
+        "confirm": false
+      },
+      "intent": "shopping",
+      "tools": [
+        "search_products"
+      ],
+      "tool_calls": [
+        {
+          "name": "search_products",
+          "args": {
+            "category": "bird",
+            "max_price_aud": 15,
+            "size": 5
+          }
+        }
+      ],
+      "confirm_requested": false,
+      "answer": "15 澳元以内的鸟类冰箱贴，推荐这两款：\n\n1. [笑翠鸟冰箱贴 Kookaburra](/products/kookaburra-magnet) — $12.90，笑翠鸟是澳洲标志性鸟类，销量也不错，很有代表性。\n2. [粉红凤头鹦鹉冰箱贴 Galah](/products/galah-magnet) — $13.90，粉白配色很醒目，适合喜欢鹦鹉造型的。\n\n两款都有货。需要我帮你加到购物车吗？",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": true,
+        "confirm": true,
+        "tool_args": true,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "shop-suggest-08",
+      "category": "shopping",
+      "expect": {
+        "intent": "shopping",
+        "forbid_tools": [
+          "add_to_cart"
+        ],
+        "confirm": false
+      },
+      "intent": "shopping",
+      "tools": [],
+      "tool_calls": [],
+      "confirm_requested": false,
+      "answer": "I'd recommend the [笑翠鸟冰箱贴 Kookaburra](/products/kookaburra-magnet) at $12.90 — the kookaburra is one of Australia's most iconic birds, and it's the more popular of the two (15 sales vs 5), so it's a safe, well-loved pick.\n\nIf you'd rather have something brighter and more colourful, the [粉红凤头鹦鹉冰箱贴 Galah](/products/galah-magnet) at $13.90 is a great alternative.\n\nWant me to add the Kookaburra to your cart?",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": true,
+        "confirm": true,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "enhance-memory-01",
+      "category": "memory",
+      "expect": {
+        "intent": "shopping",
+        "tools": [
+          "search_products"
+        ],
+        "tool_args": {
+          "search_products": {
+            "category": "bird",
+            "max_price_aud": 15,
+            "query": null
+          }
+        }
+      },
+      "intent": "shopping",
+      "tools": [],
+      "tool_calls": [],
+      "confirm_requested": false,
+      "answer": "Do you prefer birds or transport signs?",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": false,
+        "tool_args": false,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "enhance-memory-02",
+      "category": "memory",
+      "expect": {
+        "intent": "shopping",
+        "tools": [
+          "search_products"
+        ],
+        "tool_args": {
+          "search_products": {
+            "category": "train",
+            "max_price_aud": 20,
+            "query": null
+          }
+        }
+      },
+      "intent": "shopping",
+      "tools": [
+        "search_products"
+      ],
+      "tool_calls": [
+        {
+          "name": "search_products",
+          "args": {
+            "category": "train",
+            "max_price_aud": 20,
+            "sort": "sales",
+            "size": 5
+          }
+        }
+      ],
+      "confirm_requested": false,
+      "answer": "好的，这次按火车类、20 澳元以内来推荐。\n\n这次火车类、20 澳元以内只找到一款：\n\n- [Sydney Trains T2 Line Magnet](/products/sydney-trains-t2-magnet) — $14.50，悉尼 T2 线火车标志磁铁，有货，销量不错，符合你的预算。\n\n需要我帮你加进购物车吗？",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "tools": true,
+        "tool_args": true,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "enhance-cooperate-01",
+      "category": "cooperation",
+      "expect": {
+        "intent": "recommend_unpurchased",
+        "confirm": false,
+        "answer_contains": [
+          "galah-magnet"
+        ],
+        "forbid_answer": [
+          "kookaburra-magnet",
+          "unsw-891-bus-sign",
+          "SO-OTHER-8",
+          "88.80"
+        ]
+      },
+      "intent": "recommend_unpurchased",
+      "tools": [],
+      "tool_calls": [],
+      "confirm_requested": false,
+      "answer": "已核对最近 2 笔已付款订单，并排除其中买过的商品。\n- [粉红凤头鹦鹉冰箱贴 Galah](/products/galah-magnet) — AUD 13.90",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "confirm": true,
+        "no_leak": true,
+        "answer_contains": true,
+        "no_unconfirmed_write": true
+      }
+    },
+    {
+      "id": "enhance-cooperate-02",
+      "category": "cooperation",
+      "expect": {
+        "intent": "recommend_unpurchased",
+        "confirm": false,
+        "answer_contains": [
+          "sydney-trains-t2-magnet"
+        ],
+        "forbid_answer": [
+          "kookaburra-magnet",
+          "unsw-891-bus-sign",
+          "SO-OTHER-8",
+          "88.80"
+        ]
+      },
+      "intent": "recommend_unpurchased",
+      "tools": [],
+      "tool_calls": [],
+      "confirm_requested": false,
+      "answer": "Checked your 2 most recent paid orders and excluded products in those orders.\n- [Sydney Trains T2 Line Magnet](/products/sydney-trains-t2-magnet) — AUD 14.50",
+      "sources": [],
+      "retrieved": [],
+      "writes": [],
+      "faithful": null,
+      "faithful_reason": null,
+      "evidence": [],
+      "trusted_facts": {},
+      "error": null,
+      "checks": {
+        "intent": true,
+        "confirm": true,
+        "no_leak": true,
+        "answer_contains": true,
+        "no_unconfirmed_write": true
+      }
+    }
+  ]
+}

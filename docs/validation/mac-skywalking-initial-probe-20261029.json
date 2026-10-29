@@ -1,0 +1,56 @@
+{
+  "timestamp": "2026-10-29T10:38:03.746157+00:00",
+  "runtime": {
+    "oap": "10.4.0 Linux ARM64",
+    "storage": "BanyanDB 0.10.3 Linux ARM64",
+    "java_agent": "9.7.0",
+    "java": "21",
+    "python": "3.12"
+  },
+  "request": {
+    "http_status": 200,
+    "trace_id": null,
+    "response": {
+      "jsonrpc": "2.0",
+      "id": 101,
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "{\n  \"data\": {\n    \"total\": 1,\n    \"items\": [\n      {\n        \"id\": \"990001\",\n        \"slug\": \"mac-validation-bird\",\n        \"name\": \"Mac test bird magnet\",\n        \"category\": \"小鸟路牌\",\n        \"priceAud\": \"19.90\",\n        \"inStock\": true,\n        \"sales\": 10,\n        \"tags\": [],\n        \"image\": null\n      }\n    ]\n  }\n}"
+          }
+        ],
+        "structuredContent": {
+          "data": {
+            "total": 1,
+            "items": [
+              {
+                "id": "990001",
+                "slug": "mac-validation-bird",
+                "name": "Mac test bird magnet",
+                "category": "小鸟路牌",
+                "priceAud": "19.90",
+                "inStock": true,
+                "sales": 10,
+                "tags": [],
+                "image": null
+              }
+            ]
+          }
+        },
+        "isError": false
+      }
+    }
+  },
+  "checks": [
+    {
+      "name": "real_mcp_product_request",
+      "ok": true
+    },
+    {
+      "name": "gateway_trace_header",
+      "ok": false
+    }
+  ],
+  "probe_validity": "Invalid requirement: Python MCP does not emit Java Servlet X-Trace-Id response header. A missing header does not mean a missing trace. Corrected check uses OAP queryTraces and verifies parent segment references; see mac-skywalking-20261029.json. Original observation retained."
+}

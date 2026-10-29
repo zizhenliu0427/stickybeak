@@ -1,0 +1,260 @@
+{
+  "timestamp": "2026-10-28T11:12:21.296643+00:00",
+  "model": "mlx-community/Qwen3.8-27B-4bit",
+  "base_url": "http://127.0.0.1:18001/v1",
+  "reasoning_effort": null,
+  "notes": "Unique random prefix per request prevents cross-run prefix-cache reuse. Context sizes are target words; actual prompt_tokens come from server usage. GPU memory is whole-device usage, includes other processes. Warmup excluded.",
+  "runs": [
+    {
+      "context_words": 256,
+      "concurrency": 1,
+      "requests": 8,
+      "successes": 8,
+      "errors": 0,
+      "wall_seconds": 99.917,
+      "ttft_p50_ms": 3154.7,
+      "ttft_p95_ms": 3221.52,
+      "latency_p95_ms": 12700.41,
+      "mean_prompt_tokens": 380.875,
+      "output_tokens_per_second": 10.25,
+      "peak_gpu_memory_mib": null,
+      "samples": [
+        {
+          "ok": true,
+          "ttft_ms": 3116.6,
+          "total_ms": 12392.26,
+          "prompt_tokens": 380,
+          "total_tokens": 508,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 3154.7,
+          "total_ms": 12700.41,
+          "prompt_tokens": 380,
+          "total_tokens": 508,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 3128.36,
+          "total_ms": 12475.15,
+          "prompt_tokens": 381,
+          "total_tokens": 509,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 3160.96,
+          "total_ms": 12470.78,
+          "prompt_tokens": 378,
+          "total_tokens": 506,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 3204.92,
+          "total_ms": 12489.71,
+          "prompt_tokens": 382,
+          "total_tokens": 510,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 3153.59,
+          "total_ms": 12477.02,
+          "prompt_tokens": 384,
+          "total_tokens": 512,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 3173.29,
+          "total_ms": 12316.34,
+          "prompt_tokens": 381,
+          "total_tokens": 509,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 3221.52,
+          "total_ms": 12593.79,
+          "prompt_tokens": 381,
+          "total_tokens": 509,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "context_words": 256,
+      "concurrency": 4,
+      "requests": 8,
+      "successes": 8,
+      "errors": 0,
+      "wall_seconds": 51.784,
+      "ttft_p50_ms": 12447.69,
+      "ttft_p95_ms": 12647.21,
+      "latency_p95_ms": 29081.3,
+      "mean_prompt_tokens": 378.875,
+      "output_tokens_per_second": 19.77,
+      "peak_gpu_memory_mib": null,
+      "samples": [
+        {
+          "ok": true,
+          "ttft_ms": 9360.35,
+          "total_ms": 25835.45,
+          "prompt_tokens": 378,
+          "total_tokens": 506,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 12447.69,
+          "total_ms": 25911.63,
+          "prompt_tokens": 378,
+          "total_tokens": 506,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 12447.69,
+          "total_ms": 25912.24,
+          "prompt_tokens": 378,
+          "total_tokens": 506,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 12553.02,
+          "total_ms": 29081.3,
+          "prompt_tokens": 381,
+          "total_tokens": 509,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 9445.27,
+          "total_ms": 25876.9,
+          "prompt_tokens": 381,
+          "total_tokens": 509,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 12647.21,
+          "total_ms": 25871.73,
+          "prompt_tokens": 379,
+          "total_tokens": 507,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 12646.6,
+          "total_ms": 25871.35,
+          "prompt_tokens": 381,
+          "total_tokens": 509,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 9592.87,
+          "total_ms": 22702.56,
+          "prompt_tokens": 375,
+          "total_tokens": 503,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        }
+      ]
+    }
+  ],
+  "environment": {
+    "chip": "Apple M4 Pro",
+    "memory_gib": 48,
+    "vllm": "0.32.0+cpu",
+    "vllm_metal": "0.32.0",
+    "mlx": "0.32.2",
+    "mlx_lm": "0.32.0",
+    "torch": "2.13.0",
+    "transformers": "5.19.0",
+    "backend": "MLX native paged-attention Metal kernels",
+    "model_revision": "10c35caafbb80f7dc6a7a432cdd11af10a6d4818",
+    "quantization": "MLX affine 4bit, group_size=64",
+    "max_model_len": 12288,
+    "max_num_seqs": 4,
+    "max_num_batched_tokens": 1024,
+    "gpu_memory_utilization": 0.45,
+    "enforce_eager": true,
+    "kv_budget_gb": 2.1,
+    "language_model_only": true,
+    "speculative_decoding": false,
+    "power": "Battery discharging; power mode and thermal conditions were not controlled.",
+    "background": "Existing unrelated desktop and Docker workloads retained. Validation Java/Python services, containers and k3d cluster stopped before this matrix. Model downloads had completed."
+  },
+  "completion": {
+    "complete": false,
+    "planned_requests": 32,
+    "saved_complete_groups": 2,
+    "saved_successes": 16,
+    "reason": "User battery limit reached at 20%; interrupted long-input group excluded from completed results.",
+    "pending": [
+      "context_words=2048 concurrency=1 and 4",
+      "13 assistant cases (8 suggestions, add-to-cart confirmation, 4 memory/cooperation)"
+    ],
+    "battery_stop": {
+      "time_utc": "2026-10-28T11:15:44.592440+00:00",
+      "threshold_percent": 20,
+      "interval_seconds": 5,
+      "triggered": true,
+      "percent": 20,
+      "power_status": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=22872163)\t20%; discharging; 0:27 remaining present: true",
+      "reason": "User requested pause at or below 20% battery"
+    }
+  }
+}

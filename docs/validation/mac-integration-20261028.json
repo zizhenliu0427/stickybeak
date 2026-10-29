@@ -1,0 +1,2077 @@
+[
+  {
+    "test": "gateway_rejects_forged_user_header",
+    "ok": true,
+    "http_status": 401
+  },
+  {
+    "test": "real_java_registration",
+    "ok": true
+  },
+  {
+    "test": "external_mcp_anonymous_product_and_order_denial",
+    "ok": true,
+    "result": {
+      "server": "stickybeak",
+      "tool_names": [
+        "search_products",
+        "get_product",
+        "list_my_orders",
+        "get_order",
+        "search_faq"
+      ],
+      "product_error": false,
+      "product_result": "{\n  \"data\": {\n    \"total\": 1,\n    \"items\": [\n      {\n        \"id\": \"990001\",\n        \"slug\": \"mac-validation-bird\",\n        \"name\": \"Mac test bird magnet\",\n        \"category\": \"小鸟路牌\",\n        \"priceAud\": \"19.90\",\n        \"inStock\": true,\n        \"sales\": 10,\n        \"tags\": [],\n        \"image\": null\n      }\n    ]\n  }\n}",
+      "order_error": true,
+      "order_result": "Error executing tool list_my_orders: login required: connect with a StickyBeak MCP token to use order tools"
+    }
+  },
+  {
+    "test": "external_mcp_authenticated_orders",
+    "ok": true,
+    "result": {
+      "server": "stickybeak",
+      "tool_names": [
+        "search_products",
+        "get_product",
+        "list_my_orders",
+        "get_order",
+        "search_faq"
+      ],
+      "product_error": false,
+      "product_result": "{\n  \"data\": {\n    \"total\": 1,\n    \"items\": [\n      {\n        \"id\": \"990001\",\n        \"slug\": \"mac-validation-bird\",\n        \"name\": \"Mac test bird magnet\",\n        \"category\": \"小鸟路牌\",\n        \"priceAud\": \"19.90\",\n        \"inStock\": true,\n        \"sales\": 10,\n        \"tags\": [],\n        \"image\": null\n      }\n    ]\n  }\n}",
+      "order_error": false,
+      "order_result": "{\n  \"data\": [\n    {\n      \"orderNo\": \"SO20261028MAC01\",\n      \"status\": \"pending\",\n      \"payAmount\": \"19.90\",\n      \"currency\": \"AUD\",\n      \"createTime\": \"2026-10-28T10:42:12\",\n      \"itemCount\": 1\n    }\n  ]\n}"
+    }
+  },
+  {
+    "test": "mcp_scope_cannot_access_rest_orders",
+    "ok": true,
+    "http_status": 403
+  },
+  {
+    "test": "invalid_revocation_probe_on_public_health",
+    "ok": null,
+    "http_status": 200,
+    "note": "Health is intentionally public. Corrected by probing the MCP protocol endpoint below; this first probe cannot determine token validity."
+  },
+  {
+    "test": "real_product_sse",
+    "ok": true,
+    "http_status": 200,
+    "ttft_ms": 30955.27,
+    "total_ms": 33626.26,
+    "events": [
+      {
+        "event": "meta",
+        "data": {
+          "threadId": "2115393687713853442-a613defbc12d4c7480b4c51d8f2b850b"
+        }
+      },
+      {
+        "event": "tool",
+        "data": {
+          "name": "search_products"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "在"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " 3"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " 澳元"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "以内的"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "鸟类"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "冰箱"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "贴"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "中"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "，"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "目前"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "只"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "找到"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "一款"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "："
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "\n\n-"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " ["
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "Mac"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " test"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " bird"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " magnet"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "]("
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "/"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "products"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "/mac"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "-validation"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "-b"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "ird"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": ")"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " —"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " 1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "9"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "."
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "9"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " 澳元"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "，"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "有"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "货"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "。"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "\n\n如果你"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "愿意"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "放宽"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "预算"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "或"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "看看"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "其他"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "类别"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "（"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "比如"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "交通"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "标志"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "、"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "标语"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "等"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "），"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "我可以"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "再"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "帮你"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "搜"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "搜"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "看"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "。"
+        }
+      },
+      {
+        "event": "done",
+        "data": {
+          "usage": {
+            "modelCalls": 3,
+            "inputTokens": 4023,
+            "outputTokens": 147,
+            "modelLatencyMs": 33467
+          },
+          "firstTokenMs": 30928,
+          "totalMs": 33597
+        }
+      }
+    ],
+    "answer": "在 30 澳元以内的鸟类冰箱贴中，目前只找到一款：\n\n- [Mac test bird magnet](/products/mac-validation-bird) — 19.90 澳元，有货。\n\n如果你愿意放宽预算或看看其他类别（比如交通标志、标语等），我可以再帮你搜搜看。",
+    "content_checks": {
+      "expected_product": true,
+      "price": true,
+      "search_tool": true
+    }
+  },
+  {
+    "test": "real_rag_sse",
+    "ok": true,
+    "http_status": 200,
+    "ttft_ms": 17509.39,
+    "total_ms": 19672.44,
+    "events": [
+      {
+        "event": "meta",
+        "data": {
+          "threadId": "2115393687713853442-f9a2260f68e5422c91b61bc7d76ce40b"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "如果"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "收到的"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "商品"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "有"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "破损"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "，"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "请在"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "签收"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "后"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " 7"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " 天内"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "发邮件"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "到"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " support"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "@"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "sticky"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "be"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "ak"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": ".com"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": ".au"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "，"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "并"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "附上"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "订单"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "号和"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "商品"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "照片"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " ["
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "]"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "。"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "经"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "核实"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "后"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "，"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "St"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "icky"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "Be"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "ak"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " 会"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "免费"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "补"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "发"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "同款"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "商品"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "或"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "提供"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "全额"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "退款"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "（"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "包含"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "运费"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "），"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "您"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "无需"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "将有"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "问题的"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "商品"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "寄"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "回"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " ["
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "]"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "。"
+        }
+      },
+      {
+        "event": "sources",
+        "data": {
+          "items": [
+            {
+              "n": 1,
+              "title": "退换货与退款",
+              "section": "七天内反馈质量问题",
+              "source": "zh/returns-refunds.md",
+              "score": 0.84996754
+            },
+            {
+              "n": 2,
+              "title": "退换货与退款",
+              "section": "不喜欢可以退吗（无理由退货）",
+              "source": "zh/returns-refunds.md",
+              "score": 0.7961927
+            },
+            {
+              "n": 3,
+              "title": "退换货与退款",
+              "section": "已支付的订单想取消",
+              "source": "zh/returns-refunds.md",
+              "score": 0.7903737
+            },
+            {
+              "n": 4,
+              "title": "配送与时效",
+              "section": "查不到物流或包裹延误",
+              "source": "zh/shipping.md",
+              "score": 0.807038
+            }
+          ]
+        }
+      },
+      {
+        "event": "done",
+        "data": {
+          "usage": {
+            "modelCalls": 2,
+            "inputTokens": 1403,
+            "outputTokens": 94,
+            "modelLatencyMs": 15135
+          },
+          "firstTokenMs": 17494,
+          "totalMs": 19656
+        }
+      }
+    ],
+    "answer": "如果收到的商品有破损，请在签收后 7 天内发邮件到 support@stickybeak.com.au，并附上订单号和商品照片 [1]。经核实后，StickyBeak 会免费补发同款商品或提供全额退款（包含运费），您无需将有问题的商品寄回 [1]。",
+    "content_checks": {
+      "has_sources": true,
+      "quality_issue_window": true
+    }
+  },
+  {
+    "test": "real_orders_sse",
+    "ok": true,
+    "http_status": 200,
+    "ttft_ms": 10113.57,
+    "total_ms": 12640.83,
+    "events": [
+      {
+        "event": "meta",
+        "data": {
+          "threadId": "2115393687713853442-47a4c7f29a24437dad8be4b8e8ef649f"
+        }
+      },
+      {
+        "event": "tool",
+        "data": {
+          "name": "list_my_orders"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "您"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "有"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " 1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " 个"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "待"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "付款"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "订单"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "："
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "\n\n-"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " **"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "订单"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "号"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "**"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "："
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "SO"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "2"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "2"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "6"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "2"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "8"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "MAC"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "\n-"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " **"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "金额"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "**"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "："
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "9"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "."
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "9"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " AUD"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "\n-"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " **"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "下单"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "时间"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "**"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "："
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "2"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "2"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "6"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "-"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "-"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "2"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "8"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " 1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": ":"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "4"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "2"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "\n-"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " **"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "商品"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "数量"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "**"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "："
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " 件"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "\n\n需要"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "我"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "查看"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "订单"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "详情"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "，"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "或"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "帮您"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "取消"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "这个"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "订单"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "吗"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "？"
+        }
+      },
+      {
+        "event": "done",
+        "data": {
+          "usage": {
+            "modelCalls": 3,
+            "inputTokens": 2581,
+            "outputTokens": 139,
+            "modelLatencyMs": 12532
+          },
+          "firstTokenMs": 10101,
+          "totalMs": 12625
+        }
+      }
+    ],
+    "answer": "您有 1 个待付款订单：\n\n- **订单号**：SO20261028MAC01\n- **金额**：19.90 AUD\n- **下单时间**：2026-10-28 10:42\n- **商品数量**：1 件\n\n需要我查看订单详情，或帮您取消这个订单吗？",
+    "content_checks": {
+      "seeded_order": true,
+      "list_orders_tool": true
+    }
+  },
+  {
+    "test": "real_order_waits_for_confirmation",
+    "ok": true,
+    "db_status": "pending",
+    "http_status": 200,
+    "ttft_ms": 10746.98,
+    "total_ms": 13552.43,
+    "events": [
+      {
+        "event": "meta",
+        "data": {
+          "threadId": "2115393687713853442-b8a254ab07e94ea19ae571ff8a58c9cc"
+        }
+      },
+      {
+        "event": "tool",
+        "data": {
+          "name": "get_order"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "I"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " found"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " order"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " **"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "SO"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "2"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "2"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "6"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "2"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "8"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "MAC"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "**"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " ("
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "status"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": ":"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " pending"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": ","
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " AUD"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " 1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "9"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "."
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "9"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": ","
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " 1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " item"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": ":"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " \""
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "Mac"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " test"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " bird"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " magnet"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "\")."
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " I"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "'ll"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " proceed"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " with"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " the"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " cancellation"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " —"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " the"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " system"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " will"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " ask"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " you"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " to"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " confirm"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "."
+        }
+      },
+      {
+        "event": "tool",
+        "data": {
+          "name": "cancel_order"
+        }
+      },
+      {
+        "event": "confirm",
+        "data": {
+          "type": "confirm",
+          "actions": [
+            {
+              "id": "call_d320oi6m",
+              "tool": "cancel_order",
+              "orderNo": "SO20261028MAC01",
+              "status": "pending",
+              "payAmount": "19.90",
+              "currency": "AUD"
+            }
+          ]
+        }
+      },
+      {
+        "event": "done",
+        "data": {
+          "usage": {
+            "modelCalls": 3,
+            "inputTokens": 2666,
+            "outputTokens": 157,
+            "modelLatencyMs": 13447
+          },
+          "firstTokenMs": 10727,
+          "totalMs": 13531
+        }
+      }
+    ],
+    "answer": "I found order **SO20261028MAC01** (status: pending, AUD 19.90, 1 item: \"Mac test bird magnet\"). I'll proceed with the cancellation — the system will ask you to confirm."
+  },
+  {
+    "test": "mysql_confirm_survives_process_restart",
+    "ok": true,
+    "pending": {
+      "type": "confirm",
+      "actions": [
+        {
+          "id": "call_d320oi6m",
+          "tool": "cancel_order",
+          "orderNo": "SO20261028MAC01",
+          "status": "pending",
+          "payAmount": "19.90",
+          "currency": "AUD"
+        }
+      ]
+    }
+  },
+  {
+    "test": "confirmed_cancel_writes_real_order",
+    "ok": true,
+    "db_status": "cancelled",
+    "http_status": 200,
+    "ttft_ms": 1253.02,
+    "total_ms": 2313.52,
+    "events": [
+      {
+        "event": "meta",
+        "data": {
+          "threadId": "2115393687713853442-b8a254ab07e94ea19ae571ff8a58c9cc"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "Order"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " **"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "SO"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "2"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "2"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "6"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "2"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "8"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "MAC"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "0"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "1"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "**"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " has"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " been"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " cancelled"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " successfully"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "."
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " ✅"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "\n\nIf"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " you"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " need"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " anything"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " else"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": ","
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " just"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " let"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " me"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": " know"
+        }
+      },
+      {
+        "event": "token",
+        "data": {
+          "text": "!"
+        }
+      },
+      {
+        "event": "done",
+        "data": {
+          "usage": {
+            "modelCalls": 1,
+            "inputTokens": 1156,
+            "outputTokens": 33,
+            "modelLatencyMs": 2014
+          },
+          "firstTokenMs": 1239,
+          "totalMs": 2299
+        }
+      }
+    ],
+    "answer": "Order **SO20261028MAC01** has been cancelled successfully. ✅\n\nIf you need anything else, just let me know!"
+  },
+  {
+    "test": "mysql_preferences_across_pools_and_user_isolation",
+    "ok": true
+  },
+  {
+    "test": "mysql_preference_delete_visible_to_other_pool",
+    "ok": true
+  },
+  {
+    "test": "redis_limit_rejected_by_http",
+    "ok": true,
+    "http_status": 429,
+    "retry_after": "20"
+  },
+  {
+    "test": "mcp_token_revocation_on_protocol_endpoint",
+    "ok": true,
+    "before_status": 200,
+    "revoke_status": 200,
+    "after_status": 401
+  }
+]

@@ -1,0 +1,217 @@
+{
+  "timestamp": "2026-10-29T10:28:23.093638+00:00",
+  "model": "mlx-community/Qwen3.8-27B-4bit",
+  "base_url": "http://127.0.0.1:18001/v1",
+  "reasoning_effort": null,
+  "notes": "Unique random prefix per request prevents cross-run prefix-cache reuse. Context sizes are target words; actual prompt_tokens come from server usage. GPU memory is whole-device usage, includes other processes. Warmup excluded.",
+  "runs": [
+    {
+      "context_words": 2048,
+      "concurrency": 1,
+      "requests": 8,
+      "successes": 8,
+      "errors": 0,
+      "wall_seconds": 246.645,
+      "ttft_p50_ms": 21575.4,
+      "ttft_p95_ms": 22394.88,
+      "latency_p95_ms": 31500.54,
+      "mean_prompt_tokens": 2620.75,
+      "output_tokens_per_second": 4.15,
+      "peak_gpu_memory_mib": null,
+      "samples": [
+        {
+          "ok": true,
+          "ttft_ms": 21431.6,
+          "total_ms": 30479.75,
+          "prompt_tokens": 2620,
+          "total_tokens": 2748,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 21575.4,
+          "total_ms": 30741.27,
+          "prompt_tokens": 2622,
+          "total_tokens": 2750,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 22394.88,
+          "total_ms": 31500.54,
+          "prompt_tokens": 2622,
+          "total_tokens": 2750,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 21930.05,
+          "total_ms": 31053.14,
+          "prompt_tokens": 2621,
+          "total_tokens": 2749,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 21707.32,
+          "total_ms": 30843.45,
+          "prompt_tokens": 2619,
+          "total_tokens": 2747,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 21480.21,
+          "total_ms": 30561.53,
+          "prompt_tokens": 2619,
+          "total_tokens": 2747,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 21302.63,
+          "total_ms": 30690.63,
+          "prompt_tokens": 2624,
+          "total_tokens": 2752,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 21727.8,
+          "total_ms": 30772.17,
+          "prompt_tokens": 2619,
+          "total_tokens": 2747,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        }
+      ]
+    },
+    {
+      "context_words": 2048,
+      "concurrency": 4,
+      "requests": 8,
+      "successes": 8,
+      "errors": 0,
+      "wall_seconds": 196.042,
+      "ttft_p50_ms": 29898.88,
+      "ttft_p95_ms": 85218.87,
+      "latency_p95_ms": 159121.1,
+      "mean_prompt_tokens": 2620.25,
+      "output_tokens_per_second": 5.22,
+      "peak_gpu_memory_mib": null,
+      "samples": [
+        {
+          "ok": true,
+          "ttft_ms": 27343.85,
+          "total_ms": 97413.84,
+          "prompt_tokens": 2620,
+          "total_tokens": 2748,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 48589.77,
+          "total_ms": 116458.37,
+          "prompt_tokens": 2621,
+          "total_tokens": 2749,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 69895.23,
+          "total_ms": 137798.25,
+          "prompt_tokens": 2619,
+          "total_tokens": 2747,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 85218.87,
+          "total_ms": 159121.1,
+          "prompt_tokens": 2618,
+          "total_tokens": 2746,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 27628.46,
+          "total_ms": 97755.2,
+          "prompt_tokens": 2623,
+          "total_tokens": 2751,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 29918.02,
+          "total_ms": 79055.29,
+          "prompt_tokens": 2621,
+          "total_tokens": 2749,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 29898.88,
+          "total_ms": 58025.74,
+          "prompt_tokens": 2619,
+          "total_tokens": 2747,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        },
+        {
+          "ok": true,
+          "ttft_ms": 23844.19,
+          "total_ms": 36920.41,
+          "prompt_tokens": 2621,
+          "total_tokens": 2749,
+          "completion_tokens": 128,
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          }
+        }
+      ]
+    }
+  ]
+}

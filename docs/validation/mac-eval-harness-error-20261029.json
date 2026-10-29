@@ -1,0 +1,13 @@
+{
+  "error": "Temporary script named eval.py shadowed repository eval package; ModuleNotFoundError before running any case. Renamed script to assistant-eval.py and restarted only assistant/RAG stages; benchmark not repeated.",
+  "affected": [
+    "assistant startup",
+    "rag startup"
+  ],
+  "cases_executed": 0,
+  "tracing_setup_notes": [
+    "SW_STORAGE=h2 is not an OAP 10.4.0 storage provider selector; restored original BanyanDB 0.10.3 configuration.",
+    "queryBasicTraces is unsupported with the new BanyanDB trace model; used queryTraces from official v10.4.0 schema.",
+    "MCP response header probe was inapplicable to Python; corrected to actual OAP trace plus cross-process parent checks. No application tracing code was changed."
+  ]
+}

@@ -1,0 +1,67 @@
+[
+  {
+    "test": "two_ready_replicas",
+    "ok": true,
+    "pods": [
+      "agent-cb978449d-lgbv5",
+      "agent-cb978449d-qlzhk"
+    ]
+  },
+  {
+    "test": "preferences_cross_pod_and_user_isolation",
+    "ok": true
+  },
+  {
+    "test": "preferences_survive_rolling_restart",
+    "ok": true,
+    "pods": [
+      "agent-9dcfc444f-2s464",
+      "agent-9dcfc444f-wns8c",
+      "agent-cb978449d-lgbv5"
+    ]
+  },
+  {
+    "test": "manual_scale_to_3",
+    "ok": true,
+    "ready_replicas": 3
+  },
+  {
+    "test": "manual_scale_to_2",
+    "ok": true,
+    "ready_replicas": 2
+  },
+  {
+    "test": "preference_delete_visible_cross_pod",
+    "ok": true
+  },
+  {
+    "test": "hpa_metrics_available",
+    "ok": true,
+    "status": {
+      "conditions": [
+        {
+          "lastTransitionTime": "2026-10-28T10:42:38Z",
+          "message": "the HPA controller was able to get the target's current scale",
+          "reason": "SucceededGetScale",
+          "status": "True",
+          "type": "AbleToScale"
+        },
+        {
+          "lastTransitionTime": "2026-10-28T10:42:38Z",
+          "message": "the HPA was unable to compute the replica count: failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)",
+          "reason": "FailedGetResourceMetric",
+          "status": "False",
+          "type": "ScalingActive"
+        }
+      ],
+      "currentMetrics": [
+        {
+          "type": ""
+        }
+      ],
+      "currentReplicas": 2,
+      "desiredReplicas": 0
+    },
+    "note": "Metrics/configuration only; no claim of load-triggered autoscaling."
+  }
+]
